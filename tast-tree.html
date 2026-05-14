@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✅</text></svg>">
+    <title>Advanced Multi-Branch To-Do</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --container-bg: #fff;
+            --border-color: #ccc;
+            --accent-color: #4CAF50;
+            --btn-bg: #e0e0e0;
+            --btn-hover: #d5d5d5;
+            --danger-color: #f44336;
+        }
+
+        body.dark-theme {
+            --bg-color: #1a1a1a;
+            --text-color: #f5f5f5;
+            --container-bg: #2d2d2d;
+            --border-color: #444;
+            --accent-color: #66bb6a;
+            --btn-bg: #444;
+            --btn-hover: #555;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Layout */
+        #sidebar {
+            width: 250px;
+            background-color: var(--container-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s;
+        }
+        #sidebar.hidden {
+            display: none;
+        }
+        #main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background-color: var(--container-bg);
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .toolbar button, .toolbar label {
+            background: var(--btn-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .toolbar button:hover, .toolbar label:hover {
+            background: var(--btn-hover);
+        }
+        .toolbar input[type="color"] {
+            border: none;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            cursor: pointer;
+            background: none;
+        }
+
+        /* Map List */
+        .map-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .map-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+        .map-item:hover { background-color: var(--btn-bg); }
+        .map-item.active { border-left: 4px solid var(--accent-color); font-weight: bold; }
+		.btn-edit { 
+    margin-left: auto; 
+    margin-right: 5px; 
+    background: transparent; 
+    border: none; 
+    color: var(--text-color); 
+    cursor: pointer; 
+    opacity: 0.6;
+}
+.btn-edit:hover { opacity: 1; }
+        /* Tree Area */
+        .board { padding: 20px; }
+        .global-stats {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        ul { list-style-type: none; padding-left: 20px; }
+        .tree-root > ul { padding-left: 0; }
+        
+        .task-item {
+            margin: 5px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .task-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        .task-content:hover { background-color: var(--btn-bg); }
+        .task-content.completed > .task-text { text-decoration: line-through; opacity: 0.6; }
+        
+        .task-text { flex: 1; outline: none; border: none; background: transparent; color: var(--text-color); font-family: inherit;}
+        
+        .task-stats { font-size: 0.85em; color: #888; margin-right: 10px;}
+        
+        .task-controls button {
+            background: transparent; border: 1px solid var(--border-color);
+            color: var(--text-color); cursor: pointer; border-radius: 3px;
+            padding: 2px 6px; font-size: 12px; margin-left: 2px;
+        }
+        .task-controls button:hover { background: var(--border-color); }
+        .btn-delete { color: var(--danger-color) !important; }
+        .hidden-file { display: none; }
+        .brand-header { padding: 15px; border-bottom: 1px solid var(--border-color); font-weight: bold; }
+		.btn-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 10px;
+    width: 20px;
+    padding: 0;
+    opacity: 0.7;
+}
+.collapsed-content { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar: Карты -->
+    <div id="sidebar">
+        <div class="brand-header">Книги / Карты</div>
+        <ul class="map-list" id="map-list"></ul>
+        <div class="toolbar" style="border-top: 1px solid var(--border-color); border-bottom: none;">
+            <button onclick="app.addMap()">+ Новая карта</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <!-- Глобальный тулбар -->
+        <div class="toolbar">
+            <button onclick="app.toggleSidebar()">Меню (Карты)</button>
+            <button onclick="app.toggleTheme()">Сменить Тему</button>
+            <label>Фон: <input type="color" id="bg-color" onchange="app.changeBackground(this.value)"></label>
+            <button onclick="app.undo()">Undo (Отменить)</button>
+            <button onclick="app.redo()">Redo (Повторить)</button>
+            
+            <button onclick="app.exportBook()">Экспорт Книги</button>
+            <label>Импорт Книги <input type="file" class="hidden-file" accept=".json" onchange="app.importBook(event)"></label>
+            
+            <button onclick="app.exportMap()">Экспорт Карты</button>
+            <label>Импорт Карты <input type="file" class="hidden-file" accept=".json" onchange="app.importMap(event)"></label>
+        </div>
+
+        <!-- Рабочая зона -->
+        <div class="board">
+            <h1 id="map-title" contenteditable="true" onblur="app.updateMapTitle(this.innerText)">Название Карты</h1>
+            <div class="global-stats" id="global-stats">Общий статус: 0/0 (0%)</div>
+            <div class="tree-root" id="tree-root"></div>
+            <button onclick="app.addTask(null)" style="margin-top: 15px; padding: 10px; cursor: pointer;">+ Добавить главную ветвь</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Audio System ---
+        const AudioSys = {
+            play(type) {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    if (type === 'check') {
+                        osc.type = 'sine'; osc.frequency.setValueAtTime(600, ctx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
+                    } else if (type === 'uncheck') {
+                        osc.type = 'sine'; osc.frequency.setValueAtTime(400, ctx.currentTime);
+                        osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.1);
+                    } else if (type === 'action') {
+                        osc.type = 'square'; osc.frequency.setValueAtTime(300, ctx.currentTime);
+                    }
+
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                    osc.start(); osc.stop(ctx.currentTime + 0.1);
+                } catch(e) { console.log('Audio disabled/error'); }
+            }
+        };
+
+        // --- Core Application ---
+        const app = {
+            state: {
+                theme: 'light',
+                bgColor: '',
+                maps: [],
+                currentMapId: null
+            },
+            history: [],
+            historyIndex: -1,
+            isRestoring: false,
+
+            init() {
+                this.loadState();
+                if (this.state.maps.length === 0) this.addMap("Моя первая карта", false);
+                this.applySettings();
+                this.saveState(true);
+                this.render();
+            },
+
+            generateId() { return '_' + Math.random().toString(36).substr(2, 9); },
+
+            // --- State Management (Undo/Redo, Autosave) ---
+            saveState(recordHistory = true) {
+                if (!this.isRestoring && recordHistory) {
+                    // Удаляем будущее, если сделали изменение после Undo
+                    this.history = this.history.slice(0, this.historyIndex + 1);
+                    this.history.push(JSON.stringify(this.state));
+                    if (this.history.length > 50) this.history.shift(); // Лимит 50 шагов
+                    else this.historyIndex++;
+                }
+                localStorage.setItem('todoData', JSON.stringify(this.state));
+            },
+            loadState() {
+                const saved = localStorage.getItem('todoData');
+                if (saved) {
+                    try { this.state = JSON.parse(saved); } catch(e) { console.error('Data corrupted'); }
+                }
+            },
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.state = JSON.parse(this.history[this.historyIndex]);
+                    this.isRestoring = true; this.saveState(false); this.isRestoring = false;
+                    this.applySettings(); this.render(); AudioSys.play('action');
+                }
+            },
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.state = JSON.parse(this.history[this.historyIndex]);
+                    this.isRestoring = true; this.saveState(false); this.isRestoring = false;
+                    this.applySettings(); this.render(); AudioSys.play('action');
+                }
+            },
+
+            // --- UI Actions ---
+            toggleSidebar() {
+                document.getElementById('sidebar').classList.toggle('hidden');
+            },
+            toggleTheme() {
+                this.state.theme = this.state.theme === 'light' ? 'dark' : 'light';
+                this.applySettings(); this.saveState(); AudioSys.play('action');
+            },
+            changeBackground(color) {
+                this.state.bgColor = color;
+                this.applySettings(); this.saveState();
+            },
+            applySettings() {
+                document.body.className = this.state.theme === 'dark' ? 'dark-theme' : '';
+                document.body.style.backgroundColor = this.state.bgColor || '';
+                if(this.state.bgColor) document.getElementById('bg-color').value = this.state.bgColor;
+            },
+
+            // --- Maps (Книги/Карты) ---
+            addMap(name = "Новая Карта", record = true) {
+                const newMap = { id: this.generateId(), name: name, tasks: [] };
+                this.state.maps.push(newMap);
+                this.state.currentMapId = newMap.id;
+                if(record) { this.saveState(); this.render(); AudioSys.play('action'); }
+            },
+            switchMap(id) {
+                this.state.currentMapId = id;
+                this.saveState(); this.render();
+            },
+            deleteMap(id, e) {
+                e.stopPropagation();
+                if(!confirm('Удалить карту?')) return;
+                this.state.maps = this.state.maps.filter(m => m.id !== id);
+                if(this.state.currentMapId === id) this.state.currentMapId = this.state.maps.length ? this.state.maps[0].id : null;
+                if(this.state.maps.length === 0) this.addMap("Новая карта", false);
+                this.saveState(); this.render(); AudioSys.play('action');
+            },
+            updateMapTitle(newTitle) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                if (map && map.name !== newTitle) { map.name = newTitle; this.saveState(); this.renderMapList(); }
+            },
+			renameMap(id, e) {
+    e.stopPropagation(); // Чтобы не сработал switchMap
+    const map = this.state.maps.find(m => m.id === id);
+    const newName = prompt("Введите новое название карты:", map.name);
+    if (newName && newName.trim() !== "") {
+        map.name = newName.trim();
+        this.saveState();
+        this.render();
+        AudioSys.play('action');
+    }
+},
+            // --- Task Logic ---
+            addTask(parentId = null) {
+                const newTask = { id: this.generateId(), text: "Новая ветвь", completed: false, children: [] };
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                if (!parentId) map.tasks.push(newTask);
+                else {
+                    const parent = this.findTask(map.tasks, parentId).node;
+                    parent.children.push(newTask);
+                }
+                this.saveState(); this.render(); AudioSys.play('action');
+            },
+            updateTaskText(id, text) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const taskInfo = this.findTask(map.tasks, id);
+                if (taskInfo && taskInfo.node.text !== text) {
+                    taskInfo.node.text = text;
+                    this.saveState(); // Не рендерим всё дерево, чтобы не сбивать фокус курсора
+                }
+            },
+            deleteTask(id) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const info = this.findTask(map.tasks, id);
+                info.parentArray.splice(info.index, 1);
+                this.saveState(); this.render(); AudioSys.play('action');
+            },
+            duplicateTask(id) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const info = this.findTask(map.tasks, id);
+                const clone = JSON.parse(JSON.stringify(info.node));
+                // Регенерируем ID для клона и всех его детей
+                const regenIds = (task) => { task.id = this.generateId(); task.children.forEach(regenIds); };
+                regenIds(clone);
+                info.parentArray.splice(info.index + 1, 0, clone);
+                this.saveState(); this.render(); AudioSys.play('action');
+            },
+            toggleComplete(id, forceValue = null) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const info = this.findTask(map.tasks, id);
+                const newVal = forceValue !== null ? forceValue : !info.node.completed;
+                
+                // Функция для переключения задачи и всех её подзадач
+                const setCompleteDeep = (task, val) => {
+                    task.completed = val;
+                    task.children.forEach(c => setCompleteDeep(c, val));
+                };
+                
+                setCompleteDeep(info.node, newVal);
+                this.saveState(); this.render();
+                AudioSys.play(newVal ? 'check' : 'uncheck');
+            },
+
+            toggleExpand(id) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const info = this.findTask(map.tasks, id);
+                if (info) {
+                    // Если свойства еще нет, создаем его. По умолчанию ветки развернуты.
+                    info.node.expanded = info.node.expanded === undefined ? false : !info.node.expanded;
+                    this.saveState();
+                    this.render();
+                    AudioSys.play('action');
+                }
+					},
+
+            // --- Movement (Вверх, Вниз, Внутрь, Наружу) ---
+            moveTask(id, direction) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const info = this.findTask(map.tasks, id);
+                const { node, parentArray, index, parent } = info;
+
+                if (direction === 'up' && index > 0) {
+                    [parentArray[index - 1], parentArray[index]] = [parentArray[index], parentArray[index - 1]];
+                } else if (direction === 'down' && index < parentArray.length - 1) {
+                    [parentArray[index + 1], parentArray[index]] = [parentArray[index], parentArray[index + 1]];
+                } else if (direction === 'in' && index > 0) {
+                    // Делаем дочерним элементом предыдущего сиблинга
+                    const prevSibling = parentArray[index - 1];
+                    prevSibling.children.push(node);
+                    parentArray.splice(index, 1);
+                } else if (direction === 'out' && parent) {
+                    // Выносим на уровень выше родителя
+                    const parentInfo = this.findTask(map.tasks, parent.id);
+                    parentInfo.parentArray.splice(parentInfo.index + 1, 0, node);
+                    parentArray.splice(index, 1);
+                } else return; // Движение невозможно
+
+                this.saveState(); this.render(); AudioSys.play('action');
+            },
+
+            findTask(tasks, id, parent = null, parentArray = null) {
+                if(!parentArray) parentArray = tasks;
+                for (let i = 0; i < tasks.length; i++) {
+                    if (tasks[i].id === id) return { node: tasks[i], parent, parentArray, index: i };
+                    if (tasks[i].children.length > 0) {
+                        const res = this.findTask(tasks[i].children, id, tasks[i], tasks[i].children);
+                        if (res) return res;
+                    }
+                }
+                return null;
+            },
+
+            // --- Auto-Computation Logic ---
+            computeTree(tasks) {
+                let totalLeaves = 0;
+                let completedLeaves = 0;
+
+                tasks.forEach(task => {
+                    if (task.children && task.children.length > 0) {
+                        const stats = this.computeTree(task.children);
+                        // АВТОМАТИЧЕСКАЯ ПРОВЕРКА: Материнская зависит от дочерних
+                        task.completed = (stats.total > 0 && stats.completed === stats.total);
+                        task.stats = stats;
+                        totalLeaves += stats.total;
+                        completedLeaves += stats.completed;
+                    } else {
+                        task.stats = null;
+                        totalLeaves += 1;
+                        completedLeaves += task.completed ? 1 : 0;
+                    }
+                });
+
+                return { total: totalLeaves, completed: completedLeaves };
+            },
+
+            // --- Rendering ---
+            render() {
+                this.renderMapList();
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                if (!map) return;
+
+                document.getElementById('map-title').innerText = map.name;
+                
+                // Пересчитываем статусы
+                const globalStats = this.computeTree(map.tasks);
+                
+                // Отрисовка глобального статуса
+                const percent = globalStats.total === 0 ? 0 : Math.round((globalStats.completed / globalStats.total) * 100);
+                document.getElementById('global-stats').innerText = `Общий статус: ${globalStats.completed}/${globalStats.total} (${percent}%)`;
+
+                // Отрисовка дерева
+                const treeRoot = document.getElementById('tree-root');
+                treeRoot.innerHTML = '';
+                if(map.tasks.length > 0) {
+                    treeRoot.appendChild(this.createTaskNodes(map.tasks));
+                }
+            },
+
+            renderMapList() {
+                const list = document.getElementById('map-list');
+                list.innerHTML = '';
+                this.state.maps.forEach(m => {
+    const li = document.createElement('li');
+    li.className = `map-item ${m.id === this.state.currentMapId ? 'active' : ''}`;
+    li.innerHTML = `
+        <span>${m.name}</span> 
+        <div style="display:flex; align-items:center;">
+            <button class="btn-edit" onclick="app.renameMap('${m.id}', event)">✎</button>
+            <button class="btn-delete" onclick="app.deleteMap('${m.id}', event)">✕</button>
+        </div>
+    `;
+    li.onclick = () => this.switchMap(m.id);
+    list.appendChild(li);
+});
+            },
+
+            createTaskNodes(tasks) {
+                const ul = document.createElement('ul');
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = 'task-item';
+                    
+                    // Проверяем, развернута ли ветка (по умолчанию true)
+                    const isExpanded = task.expanded !== false;
+                    const hasChildren = task.children.length > 0;
+                    
+                    let statsHtml = '';
+                    if (task.stats) {
+                        const pct = task.stats.total === 0 ? 0 : Math.round((task.stats.completed / task.stats.total) * 100);
+                        statsHtml = `<span class="task-stats">${task.stats.completed}/${task.stats.total} (${pct}%)</span>`;
+                    }
+
+                    // Кнопка сворачивания отображается только если есть дети
+                    const toggleBtn = hasChildren 
+                        ? `<button class="btn-toggle" onclick="app.toggleExpand('${task.id}')">${isExpanded ? '▼' : '▶'}</button>`
+                        : `<span class="btn-toggle"></span>`;
+
+                    li.innerHTML = `
+                        <div class="task-content ${task.completed ? 'completed' : ''}">
+                            ${toggleBtn}
+                            <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="app.toggleComplete('${task.id}')">
+                            <input type="text" class="task-text" value="${task.text.replace(/"/g, '&quot;')}" onblur="app.updateTaskText('${task.id}', this.value)">
+                            ${statsHtml}
+                            <div class="task-controls">
+                                <button onclick="app.moveTask('${task.id}', 'up')" title="Вверх">↑</button>
+                                <button onclick="app.moveTask('${task.id}', 'down')" title="Вниз">↓</button>
+                                <button onclick="app.moveTask('${task.id}', 'in')" title="Внутрь (Сделать дочерней)">→</button>
+                                <button onclick="app.moveTask('${task.id}', 'out')" title="Наружу (Сделать сестринской)">←</button>
+                                <button onclick="app.duplicateTask('${task.id}')" title="Дублировать">⎘</button>
+                                <button onclick="app.addTask('${task.id}')" title="Добавить подветвь">+</button>
+                                <button class="btn-delete" onclick="app.deleteTask('${task.id}')" title="Удалить">✕</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (hasChildren) {
+                        const childrenContainer = this.createTaskNodes(task.children);
+                        // Если свернуто, добавляем CSS-класс скрытия
+                        if (!isExpanded) childrenContainer.classList.add('collapsed-content');
+                        li.appendChild(childrenContainer);
+                    }
+                    ul.appendChild(li);
+                });
+                return ul;
+            },
+
+            // --- Import / Export ---
+            exportBook() {
+                this.downloadData(this.state, 'todo_book.json');
+            },
+            exportMap() {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                this.downloadData(map, `todo_map_${map.name}.json`);
+            },
+            downloadData(data, filename) {
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = filename; a.click();
+                URL.revokeObjectURL(url);
+            },
+            importBook(e) {
+                this.handleFile(e, (data) => {
+                    if(data.maps && Array.isArray(data.maps)) {
+                        this.state = data;
+                        this.history = []; this.historyIndex = -1;
+                        this.saveState(true); this.init();
+                    } else alert("Неверный формат книги.");
+                });
+            },
+            importMap(e) {
+                this.handleFile(e, (data) => {
+                    if(data.id && data.tasks) {
+                        data.id = this.generateId(); // Генерируем новый ID, чтобы не было конфликтов
+                        this.state.maps.push(data);
+                        this.state.currentMapId = data.id;
+                        this.saveState(); this.render();
+                    } else alert("Неверный формат карты.");
+                });
+            },
+            handleFile(e, callback) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try { callback(JSON.parse(ev.target.result)); }
+                    catch(err) { alert("Ошибка чтения файла"); }
+                    e.target.value = ''; // Сброс инпута
+                };
+                reader.readAsText(file);
+            }
+        };
+
+        // Инициализация при загрузке страницы
+        window.onload = () => app.init();
+    </script>
+</body>
+</html>

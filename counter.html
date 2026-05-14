@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Counter Pro .CTRE</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --text-color: #1c1e21;
+            --card-bg: #ffffff;
+            --border-color: #007bff;
+            --input-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #18191a;
+            --text-color: #e4e6eb;
+            --card-bg: #242526;
+            --input-bg: #3a3b3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: 0.3s;
+        }
+
+        .app-container { 
+            width: 95%; /* Занимает почти всю ширину на малых экранах */
+            max-width: 500px; 
+            padding: 10px; 
+            text-align: center; 
+            box-sizing: border-box;
+        }
+
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+/* Название счетчика - делаем крупным */
+#display-name { 
+            /* Минимум 1.5rem, оптимально 5vw, максимум 2.5rem */
+            font-size: clamp(1.5rem, 5vw, 2.5rem) !important; 
+            margin-bottom: 10px;
+            word-wrap: break-word; /* Чтобы длинные названия не ломали верстку */
+        }		
+		
+        .counter-card {
+            background: var(--card-bg);
+            padding: clamp(20px, 8vh, 50px) 15px; /* Вертикальный отступ зависит от высоты экрана */
+            border-radius: clamp(20px, 5vw, 35px);
+            border: 6px solid var(--border-color);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+            margin-bottom: clamp(10px, 3vh, 25px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .main-display {
+            /* Гигантский шрифт, который сжимается под экран */
+            font-size: clamp(4rem, 25vw, 10rem); 
+            font-weight: 850;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 20px;
+            line-height: 1;
+            overflow-wrap: break-word;
+        }
+
+.controls-row { 
+            gap: clamp(10px, 4vw, 25px); 
+        }
+        button { cursor: pointer; border: none; border-radius: 12px; font-weight: bold; transition: 0.1s; }
+        button:active { transform: scale(0.95); }
+
+.btn-step {
+            background: var(--border-color);
+            color: white;
+            font-size: clamp(1.5rem, 8vw, 3rem);
+            width: clamp(60px, 18vw, 95px); 
+            height: clamp(60px, 18vw, 95px);
+            border-radius: 22%;
+        }
+       .extra-actions { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 16px; 
+            justify-content: center; 
+            margin-top: 25px; /* Вот этот отступ отодвинет их ниже */
+            width: 100%;
+			height: 100%;
+        }
+        .btn-extra { background: rgba(128, 128, 128, 0.15); color: var(--text-color); padding: 8px 12px; }
+
+        footer { 
+            display: flex; 
+            gap: 10px; 
+            width: 100%;
+            /* На совсем маленьких экранах кнопки встанут друг под друга */
+            flex-wrap: wrap; 
+        }
+.btn-footer {
+            flex: 1;
+            min-width: 120px; /* Чтобы не сжимались в кашу */
+            padding: clamp(12px, 3vh, 18px);
+            font-size: clamp(0.9rem, 3vw, 1.1rem);
+        }
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 20px;
+            width: 85%; max-width: 320px;
+            max-height: 85vh; overflow-y: auto;
+        }
+
+        .form-group { margin-bottom: 12px; text-align: left; }
+        label { display: block; font-size: 0.8rem; margin-bottom: 4px; opacity: 0.7; }
+        input {
+            width: 100%; padding: 8px; border-radius: 8px;
+            border: 1px solid rgba(128,128,128,0.3);
+            background: var(--input-bg); color: var(--text-color);
+            box-sizing: border-box;
+        }
+
+        .btn-save { background: #28a745; color: white; width: 100%; padding: 12px; margin-top: 10px; }
+        
+        #file-input { display: none; }
+		/* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0; left: -280px;
+            width: min(280px, 80%); /* Занимает 280px или 80% узкого экрана */ 
+			height: 100%;
+            background: var(--card-bg);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            transition: 0.3s;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .sidebar.active { left: 0; }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active { display: block; }
+
+       .menu-btn {
+            position: fixed;
+            top: 15px; left: 15px;
+            background: var(--card-bg);
+            color: var(--text-color); /* Берет цвет текста темы */
+            border: 1px solid var(--border-color);
+            padding: 10px 12px; border-radius: 10px;
+            z-index: 50; cursor: pointer;
+            font-size: 1.4rem;
+        }
+
+        .counter-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(128,128,128,0.1);
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .counter-item.active { border: 2px solid var(--border-color); }
+        
+        .sidebar-section { margin-bottom: 20px; border-bottom: 1px solid rgba(128,128,128,0.2); padding-bottom: 15px; }
+        .sidebar-title { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+<button class="menu-btn" id="open-menu">☰</button>
+
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Сборник</div>
+            <input type="text" id="collection-name-input" placeholder="Название коллекции" 
+                   style="width:100%; font-weight:bold; margin-bottom:10px;">
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Счетчики</div>
+            <div id="counters-list" style="max-height: 300px; overflow-y: auto;"></div>
+            <button class="btn-save" id="btn-add" style="font-size: 0.8rem; padding: 8px;">+ Добавить новый</button>
+        </div>
+
+        <div class="sidebar-section" style="margin-top: auto; border:none;">
+            <button class="btn-footer" id="btn-export-sidebar" style="width:100%; margin-bottom:5px;">💾 Сохранить .ctre</button>
+            <button class="btn-footer" id="btn-import-sidebar" style="width:100%;">📂 Загрузить .ctre</button>
+        </div>
+    </nav>
+    <div class="app-container">
+<header>
+            <div style="text-align: left;">
+                <h1 id="display-name">Счетчик</h1>
+            </div>
+            <button id="theme-toggle" style="background:none; border:none; cursor:pointer; font-size: 1.5rem;">🌓</button>
+        </header>
+		
+        <main class="counter-card" id="counter-card">
+            <div class="main-display" id="main-value">0</div>
+            <div class="controls-row">
+                <button class="btn-step" id="btn-minus">-</button>
+                <button class="btn-step" id="btn-plus">+</button>
+            </div>
+            <div class="extra-actions" id="extra-actions"></div>
+        </main>
+
+        <footer style="grid-template-columns: 1fr 1fr 1fr;">
+            <button class="btn-footer" id="btn-reset">Сброс</button>
+            <button class="btn-footer" id="btn-settings">⚙️</button>
+        </footer>
+        <input type="file" id="file-input" accept=".ctre">
+    </div>
+
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <h3>Настройки</h3>
+            <div class="form-group"><label>Имя</label><input type="text" id="set-name"></div>
+            <div style="display:flex; gap:10px">
+                <div class="form-group"><label>Значение</label><input type="number" id="set-value"></div>
+                <div class="form-group"><label>Сброс</label><input type="number" id="set-reset"></div>
+            </div>
+            <div style="display:flex; gap:10px">
+                <div class="form-group"><label>Цвет</label><input type="color" id="set-color" style="height:38px"></div>
+                <div class="form-group"><label>Шаг</label><input type="number" id="set-step"></div>
+            </div>
+            <div style="display:flex; gap:10px">
+                <div class="form-group"><label>Мин</label><input type="number" id="set-min"></div>
+                <div class="form-group"><label>Макс</label><input type="number" id="set-max"></div>
+            </div>
+            <div class="form-group"><label>Доп. кнопки (через пробел)</label><input type="text" id="set-actions"></div>
+            <button class="btn-save" id="btn-save-settings">Применить</button>
+        </div>
+    </div>
+
+    <script>
+        // Состояние приложения
+        let appState = {
+            collectionName: "Мои счетчики",
+            currentIndex: 0,
+            counters: [
+                { name: "Счетчик 1", value: 0, resetValue: 0, color: "#007bff", step: 1, min: -9999, max: 9999, extraActions: "" }
+            ]
+        };
+
+        // Загрузка из LocalStorage
+        const saved = localStorage.getItem('counter_pro_data');
+        if (saved) appState = JSON.parse(saved);
+
+        const elements = {
+            display: document.getElementById('main-value'),
+            name: document.getElementById('display-name'),
+            card: document.getElementById('counter-card'),
+            extras: document.getElementById('extra-actions'),
+            modal: document.getElementById('settings-modal'),
+            sidebar: document.getElementById('sidebar'),
+            overlay: document.getElementById('sidebar-overlay'),
+            list: document.getElementById('counters-list')
+        };
+
+        function getCurrent() { return appState.counters[appState.currentIndex]; }
+
+        function saveToLS() {
+            localStorage.setItem('counter_pro_data', JSON.stringify(appState));
+        }
+
+        function updateUI() {
+            const cur = getCurrent();
+            elements.display.innerText = cur.value;
+            elements.name.innerText = cur.name;
+            elements.card.style.borderColor = cur.color;
+            document.getElementById('collection-name-input').value = appState.collectionName;
+            document.querySelectorAll('.btn-step').forEach(b => b.style.backgroundColor = cur.color);
+            
+            renderCountersList();
+            createExtraButtons();
+            saveToLS();
+        }
+
+        function renderCountersList() {
+            elements.list.innerHTML = '';
+            appState.counters.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = `counter-item ${i === appState.currentIndex ? 'active' : ''}`;
+                div.innerHTML = `
+                    <span style="flex-grow:1">${c.name}</span>
+                    <button onclick="duplicateCounter(${i})" style="background:none; border:none; padding:0 5px;">📑</button>
+                    <button onclick="deleteCounter(${i})" style="background:none; border:none; padding:0 5px; color:red;">✕</button>
+                `;
+                div.onclick = (e) => {
+                    if(e.target.tagName !== 'BUTTON') {
+                        appState.currentIndex = i;
+                        updateUI();
+                        closeSidebar();
+                    }
+                };
+                elements.list.appendChild(div);
+            });
+        }
+
+        function changeValue(n) {
+            const cur = getCurrent();
+            let v = cur.value + n;
+            if (v >= cur.min && v <= cur.max) { cur.value = v; updateUI(); }
+        }
+
+        function createExtraButtons() {
+            elements.extras.innerHTML = '';
+            getCurrent().extraActions.split(/\s+/).forEach(act => {
+                const n = parseInt(act);
+                if (!isNaN(n)) {
+                    const b = document.createElement('button');
+                    b.className = 'btn-extra';
+                    b.innerText = n > 0 ? `+${n}` : n;
+                    b.onclick = (e) => { e.stopPropagation(); changeValue(n); };
+                    elements.extras.appendChild(b);
+                }
+            });
+        }
+
+        // Сайдбар
+        const openSidebar = () => { elements.sidebar.classList.add('active'); elements.overlay.classList.add('active'); };
+        const closeSidebar = () => { elements.sidebar.classList.remove('active'); elements.overlay.classList.remove('active'); };
+        document.getElementById('open-menu').onclick = openSidebar;
+        elements.overlay.onclick = closeSidebar;
+
+        // Операции со счетчиками
+        document.getElementById('btn-add').onclick = () => {
+            appState.counters.push({ ...appState.counters[0], name: "Новый счетчик", value: 0 });
+            appState.currentIndex = appState.counters.length - 1;
+            updateUI();
+        };
+
+        window.duplicateCounter = (index) => {
+            const clone = JSON.parse(JSON.stringify(appState.counters[index]));
+            clone.name += " (копия)";
+            appState.counters.push(clone);
+            updateUI();
+        };
+
+        window.deleteCounter = (index) => {
+            if (appState.counters.length <= 1) return;
+            appState.counters.splice(index, 1);
+            appState.currentIndex = 0;
+            updateUI();
+        };
+
+        // Остальная логика
+        elements.display.onclick = () => changeValue(parseInt(getCurrent().step));
+        document.getElementById('btn-plus').onclick = () => changeValue(parseInt(getCurrent().step));
+        document.getElementById('btn-minus').onclick = () => changeValue(-parseInt(getCurrent().step));
+        document.getElementById('btn-reset').onclick = () => { getCurrent().value = getCurrent().resetValue; updateUI(); };
+        
+        document.getElementById('collection-name-input').oninput = (e) => {
+            appState.collectionName = e.target.value;
+            saveToLS();
+        };
+
+        // Настройки и модалка
+        document.getElementById('btn-settings').onclick = () => {
+            const cur = getCurrent();
+            document.getElementById('set-name').value = cur.name;
+            document.getElementById('set-value').value = cur.value;
+            document.getElementById('set-reset').value = cur.resetValue;
+            document.getElementById('set-color').value = cur.color;
+            document.getElementById('set-step').value = cur.step;
+            document.getElementById('set-min').value = cur.min;
+            document.getElementById('set-max').value = cur.max;
+            document.getElementById('set-actions').value = cur.extraActions;
+            elements.modal.style.display = 'flex';
+        };
+
+        document.getElementById('btn-save-settings').onclick = () => {
+            const cur = getCurrent();
+            cur.name = document.getElementById('set-name').value;
+            cur.value = parseInt(document.getElementById('set-value').value) || 0;
+            cur.resetValue = parseInt(document.getElementById('set-reset').value) || 0;
+            cur.color = document.getElementById('set-color').value;
+            cur.step = parseInt(document.getElementById('set-step').value) || 1;
+            cur.min = parseInt(document.getElementById('set-min').value) || -9999;
+            cur.max = parseInt(document.getElementById('set-max').value) || 9999;
+            cur.extraActions = document.getElementById('set-actions').value;
+            elements.modal.style.display = 'none';
+            updateUI();
+        };
+
+        elements.modal.onkeydown = (e) => { if(e.key === 'Enter') document.getElementById('btn-save-settings').click(); };
+
+        // Импорт/Экспорт (в сайдбаре)
+        document.getElementById('btn-export-sidebar').onclick = () => {
+            const data = JSON.stringify(appState);
+            const blob = new Blob([data], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${appState.collectionName}.ctre`;
+            a.click();
+        };
+
+        document.getElementById('btn-import-sidebar').onclick = () => {
+            const inp = document.createElement('input');
+            inp.type = 'file'; inp.accept = '.ctre';
+            inp.onchange = (e) => {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    appState = JSON.parse(re.target.result);
+                    updateUI();
+                };
+                reader.readAsText(e.target.files[0]);
+            };
+            inp.click();
+        };
+
+        // Функция смены темы с сохранением
+        function setTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
+            localStorage.setItem('counter_theme', theme);
+        }
+
+        document.getElementById('theme-toggle').onclick = () => {
+            const current = document.body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        };
+
+        // Запуск приложения
+        const savedTheme = localStorage.getItem('counter_theme') || 'light';
+        setTheme(savedTheme); // Сначала ставим тему
+        updateUI(); // Потом рисуем интерфейс
+    </script>
+</body>
+</html>

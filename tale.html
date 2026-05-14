@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2285%22>🌡️</text></svg>">
+    <title>Индикатор с дугой и рубежами</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5; --card-bg: #ffffff; --text-color: #333;
+            --accent-color: #3498db; --border-color: #ddd; --bar-bg: #e0e0e0;
+            --ms-color: #e74c3c; --ms-done: #2ecc71;
+        }
+        [data-theme="dark"] {
+            --bg-color: #121212; --card-bg: #1e1e1e; --text-color: #e0e0e0;
+            --border-color: #333; --bar-bg: #444;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: var(--card-bg); padding: 2rem; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 100%; max-width: 600px; text-align: center; }
+        
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; text-align: left; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; }
+        .control-group { display: flex; flex-direction: column; }
+        input, select { padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); }
+        
+        .milestone-tag { background: var(--ms-color); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px; margin: 2px; }
+        .milestone-tag span { cursor: pointer; font-weight: bold; }
+
+        .visualizer-box { min-height: 250px; display: flex; justify-content: center; align-items: center; position: relative; margin: 30px 0; width: 100%; }
+
+        /* Контейнеры шкал */
+        .progress-wrapper { position: relative; border: 2px solid var(--border-color); background: var(--bar-bg); border-radius: 10px; overflow: visible; }
+        .fill { background: var(--accent-color); transition: all 0.4s ease; border-radius: 7px; }
+        
+        .h-bar { width: 100%; height: 40px; }
+        .v-bar { width: 50px; height: 200px; display: flex; flex-direction: column-reverse; }
+        .seg-container { display: flex; gap: 4px; width: 100%; height: 40px; }
+        .seg-item { flex: 1; background: var(--bar-bg); border: 1px solid var(--border-color); border-radius: 4px; position: relative; overflow: hidden; }
+
+        /* Маркеры */
+        .ms-mark { position: absolute; z-index: 10; pointer-events: none; }
+        .ms-label { position: absolute; font-size: 10px; font-weight: bold; color: var(--ms-color); white-space: nowrap; z-index: 11; }
+
+.btn { border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; }
+        
+        /* Стили бокового меню */
+        .sidebar {
+            position: fixed; left: -350px; top: 0; width: 320px; height: 100%;
+            background: var(--card-bg); box-shadow: 2px 0 15px rgba(0,0,0,0.3);
+            transition: 0.3s; z-index: 1000; padding: 20px; box-sizing: border-box;
+            overflow-y: auto; text-align: left;
+        }
+        .sidebar.active { left: 0; }
+        
+        .sheet-item {
+            padding: 12px; border-bottom: 1px solid var(--border-color);
+            cursor: pointer; display: flex; align-items: flex-start; gap: 10px; /* flex-start для высоких строк */
+        }
+        .sheet-name { 
+            flex-grow: 1; 
+            word-break: break-word;
+            line-height: 1.2;
+            margin-bottom: 4px; /* Отступ до полоски */
+        }
+        
+        /* Мини-полоска в меню */
+        .mini-progress-bg {
+            width: 100%;
+            height: 4px;
+            background: var(--bar-bg);
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        .mini-progress-fill {
+            height: 100%;
+            background: var(--accent-color);
+            transition: width 0.3s ease;
+        }
+
+        /* Большая голубая кнопка */
+        .big-plus-btn {
+            width: 80px; height: 80px;
+            background: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 40px; font-weight: bold;
+            margin: 20px auto;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+            transition: transform 0.1s, background 0.2s;
+            user-select: none;
+        }
+        .big-plus-btn:active { transform: scale(0.9); background: #2980b9; }
+        .sheet-controls { display: flex; gap: 8px; opacity: 0.6; }
+        .sheet-controls span:hover { opacity: 1; color: var(--accent-color); }
+		
+        .sheet-item:hover { background: rgba(0,0,0,0.05); }
+        .sheet-item.active { border-left: 4px solid var(--accent-color); font-weight: bold; }
+        .sidebar-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 5px; 
+		</style>
+</head>
+<body>
+    <div id="overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div id="sidebar" class="sidebar">
+        <h3>📚 Книга индикаторов</h3>
+        <div id="sheetsList"></div>
+        <div class="sidebar-actions">
+            <button class="btn" style="background:var(--accent-color); color:white;" onclick="addNewSheet()">+ Новый индикатор</button>
+            <hr style="width:100%; border:0; border-top:1px solid var(--border-color);">
+            <button class="btn" onclick="exportBook()">📥 Экспорт книги</button>
+            <button class="btn" onclick="document.getElementById('importFile').click()">📤 Импорт книги</button>
+            <input type="file" id="importFile" style="display:none" onchange="importBook(event)">
+        </div>
+    </div>
+
+    <div style="width: 100%; max-width: 600px; display: flex; justify-content: space-between;">
+        <button class="btn" style="background:var(--accent-color); color:white;" onclick="toggleSidebar()">☰ Меню</button>
+        <button class="btn" style="background:var(--accent-color); color:white;" onclick="toggleTheme()">🌓 Тема</button>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <input type="text" id="titleInput" placeholder="Название" oninput="update()" style="grid-column: span 2;">
+            <div class="control-group"><label>Факт</label><input type="number" id="valFact" value="60" oninput="update()"></div>
+            <div class="control-group"><label>Макс</label><input type="number" id="valMax" value="100" oninput="update()"></div>
+            <div class="control-group" style="grid-column: span 2;">
+                <label>Тип индикатора</label>
+                <select id="typeSelect" onchange="update()">
+                    <option value="horizontal">Горизонтальная полоса</option>
+                    <option value="gauge">Полоска-дуга</option>
+                    <option value="battery">Сегменты</option>
+                    <option value="circle">Круг</option>
+                    <option value="vertical">Вертикальная</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="text-align: left; padding: 10px; border: 1px dashed var(--border-color); border-radius: 10px; margin-bottom: 10px;">
+            <input type="number" id="msValue" placeholder="Значение" style="width: 70px;">
+            <input type="text" id="msLabel" placeholder="Метка" style="width: 100px;">
+            <button class="btn" style="background:#2ecc71; color:white;" onclick="addMS()">+</button>
+            <div id="milestoneList" style="margin-top: 10px;"></div>
+        </div>
+
+        <h2 id="displayTitle"></h2>
+		<div class="big-plus-btn" onclick="incrementFact()">+</div>
+        <div id="visualizer" class="visualizer-box"></div>
+        <div id="statusText" style="font-weight: bold; font-size: 1.2rem;"></div>
+		<div id="statusText" style="font-weight: bold; font-size: 1.2rem;"></div>
+        
+        
+
+        <button class="btn" style="background:#95a5a6; color:white; font-size:0.7rem; margin-top:20px;" onclick="resetAll()">🗑️ Сброс</button>
+    </div>
+
+<script>
+    // Инициализация "Книги"
+    let book = JSON.parse(localStorage.getItem('indicator_book')) || {
+        activeIdx: 0,
+        sheets: [{ t: "Мой первый отчет", f: 60, m: 100, type: "horizontal", ms: [] }]
+    };
+
+    // Глобальная переменная для текущих рубежей (чтобы старые функции их видели)
+    window.milestones = [];
+
+    window.onload = () => {
+        loadActiveSheet();
+        // Принудительный вызов отрисовки после загрузки DOM
+        setTimeout(() => update(false), 50);
+    };
+	function incrementFact() {
+        const input = document.getElementById('valFact');
+        let currentVal = parseFloat(input.value) || 0;
+        const maxVal = parseFloat(document.getElementById('valMax').value) || 1;
+        
+        if (currentVal < maxVal) {
+            input.value = currentVal + 1;
+            update(); // Запускаем перерисовку и сохранение
+        } else {
+            // Маленький спецэффект, если достигли максимума (опционально)
+            input.style.borderColor = 'var(--ms-done)';
+            setTimeout(() => input.style.borderColor = 'var(--border-color)', 500);
+        }
+    }
+	
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+        document.getElementById('overlay').classList.toggle('active');
+    }
+
+    function loadActiveSheet() {
+        const sheet = book.sheets[book.activeIdx];
+        document.getElementById('titleInput').value = sheet.t || "";
+        document.getElementById('valFact').value = sheet.f || 0;
+        document.getElementById('valMax').value = sheet.m || 100;
+        document.getElementById('typeSelect').value = sheet.type || "horizontal";
+        window.milestones = sheet.ms || [];
+        renderSheetsList();
+    }
+
+    function saveCurrentToBook() {
+        const idx = book.activeIdx;
+        if (!book.sheets[idx]) return;
+        
+        book.sheets[idx] = {
+            t: document.getElementById('titleInput').value,
+            f: parseFloat(document.getElementById('valFact').value) || 0,
+            m: parseFloat(document.getElementById('valMax').value) || 1,
+            type: document.getElementById('typeSelect').value,
+            ms: window.milestones
+        };
+        localStorage.setItem('indicator_book', JSON.stringify(book));
+    }
+
+    function renderSheetsList() {
+        const list = document.getElementById('sheetsList');
+        list.innerHTML = book.sheets.map((s, i) => {
+            // Считаем прогресс для каждого листа
+            const fact = parseFloat(s.f) || 0;
+            const max = parseFloat(s.m) || 1;
+            const percent = Math.min(Math.max((fact / max) * 100, 0), 100);
+            
+            return `
+                <div class="sheet-item ${i === book.activeIdx ? 'active' : ''}" onclick="switchSheet(${i})">
+                    <div style="flex-grow:1; display:flex; flex-direction:column;">
+                        <span class="sheet-name">${s.t || 'Без названия'}</span>
+                        <div class="mini-progress-bg">
+                            <div class="mini-progress-fill" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                    <div class="sheet-controls">
+                        <span onclick="renameSheet(event, ${i})">✏️</span>
+                        <span style="color:red;" onclick="deleteSheet(event, ${i})">&times;</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renameSheet(e, idx) {
+        e.stopPropagation();
+        const newName = prompt("Введите новое название:", book.sheets[idx].t);
+        if (newName !== null && newName.trim() !== "") {
+            book.sheets[idx].t = newName.trim();
+            if (idx === book.activeIdx) {
+                document.getElementById('titleInput').value = newName;
+            }
+            saveCurrentToBook();
+            renderSheetsList();
+            update(false);
+        }
+    }
+
+    function switchSheet(idx) {
+        saveCurrentToBook();
+        book.activeIdx = idx;
+        loadActiveSheet();
+        update(false);
+        toggleSidebar();
+    }
+
+    function addNewSheet() {
+        saveCurrentToBook();
+        const name = prompt("Название нового индикатора:", "Новый индикатор");
+        if (name === null) return;
+        
+        book.sheets.push({ 
+            t: name || "Новый индикатор", 
+            f: 0, 
+            m: 100, 
+            type: "horizontal", 
+            ms: [] 
+        });
+        book.activeIdx = book.sheets.length - 1;
+        loadActiveSheet();
+        update(false);
+    }
+
+    function deleteSheet(e, idx) {
+        e.stopPropagation();
+        if (book.sheets.length <= 1) return alert("Нельзя удалить последний индикатор!");
+        if (confirm("Удалить '" + book.sheets[idx].t + "'?")) {
+            book.sheets.splice(idx, 1);
+            book.activeIdx = 0;
+            loadActiveSheet();
+            update(false);
+        }
+    }
+
+    function exportBook() {
+        saveCurrentToBook();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(book));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", "progress_book.json");
+        dl.click();
+    }
+
+    function importBook(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (imported.sheets) {
+                    book = imported;
+                    saveCurrentToBook();
+                    loadActiveSheet();
+                    update(false);
+                    alert("Готово!");
+                }
+            } catch (err) { alert("Файл поврежден"); }
+        };
+        reader.readAsText(file);
+    }
+
+    function toggleTheme() {
+        const curr = document.body.getAttribute('data-theme');
+        document.body.setAttribute('data-theme', curr === 'dark' ? 'light' : 'dark');
+    }
+
+    function addMS() {
+        const v = parseFloat(document.getElementById('msValue').value);
+        const l = document.getElementById('msLabel').value || v;
+        if (!isNaN(v)) {
+            window.milestones.push({ v, l });
+            document.getElementById('msValue').value = '';
+            document.getElementById('msLabel').value = '';
+            update();
+        }
+    }
+
+    function update(shouldSave = true) {
+        const t = document.getElementById('titleInput').value;
+        const f = parseFloat(document.getElementById('valFact').value) || 0;
+        const m = parseFloat(document.getElementById('valMax').value) || 1;
+        const type = document.getElementById('typeSelect').value;
+        const p = Math.min(Math.max((f / m) * 100, 0), 100);
+
+        if (shouldSave) {
+            saveCurrentToBook();
+            renderSheetsList();
+        }
+
+        document.getElementById('displayTitle').innerText = t;
+        document.getElementById('statusText').innerText = `${f} / ${m} (${Math.round(p)}%)`;
+        document.getElementById('milestoneList').innerHTML = window.milestones.map((ms, i) => `
+            <div class="milestone-tag">${ms.l}: ${ms.v} <span onclick="window.milestones.splice(${i},1);update()">&times;</span></div>
+        `).join('');
+
+        const container = document.getElementById('visualizer');
+        if (!container) return; 
+        container.innerHTML = '';
+
+        // --- ЛОГИКА ОТРИСОВКИ ---
+        if (type === 'horizontal' || type === 'battery') {
+            const wrap = document.createElement('div');
+            wrap.className = type === 'horizontal' ? 'progress-wrapper h-bar' : 'seg-container';
+            if (type === 'horizontal') {
+                wrap.innerHTML = `<div class="fill" style="width:${p}%; height:100%"></div>`;
+            } else {
+                for(let i=0; i<10; i++) {
+                    let fillW = Math.max(0, Math.min(100, (p - (i*10)) * 10));
+                    wrap.innerHTML += `<div class="seg-item"><div class="fill" style="width:${fillW}%; height:100%; border-radius:0"></div></div>`;
+                }
+            }
+            window.milestones.forEach(ms => {
+                const pos = (ms.v / m) * 100;
+                if (pos >= 0 && pos <= 100) {
+                    const mark = document.createElement('div');
+                    mark.className = 'ms-mark';
+                    mark.style.left = pos + '%'; mark.style.width = '2px'; mark.style.height = '100%'; 
+                    mark.style.background = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
+                    const lbl = document.createElement('div');
+                    lbl.className = 'ms-label'; lbl.innerText = ms.l;
+                    lbl.style.left = pos + '%'; lbl.style.bottom = '110%'; lbl.style.transform = 'translateX(-50%)';
+                    wrap.appendChild(mark); wrap.appendChild(lbl);
+                }
+            });
+            container.appendChild(wrap);
+        }
+        else if (type === 'gauge') {
+            const r = 80; const c = Math.PI * r;
+            const off = c - (p / 100) * c;
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", "220"); svg.setAttribute("height", "130");
+            svg.style.overflow = "visible";
+            let msHTML = '';
+            window.milestones.forEach(ms => {
+                const msP = Math.min(100, (ms.v / m) * 100);
+                const angle = 180 + (msP / 100) * 180;
+                const rad = angle * (Math.PI / 180);
+                const mx = 110 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
+                msHTML += `<circle cx="${mx}" cy="${my}" r="5" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" />
+                           <text x="${mx}" y="${my-10}" text-anchor="middle" style="font-size:10px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
+            });
+            svg.innerHTML = `<path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="var(--bar-bg)" stroke-width="15" stroke-linecap="round" />
+                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="var(--accent-color)" stroke-width="15" 
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" style="transition:0.5s" />${msHTML}`;
+            container.appendChild(svg);
+        }
+        else if (type === 'circle') {
+            const r = 70; const c = 2 * Math.PI * r;
+            const off = c - (p / 100) * c;
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", "200"); svg.setAttribute("height", "200");
+            svg.style.overflow = "visible";
+            let msHTML = '';
+            window.milestones.forEach(ms => {
+                const angle = (ms.v / m) * 360 - 90;
+                const rad = angle * (Math.PI / 180);
+                const mx = 100 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
+                msHTML += `<circle cx="${mx}" cy="${my}" r="5" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" />
+                           <text x="${mx}" y="${my-10}" text-anchor="middle" style="font-size:10px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
+            });
+            svg.innerHTML = `<circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--bar-bg)" stroke-width="15" />
+                <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--accent-color)" stroke-width="15" 
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" style="transition:0.5s" />${msHTML}`;
+            container.appendChild(svg);
+        }
+        else if (type === 'vertical') {
+            const wrap = document.createElement('div');
+            wrap.className = 'progress-wrapper v-bar';
+            wrap.innerHTML = `<div class="fill" style="height:${p}%; width:100%"></div>`;
+            window.milestones.forEach(ms => {
+                const pos = (ms.v / m) * 100;
+                const mark = document.createElement('div');
+                mark.className = 'ms-mark';
+                mark.style.bottom = pos + '%'; mark.style.width = '100%'; mark.style.height = '2px';
+                mark.style.background = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
+                const lbl = document.createElement('div');
+                lbl.className = 'ms-label'; lbl.innerText = ms.l;
+                lbl.style.bottom = pos + '%'; lbl.style.left = '110%';
+                wrap.appendChild(mark); wrap.appendChild(lbl);
+            });
+            container.appendChild(wrap);
+        }
+    }
+</script>
+</body>
+</html>

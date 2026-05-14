@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Advanced Quest Tree Map</title>
+	<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
+    <style>
+        :root {
+            --node-locked: #444;
+            --node-current: #3498db;
+            --node-done: #2ecc71;
+            --panel-bg: rgba(25, 25, 25, 0.9);
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: #1a1a1a;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        /* Холст */
+        #viewport {
+            width: 100vw; height: 100vh;
+            cursor: grab;
+            overflow: hidden;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+        }
+
+        #canvas {
+            position: absolute;
+            transform-origin: 0 0;
+            width: 5000px; height: 5000px;
+        }
+
+        /* Узлы */
+        .node {
+            position: absolute;
+            width: 180px;
+            background: #2c3e50;
+            border: 3px solid var(--node-locked);
+            border-radius: 10px;
+            padding: 10px;
+            z-index: 10;
+            user-select: none;
+            transition: box-shadow 0.2s;
+        }
+        .node.img-node { background: rgba(0,0,0,0.5); width: auto; min-width: 100px; }
+        .node.current { border-color: var(--node-current); box-shadow: 0 0 15px var(--node-current); }
+        .node.done { border-color: var(--node-done); opacity: 0.9; }
+        .node.locked {
+    opacity: 0.6;
+    border-color: #555;
+    background: #1a252f;
+    box-shadow: none;
+}
+/* Стили лепестков-подзадач */
+.subtask-petal {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #34495e;
+    border: 2px solid #3498db;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    z-index: 105; /* Выше основного узла */
+    transition: all 0.2s ease;
+    color: white;
+}
+.subtask-petal.done {
+    background: #27ae60;
+    border-color: #2ecc71;
+}
+.subtask-petal:hover {
+    transform: scale(1.3);
+    box-shadow: 0 0 10px #3498db;
+}
+/* Тултип с текстом подзадачи */
+.subtask-petal::after {
+    content: attr(data-title);
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.9);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    display: none;
+    pointer-events: none;
+    border: 1px solid #555;
+}
+.subtask-petal:hover::after { display: block; }
+
+.petal-leg {
+    pointer-events: none;
+    z-index: 5;
+}
+.node .delete-btn {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 26px;
+    height: 26px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    border: 2px solid #1a1a1a;
+    z-index: 101;
+}
+
+.node:hover .delete-btn {
+    display: flex; /* Показываем при наведении */
+}
+
+/* На мобильных устройствах, где нет hover, кнопка будет видна всегда или по долгому тапу */
+@media (max-width: 768px) {
+    .node .delete-btn {
+        display: flex;
+    }
+}
+
+        /* Тайгер-кольцо */
+        .timer-ring {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    width: 45px;
+    height: 45px;
+    background: #111;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    border: 2px solid var(--node-current);
+    z-index: 100;
+    color: #3498db;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+        /* Линии */
+        svg { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+        /* Панели */
+        .ui-panel {
+            position: fixed; background: var(--panel-bg);
+            backdrop-filter: blur(5px); z-index: 1000;
+            border: 1px solid #444; border-radius: 8px;
+        }
+
+        #toolbar {
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px;
+    display: flex; /* Делает кнопки в ряд */
+    gap: 10px;    /* Создает четкий отступ между кнопками */
+    align-items: center;
+    background: var(--panel-bg);
+}
+        #sidebar { 
+    top: 0; 
+    left: -350px; /* Увеличили запас, чтобы скрыть панель полностью */
+    width: 300px; 
+    height: 100%; 
+    transition: 0.3s; 
+    padding: 20px; 
+    box-sizing: border-box; /* Теперь padding не расширяет ширину 300px */
+    z-index: 1100; /* Чтобы панель была выше других UI элементов */
+	<label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+    <input type="checkbox" id="bg-stretch-check" style="width: 18px; height: 18px;">
+    <span>Растянуть фон (Stretch)</span>
+</label>
+<br>
+}
+
+#sidebar.open { 
+    left: 0; 
+}
+        #nav-menu { top: 70px; right: 10px; width: 200px; max-height: 300px; overflow-y: auto; padding: 10px; }
+
+        .btn {
+    background: #444;
+    border: 1px solid #555; /* Добавим тонкую рамку для разделения */
+    color: white;
+    padding: 8px 15px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 13px;
+    white-space: nowrap; /* Чтобы текст не переносился */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+        .btn:hover { background: #555; }
+        .btn.active { background: #3498db; }
+
+        /* Модалка */
+        #modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8); display: none;
+            justify-content: center; align-items: center; z-index: 2000;
+        }
+        .modal { background: #222; padding: 20px; border-radius: 10px; width: 450px; }
+        
+        .subtask-item { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        input[type="text"], textarea { background: #333; border: 1px solid #555; color: white; padding: 5px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar" class="ui-panel">
+    <button class="btn" onclick="playSound('add-node'); addNode('task')">+ Узел</button>
+    
+    <div class="btn-wrapper">
+        <label for="node-img-upload" class="btn">
+            🖼 Фото
+        </label>
+        <input type="file" id="node-img-upload" style="display:none" onchange="addNode('image', this)">
+    </div>
+
+    <button id="link-btn" class="btn" onclick="playSound('ui-click'); toggleLinkMode()">🔗 Связь</button>
+    <button id="move-btn" class="btn" onclick="playSound('ui-click'); toggleMoveMode()">🖐 Двигать</button>
+</div>
+
+<div id="zoom-controls" class="ui-panel" style="bottom:20px; right:20px; display:flex; flex-direction:column; gap:5px; background:none; border:none;">
+    <button class="btn" onclick="zoom(0.2)" style="width:40px; height:40px; font-size:20px;">+</button>
+    <button class="btn" onclick="zoom(-0.2)" style="width:40px; height:40px; font-size:20px;">-</button>
+</div>
+
+<div id="sidebar" class="ui-panel">
+    <button class="btn" onclick="toggleSidebar()">✕ Закрыть</button>
+    <h3>Книга карт</h3>
+    <div id="map-list"></div>
+    <button class="btn" onclick="createMap()" style="width:100%; margin-top:10px;">+ Создать карту</button>
+    <hr>
+<h4>Настройки карты</h4>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+    <label>Цвет фона: <input type="color" id="bg-color-picker"></label>
+    <label>Цвет линий: <input type="color" id="line-color-picker"></label>
+</div>
+<br>
+<label>Изображение фона:<br> <input type="file" onchange="setMapBgImage(this)"></label>
+    <hr>
+    <button class="btn" onclick="exportData()">💾 Экспорт</button>
+    <button class="btn" onclick="document.getElementById('import-input').click()">📂 Импорт</button>
+    <input type="file" id="import-input" style="display:none" onchange="importData(this)">
+</div>
+
+<button class="btn" id="sidebar-open" style="position:fixed; left:10px; top:10px; z-index:1001;" onclick="toggleSidebar()">☰</button>
+
+<div id="nav-menu" class="ui-panel">
+    <small>Быстрая навигация:</small>
+    <div id="nav-links"></div>
+</div>
+
+<div id="viewport">
+    <div id="canvas">
+        <svg id="svg-canvas" width="5000" height="5000">
+    <defs>
+        <marker id="arrowhead" 
+                markerWidth="10" 
+                markerHeight="7" 
+                refX="55" 
+                refY="3.5" 
+                orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#3498db" />
+        </marker>
+    </defs>
+</svg>
+        <div id="nodes-layer"></div>
+    </div>
+</div>
+
+<div id="modal-overlay">
+    <div class="modal">
+        <h3 id="modal-header">Редактировать</h3>
+        <input type="text" id="m-title" placeholder="Название">
+        <textarea id="m-notes" rows="3" placeholder="Заметки/Ссылка"></textarea>
+        
+        <div id="timer-settings">
+            <small>Таймер (Ч:М:С):</small>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="t-h" placeholder="Ч" value="0" style="width:50px">
+                <input type="number" id="t-m" placeholder="М" value="0" style="width:50px">
+                <input type="number" id="t-s" placeholder="С" value="0" style="width:50px">
+            </div>
+        </div>
+		<div id="petal-settings" style="margin-top: 10px;">
+            <small>Дистанция подзадач: <span id="petal-radius-val">110</span>px</small>
+            <input type="range" id="m-petal-radius" min="50" max="250" value="110" style="width: 100%" oninput="document.getElementById('petal-radius-val').innerText = this.value">
+        </div>
+
+        <h4>Подзадачи</h4>
+        <div id="m-subtasks"></div>
+        <button class="btn" onclick="addSubtask()">+ Подзадача</button>
+        <hr>
+        <div style="display:flex; justify-content: space-between;">
+            <button class="btn" style="background:#c0392b" onclick="deleteNode()">Удалить узел</button>
+            <div>
+                <button class="btn" onclick="closeModal()">Отмена</button>
+                <button class="btn" style="background:#f39c12" onclick="duplicateNode()">Копировать</button>
+                <button class="btn" style="background:#27ae60" onclick="saveModal()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let state = {
+        maps: { "map_1": { id: "map_1", name: "Главная", nodes: [], links: [], bgColor: "#1a1a1a", bgImg: "" } },
+        activeMap: "map_1",
+        mode: "move" // move, link
+    };
+
+    let scale = 1, offsetX = 0, offsetY = 0;
+    let isDraggingCanvas = false;
+    let linkingSource = null;
+    let editingNodeId = null;
+
+    // --- Инициализация ---
+    window.onload = () => {
+        const saved = localStorage.getItem('tree_save_v2');
+        if(saved) state = JSON.parse(saved);
+        renderAll();
+        setupCanvasListeners();
+    };
+
+    function save() {
+        localStorage.setItem('tree_save_v2', JSON.stringify(state));
+        renderNav();
+    }
+
+    // --- Работа с Картами ---
+    function createMap() {
+        const name = prompt("Название новой карты:");
+        if(!name) return;
+        const id = "map_" + Date.now();
+        state.maps[id] = { id, name, nodes: [], links: [], bgColor: "#1a1a1a", bgImg: "" };
+        switchMap(id);
+    }
+
+    function switchMap(id) {
+	playSound('open'); // Звук "перехода" на новую карту
+        state.activeMap = id;
+        renderAll();
+        save();
+    }
+
+    function deleteMap(id) {
+        if(Object.keys(state.maps).length <= 1) return alert("Нельзя удалить последнюю карту");
+        if(confirm("Удалить карту целиком?")) {
+            delete state.maps[id];
+            state.activeMap = Object.keys(state.maps)[0];
+            renderAll();
+            save();
+        }
+    }
+
+    // --- Работа с Узлами ---
+    function addNode(type, input = null) {
+    // 1. Проверяем наличие данных
+    if (!state || !state.maps || !state.maps[state.activeMap]) {
+        console.error("Карта не инициализирована");
+        return;
+    }
+
+    const map = state.maps[state.activeMap];
+
+    // 2. Создаем объект
+    const newNode = {
+        id: "n_" + Date.now(),
+        type: type,
+        // Позиционирование в текущем центре экрана
+        x: (window.innerWidth / 2 - offsetX) / scale,
+        y: (window.innerHeight / 2 - offsetY) / scale,
+        title: type === 'task' ? "Новая задача" : "Картинка",
+        notes: "",
+        done: false,
+        subtasks: [],
+        timer: { h: 0, m: 0, s: 0, total: 0, remaining: 0 },
+        img: ""
+    };
+
+    // 3. Обработка фото или обычного узла
+    if (type === 'image' && input && input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            newNode.img = e.target.result;
+            map.nodes.push(newNode);
+            save();
+            renderAll();
+        };
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        map.nodes.push(newNode);
+        save();
+        renderAll();
+    }
+}
+
+    function renderNodes() {
+    const container = document.getElementById('nodes-layer');
+    container.innerHTML = '';
+    const map = state.maps[state.activeMap];
+
+    map.nodes.forEach(node => {
+        // ЛОГИКА БЛОКИРОВКИ:
+        // Ищем все связи, где этот узел является целью (to)
+        const incomingLinks = map.links.filter(l => l.to === node.id);
+        // Проверяем, выполнены ли все "родители"
+        const allParentsDone = incomingLinks.every(link => {
+            const parent = map.nodes.find(n => n.id === link.from);
+            return parent ? parent.done : true;
+        });
+
+        const isLocked = incomingLinks.length > 0 && !allParentsDone;
+        
+        const div = document.createElement('div');
+        div.className = `node ${node.type === 'image' ? 'img-node' : ''} ${node.done ? 'done' : (isLocked ? 'locked' : 'current')}`;
+        div.style.left = node.x + 'px';
+        div.style.top = node.y + 'px';
+
+        let content = '';
+        if(node.type === 'image') {
+            content = `<img src="${node.img}" style="max-width:180px; display:block; border-radius:5px; pointer-events:none; ${isLocked ? 'filter:grayscale(1) opacity(0.5);' : ''}">`;
+        } else {
+            content = `
+                <div style="pointer-events:none;">
+                    <b>${isLocked ? '🔒 ' : ''}${node.title}</b><br>
+                    <small>${node.subtasks.length > 0 ? 'Задач: '+node.subtasks.filter(s=>s.done).length+'/'+node.subtasks.length : ''}</small>
+                </div>
+                <button class="btn" 
+                    ${isLocked ? 'disabled' : ''} 
+                    onclick="toggleNodeStatus(event, '${node.id}')" 
+                    style="margin-top:8px; width:100%; background:${node.done ? '#27ae60' : (isLocked ? '#222' : '#444')}; cursor:${isLocked ? 'not-allowed' : 'pointer'}">
+                    ${node.done ? '✓ Готово' : (isLocked ? 'Заперто' : 'Сделать')}
+                </button>
+            `;
+            if(node.timer.total > 0) {
+    const displayTime = node.done ? (node.timer.remaining || 0) : node.timer.total;
+    
+    // Форматируем секунды в ММ:СС
+    const m = Math.floor(displayTime / 60);
+    const s = displayTime % 60;
+    const timeString = `${m}:${s < 10 ? '0' : ''}${s}`;
+    
+    const ringColor = node.done ? "#2ecc71" : "#3498db";
+    content += `<div class="timer-ring" style="border-color:${ringColor}; color:${ringColor}">
+                    <span>⏳</span>
+                    <b>${timeString}</b>
+                </div>`;
+}
+        }
+        div.innerHTML = content;
+		// --- ОТРИСОВКА ЛЕПЕСТКОВ ---
+        if (node.subtasks && node.subtasks.length > 0 && !isLocked) {
+            const radius = node.petalRadius || 110; // Используем заданный радиус или 110 по умолчанию
+            const centerX = 90; // Половина ширины (180/2)
+            const centerY = 45; // Примерный центр по вертикали
+
+            node.subtasks.forEach((st, idx) => {
+                // Распределяем лепестки равномерно по кругу
+                const angle = (idx * (2 * Math.PI) / node.subtasks.length) - (Math.PI / 2);
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+
+                // 1. Создаем "ножку" (линию к лепестку)
+                const leg = document.createElement('div');
+                leg.className = 'petal-leg';
+                leg.style.cssText = `
+                    position: absolute;
+                    left: ${centerX}px; top: ${centerY}px;
+                    width: ${radius}px; height: 2px;
+                    background: ${st.done ? '#2ecc71' : '#444'};
+                    transform-origin: 0 50%;
+                    transform: rotate(${angle}rad);
+                `;
+                div.appendChild(leg);
+
+                // 2. Создаем сам лепесток
+                const petal = document.createElement('div');
+                petal.className = `subtask-petal ${st.done ? 'done' : ''}`;
+                // Сдвигаем на 12px (половина размера лепестка), чтобы центр совпал с концом линии
+                petal.style.left = (x - 12) + 'px';
+                petal.style.top = (y - 12) + 'px';
+                petal.setAttribute('data-title', st.text);
+                petal.innerHTML = st.done ? '✓' : idx + 1;
+
+                // Клик по лепестку
+                petal.onmousedown = (e) => {
+                    e.stopPropagation();
+                    st.done = !st.done;
+                    
+                    // --- ЗВУК ТУТ ---
+                    playSound(st.done ? 'click' : 'click'); 
+
+                    const wasDone = node.done;
+                    node.done = node.subtasks.every(s => s.done);
+                    
+                    // Если узел только что стал выполненным — играем фанфары
+                    if (!wasDone && node.done) playSound('success');
+                    
+                    if (!node.done) resetDependentNodes(map, node.id);
+                    save();
+                    renderAll();
+                };
+                div.appendChild(petal);
+            });
+        }
+// Внутри renderNodes, где создается узел:
+const deleteBtn = document.createElement('div');
+deleteBtn.className = 'delete-btn';
+deleteBtn.innerHTML = '×';
+
+// Важно: используем mousedown, чтобы перехватить событие до начала перетаскивания или открытия окна
+deleteBtn.onmousedown = (e) => {
+    e.stopPropagation(); // Останавливает передачу клика самому узлу
+    e.preventDefault();
+    // Передаем само событие 'e', чтобы функция могла проверить e.shiftKey
+    quickDeleteNode(node.id, e);
+};
+
+div.appendChild(deleteBtn);
+        div.onmousedown = (e) => {
+            if(e.target.tagName === 'BUTTON') return;
+            e.stopPropagation();
+			playSound('ui-click'); // Звук при выборе/нажатии на узел
+            if(state.mode === 'link') { handleLinking(node.id); return; }
+            
+            let startPos = {x: e.clientX, y: e.clientY};
+            let moved = false;
+
+            const onMouseMove = (ev) => {
+                moved = true;
+                node.x += (ev.clientX - startPos.x) / scale;
+                node.y += (ev.clientY - startPos.y) / scale;
+                startPos = {x: ev.clientX, y: ev.clientY};
+                div.style.left = node.x + 'px';
+                div.style.top = node.y + 'px';
+                renderLinks();
+            };
+
+            const onMouseUp = () => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                if(!moved) openModal(node.id);
+                save();
+            };
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        };
+        container.appendChild(div);
+    });
+}
+
+function toggleNodeStatus(e, id) {
+        e.stopPropagation();
+        const map = state.maps[state.activeMap];
+        const node = map.nodes.find(n => n.id === id);
+        
+        node.done = !node.done;
+
+        // --- НОВАЯ ЛОГИКА СБРОСА ---
+        if (!node.done) {
+            // 1. Сбрасываем все лепестки (подзадачи), если узел отменен
+            if (node.subtasks && node.subtasks.length > 0) {
+                node.subtasks.forEach(st => st.done = false);
+            }
+            
+            // 2. Звук отмены (можно сделать ниже тоном, если хочешь)
+            // playSound('click'); 
+
+            // 3. Сбрасываем все последующие узлы по цепочке
+            resetDependentNodes(map, node.id);
+        } else {
+            // Если узел пометили как выполненный вручную — по желанию можно 
+            // либо закрыть все подзадачи, либо оставить как есть. 
+            // Обычно лучше закрыть, чтобы всё было зелёным:
+            if (node.subtasks && node.subtasks.length > 0) {
+                node.subtasks.forEach(st => st.done = true);
+            }
+            if (typeof playSound === 'function') playSound('success');
+        }
+
+        renderAll();
+        save();
+    }
+
+// Рекурсивная функция для сброса всех зависимых узлов
+function resetDependentNodes(map, parentId) {
+    const outgoing = map.links.filter(l => l.from === parentId);
+    outgoing.forEach(link => {
+        const child = map.nodes.find(n => n.id === link.to);
+        if (child && child.done) {
+            child.done = false;
+            resetDependentNodes(map, child.id);
+        }
+    });
+}
+
+    // --- Связи (Links) ---
+    function toggleLinkMode() {
+        state.mode = (state.mode === 'link') ? 'move' : 'link';
+        document.getElementById('link-btn').classList.toggle('active', state.mode === 'link');
+        linkingSource = null;
+    }
+
+    function handleLinking(id) {
+    if(!linkingSource) {
+        linkingSource = id;
+        alert("Выберите второй узел для связи");
+    } else {
+        if(linkingSource !== id) {
+            const map = state.maps[state.activeMap];
+            const existsIdx = map.links.findIndex(l => l.from === linkingSource && l.to === id);
+            
+            if(existsIdx !== -1) {
+                map.links.splice(existsIdx, 1);
+            } else {
+                map.links.push({ from: linkingSource, to: id });
+                
+                // Проверка логики: если предок не готов, сбрасываем потомка
+                const parent = map.nodes.find(n => n.id === linkingSource);
+                const child = map.nodes.find(n => n.id === id);
+                if (parent && child && !parent.done && child.done) {
+                    child.done = false;
+                    resetDependentNodes(map, child.id);
+                }
+            }
+			playSound('success'); // Звук успешного соединения
+            save();
+            renderAll();
+        }
+        linkingSource = null;
+    }
+}
+
+    function renderLinks() {
+    const svg = document.getElementById('svg-canvas');
+    svg.innerHTML = ''; 
+    const map = state.maps[state.activeMap];
+    const baseColor = map.lineColor || "#3498db";
+
+    map.links.forEach(l => {
+        const n1 = map.nodes.find(n => n.id === l.from);
+        const n2 = map.nodes.find(n => n.id === l.to);
+        
+        if(n1 && n2) {
+            const x1 = n1.x + 90, y1 = n1.y + 40;
+            const x2 = n2.x + 90, y2 = n2.y + 40;
+
+            // Если родитель (n1) потерял статус "done" из-за таймера, 
+            // линия ДОЛЖНА стать серой (#444)
+            const currentLineColor = n1.done ? baseColor : "#444444";
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("stroke", currentLineColor);
+            line.setAttribute("stroke-width", "2");
+            svg.appendChild(line);
+
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+            const arrow = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            arrow.setAttribute("points", "-8,-5 8,0 -8,5"); 
+            arrow.setAttribute("fill", currentLineColor);
+            arrow.setAttribute("transform", `translate(${midX}, ${midY}) rotate(${angle})`);
+            svg.appendChild(arrow);
+        }
+    });
+}
+
+function toggleMoveMode() {
+    state.mode = (state.mode === 'canvas-move') ? 'move' : 'canvas-move';
+    const moveBtn = document.getElementById('move-btn');
+    if(moveBtn) moveBtn.classList.toggle('active', state.mode === 'canvas-move');
+    document.getElementById('viewport').style.cursor = (state.mode === 'canvas-move') ? 'all-scroll' : 'grab';
+}
+
+function zoom(amt) {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const delta = (amt > 0) ? 1.2 : 0.8;
+    applyZoom(delta, centerX, centerY);
+}
+
+    // --- Модальное окно и редактирование ---
+    function openModal(id) {
+	playSound('open'); // <--- звук открытия
+        editingNodeId = id;
+        const node = state.maps[state.activeMap].nodes.find(n => n.id === id);
+        document.getElementById('m-title').value = node.title;
+        document.getElementById('m-notes').value = node.notes;
+        document.getElementById('t-h').value = node.timer.h;
+        document.getElementById('t-m').value = node.timer.m;
+        document.getElementById('t-s').value = node.timer.s;
+        
+        renderSubtasksInModal(node);
+		const pRadius = node.petalRadius || 110;
+        document.getElementById('m-petal-radius').value = pRadius;
+        document.getElementById('petal-radius-val').innerText = pRadius;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function renderSubtasksInModal(node) {
+        const container = document.getElementById('m-subtasks');
+        container.innerHTML = '';
+        node.subtasks.forEach((st, idx) => {
+            const div = document.createElement('div');
+            div.className = 'subtask-item';
+            div.innerHTML = `
+                <input type="checkbox" ${st.done ? 'checked' : ''} onchange="state.maps['${state.activeMap}'].nodes.find(n=>n.id==='${node.id}').subtasks[${idx}].done = this.checked">
+                <input type="text" value="${st.text}" onchange="state.maps['${state.activeMap}'].nodes.find(n=>n.id==='${node.id}').subtasks[${idx}].text = this.value">
+                <button class="btn" onclick="removeSubtask(${idx})">×</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function addSubtask() {
+	playSound('add-subtask'); // Звук добавления
+        const node = state.maps[state.activeMap].nodes.find(n => n.id === editingNodeId);
+        node.subtasks.push({ text: "Новая подзадача", done: false });
+        renderSubtasksInModal(node);
+    }
+
+    function removeSubtask(idx) {
+        const node = state.maps[state.activeMap].nodes.find(n => n.id === editingNodeId);
+        node.subtasks.splice(idx, 1);
+        renderSubtasksInModal(node);
+    }
+
+    function deleteNode() {
+        if(confirm("Удалить этот узел?")) {
+            const map = state.maps[state.activeMap];
+            map.nodes = map.nodes.filter(n => n.id !== editingNodeId);
+            map.links = map.links.filter(l => l.from !== editingNodeId && l.to !== editingNodeId);
+            closeModal();
+            renderAll();
+            save();
+        }
+    }
+function duplicateNode() {
+        if (!editingNodeId) return;
+        const map = state.maps[state.activeMap];
+        const sourceNode = map.nodes.find(n => n.id === editingNodeId);
+        
+        if (!sourceNode) return;
+
+        // Создаем глубокую копию объекта
+        const newNode = JSON.parse(JSON.stringify(sourceNode));
+        
+        // Обновляем уникальные свойства
+        newNode.id = "n_" + Date.now();
+        newNode.x += 30; // Смещение, чтобы копия не перекрыла оригинал
+        newNode.y += 30;
+        newNode.done = false;
+
+        // Сбрасываем прогресс подзадач в копии
+        if (newNode.subtasks) {
+            newNode.subtasks.forEach(st => st.done = false);
+        }
+
+        map.nodes.push(newNode);
+        playSound('ui-click');
+        closeModal();
+        renderAll();
+        save();
+    }
+    function saveModal() {
+    const node = state.maps[state.activeMap].nodes.find(n => n.id === editingNodeId);
+    node.title = document.getElementById('m-title').value;
+    node.notes = document.getElementById('m-notes').value;
+    
+    const h = parseInt(document.getElementById('t-h').value) || 0;
+    const m = parseInt(document.getElementById('t-m').value) || 0;
+    const s = parseInt(document.getElementById('t-s').value) || 0;
+    
+    node.timer.h = h;
+    node.timer.m = m;
+    node.timer.s = s;
+    node.timer.total = h * 3600 + m * 60 + s;
+    node.timer.remaining = node.timer.total; // Устанавливаем стартовое время
+	node.petalRadius = parseInt(document.getElementById('m-petal-radius').value);
+    // Логика подзадач...
+    if(node.subtasks.length > 0) {
+        node.done = node.subtasks.every(s => s.done);
+    }
+
+    closeModal();
+    renderAll();
+    save();
+}
+
+    function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+    // --- UI и Навигация ---
+    function renderAll() {
+        const map = state.maps[state.activeMap];
+        document.getElementById('viewport').style.backgroundColor = map.bgColor;
+        document.getElementById('viewport').style.backgroundImage = map.bgImg ? `url(${map.bgImg})` : 'none';
+        document.getElementById('bg-color-picker').value = map.bgColor;
+        
+        renderNodes();
+        renderLinks();
+        renderMapListUI();
+        renderNav();
+    }
+
+    function renderMapListUI() {
+        const container = document.getElementById('map-list');
+        container.innerHTML = '';
+        Object.values(state.maps).forEach(m => {
+            const div = document.createElement('div');
+            div.style.margin = "5px 0";
+            div.innerHTML = `
+                <button class="btn ${m.id === state.activeMap ? 'active' : ''}" onclick="switchMap('${m.id}')" style="width:70%">${m.name}</button>
+                <button class="btn" onclick="deleteMap('${m.id}')" style="background:red">×</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function renderNav() {
+        const container = document.getElementById('nav-links');
+        container.innerHTML = '';
+        state.maps[state.activeMap].nodes.forEach(n => {
+            if(n.type === 'task') {
+                const b = document.createElement('button');
+                b.className = 'btn';
+                b.style = "display:block; width:100%; margin-top:2px; font-size:11px; text-align:left";
+                b.innerText = n.title;
+                b.onclick = () => {
+                    offsetX = -n.x + (window.innerWidth/2);
+                    offsetY = -n.y + (window.innerHeight/2);
+                    updateTransform();
+                };
+                container.appendChild(b);
+            }
+        });
+    }
+
+    function setMapBgImage(input) {
+        if(input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.maps[state.activeMap].bgImg = e.target.result;
+                renderAll();
+                save();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    document.getElementById('line-color-picker').onchange = (e) => {
+    state.maps[state.activeMap].lineColor = e.target.value;
+    renderLinks(); // Сразу перерисовываем линии
+    save();
+};
+// Обработчик цвета фона
+document.getElementById('bg-color-picker').onchange = (e) => {
+    const newColor = e.target.value;
+    state.maps[state.activeMap].bgColor = newColor; // Сохраняем в стейт
+    document.getElementById('viewport').style.backgroundColor = newColor; // Применяем визуально
+    save(); // Сохраняем в localStorage
+};
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+    // --- Управление холстом ---
+    let lastTouchDistance = 0; // Для мобильного масштабирования
+
+function setupCanvasListeners() {
+    const v = document.getElementById('viewport');
+
+    // --- МЫШЬ: Перемещение ---
+    v.addEventListener('mousedown', (e) => {
+        if (e.target.id === 'viewport' || e.target.id === 'canvas' || e.target.id === 'svg-canvas' || state.mode === 'canvas-move') {
+            isDraggingCanvas = true;
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDraggingCanvas) {
+            offsetX += e.movementX;
+            offsetY += e.movementY;
+            updateTransform();
+        }
+    });
+
+    window.addEventListener('mouseup', () => isDraggingCanvas = false);
+
+    // --- МЫШЬ: Масштабирование от курсора ---
+    v.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        applyZoom(delta, e.clientX, e.clientY);
+    }, { passive: false });
+
+    // --- МОБИЛЬНЫЕ: Два пальца (Pinch-to-zoom) и перемещение ---
+    v.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            lastTouchDistance = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+        } else if (e.touches.length === 1) {
+            isDraggingCanvas = true;
+            v._lastTouchX = e.touches[0].clientX;
+            v._lastTouchY = e.touches[0].clientY;
+        }
+    }, { passive: false });
+
+    v.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 2) {
+            // Масштабирование двумя пальцами
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            const delta = dist / lastTouchDistance;
+            
+            // Центр между пальцами как точка масштабирования
+            const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+            applyZoom(delta, midX, midY);
+            lastTouchDistance = dist;
+        } else if (e.touches.length === 1 && isDraggingCanvas) {
+            // Перемещение одним пальцем
+            const moveX = e.touches[0].clientX - v._lastTouchX;
+            const moveY = e.touches[0].clientY - v._lastTouchY;
+            offsetX += moveX;
+            offsetY += moveY;
+            v._lastTouchX = e.touches[0].clientX;
+            v._lastTouchY = e.touches[0].clientY;
+            updateTransform();
+        }
+    }, { passive: false });
+
+    v.addEventListener('touchend', () => {
+        isDraggingCanvas = false;
+        lastTouchDistance = 0;
+    });
+}
+
+function renderAll() {
+    const map = state.maps[state.activeMap];
+    document.getElementById('viewport').style.backgroundColor = map.bgColor;
+    document.getElementById('viewport').style.backgroundImage = map.bgImg ? `url(${map.bgImg})` : 'none';
+    
+    document.getElementById('bg-color-picker').value = map.bgColor;
+    // НОВАЯ СТРОКА: устанавливаем значение для пикера линий (по умолчанию синий, если не задан)
+    document.getElementById('line-color-picker').value = map.lineColor || "#3498db";
+    
+    renderNodes();
+    renderLinks();
+    renderMapListUI();
+    renderNav();
+}
+// Универсальная функция масштабирования относительно точки (px, py)
+function applyZoom(delta, px, py) {
+    const oldScale = scale;
+    scale *= delta;
+    scale = Math.min(Math.max(0.1, scale), 3); // Границы зума
+
+    // Математический расчет: сдвигаем холст так, чтобы точка под курсором не сместилась
+    const ratio = scale / oldScale;
+    offsetX = px - (px - offsetX) * ratio;
+    offsetY = py - (py - offsetY) * ratio;
+
+    updateTransform();
+}
+
+    function updateTransform() {
+        document.getElementById('canvas').style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    }
+
+    // --- Импорт / Экспорт ---
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr);
+        a.setAttribute("download", "quest_book_v2.json");
+        a.click();
+    }
+
+    function importData(input) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                state = JSON.parse(e.target.result);
+                renderAll();
+                save();
+                alert("Данные успешно импортированы!");
+            } catch(e) { alert("Ошибка файла!"); }
+        };
+        reader.readAsText(input.files[0]);
+    }
+	function quickDeleteNode(id, event) {
+    // Проверяем: если зажат Shift (event.shiftKey), то confirm не нужен
+    const skipConfirm = event && event.shiftKey;
+
+    if (skipConfirm || confirm("Удалить этот узел и все его связи?")) {
+        playSound('delete');
+        const map = state.maps[state.activeMap];
+        
+        // 1. Удаляем сам узел
+        map.nodes = map.nodes.filter(n => n.id !== id);
+        
+        // 2. Удаляем все связи, где этот узел был началом или концом
+        map.links = map.links.filter(l => l.from !== id && l.to !== id);
+        
+        // 3. Сбрасываем зависимые узлы
+        resetDependentNodes(map, id);
+
+        renderAll();
+        save();
+    }
+}
+// Функция для генерации звуков (Web Audio API)
+    function playSound(type) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const now = ctx.currentTime;
+
+        switch (type) {
+		case 'add-node': // Звук появления нового узла (плотный "плоп")
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+                break;
+            case 'add-subtask': // Легкий "дзынь" для подзадачи
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+                break;
+            case 'click': // Мягкий клик для лепестков
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+                break;
+            case 'ui-click': // Глухой щелчок для кнопок интерфейса
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+                break;
+            case 'open': // Восходящий звук для открытия модалок
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                break;
+            case 'delete': // Нисходящий "тревожный" звук
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                break;
+            case 'success': // Победный аккорд
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.connect(gain2); gain2.connect(ctx.destination);
+                osc.frequency.setValueAtTime(523.25, now); // До (C5)
+                osc2.frequency.setValueAtTime(659.25, now); // Ми (E5)
+                gain.gain.setValueAtTime(0.1, now);
+                gain2.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now); osc2.start(now);
+                osc.stop(now + 0.4); osc2.stop(now + 0.4);
+                break;
+        }
+    }
+let timerInterval = null;
+
+// Запускаем цикл проверки таймеров один раз при загрузке
+if (!timerInterval) {
+    timerInterval = setInterval(processTimers, 1000);
+}
+
+function processTimers() {
+    let changed = false;
+    let statusChanged = false;
+    const map = state.maps[state.activeMap];
+    
+    map.nodes.forEach(node => {
+        if (node.done && node.timer && node.timer.total > 0) {
+            if (node.timer.remaining === undefined) node.timer.remaining = node.timer.total;
+
+            if (node.timer.remaining > 0) {
+                node.timer.remaining--;
+                changed = true;
+            } else {
+                // --- ВРЕМЯ ВЫШЛО ---
+                node.done = false;
+                node.timer.remaining = node.timer.total; 
+                
+                // СБРОС ПОДЗАДАЧ ЭТОГО УЗЛА
+                if (node.subtasks && node.subtasks.length > 0) {
+                    node.subtasks.forEach(st => st.done = false);
+                }
+
+                // СБРОС ЗАВИСИМЫХ УЗЛОВ (ПО СВЯЗЯМ)
+                resetDependentNodes(map, node.id); 
+                
+                changed = true;
+                statusChanged = true;
+            }
+        } else if (!node.done && node.timer) {
+            node.timer.remaining = node.timer.total;
+        }
+    });
+
+    if (changed) {
+        renderNodes();
+        if (statusChanged) renderLinks();
+    }
+}
+</script>
+</body>
+</html>

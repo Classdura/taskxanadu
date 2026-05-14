@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OW Tactics Hub V5</title>
+    <style>
+        :root { 
+            --bg: #121212; --card: #1e1e1e; --accent: #f99e1a; --text: #eee; 
+            --tank: #00a1ff; --damage: #ef4444; --support: #fbbf24;
+        }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .view { display: none; width: 100%; max-width: 800px; margin: auto; }
+        .active { display: block; }
+
+        /* Сетка и контейнеры */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; margin-top: 15px; }
+        .rel-item-container { display: flex; flex-direction: column; gap: 5px; }
+
+        /* Иконки-ячейки */
+        .hero-btn { 
+            position: relative; aspect-ratio: 1/1;
+            background: var(--card); border: 3px solid #333; 
+            border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 10px; transition: 0.2s; cursor: pointer; text-align: center;
+        }
+        .hero-btn.tank { border-color: var(--tank); }
+        .hero-btn.damage { border-color: var(--damage); }
+        .hero-btn.support { border-color: var(--support); }
+        
+        /* Кнопки управления на иконках */
+        .btn-icon { position: absolute; border: none; border-radius: 50%; width: 22px; height: 22px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; z-index: 10; border: 1px solid rgba(255,255,255,0.2); }
+        .del-rel { top: -8px; right: -8px; background: #ff4444; }
+        .note-toggle { bottom: -8px; right: -8px; background: var(--accent); color: black; }
+
+        /* Поле заметки ПОД иконкой */
+        .rel-external-note { 
+            width: 100%; background: #2a2a2a; border-radius: 6px; border: 1px solid #444;
+            display: none; padding: 5px; box-sizing: border-box;
+        }
+        .rel-external-note.show { display: block; }
+        .rel-external-note textarea { 
+            background: transparent; border: none; color: #ccc; font-size: 11px; 
+            width: 100%; height: 50px; resize: none; outline: none; padding: 0; font-family: inherit;
+        }
+
+        /* Интерфейс */
+        .filter-row { display: flex; gap: 5px; margin: 10px 0; overflow-x: auto; padding-bottom: 5px; }
+        .f-btn { padding: 8px 12px; border: 1px solid #444; background: #222; color: white; border-radius: 20px; font-size: 11px; white-space: nowrap; cursor: pointer; }
+        .f-btn.active { background: white; color: black; border-color: white; }
+
+        .btn { padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-main { background: var(--accent); color: black; }
+        .btn-sec { background: #444; color: white; }
+        
+        input, select { width: 100%; padding: 10px; background: #2a2a2a; color: white; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; }
+        .stat-item { background: #222; padding: 10px; border-radius: 8px; margin-bottom: 5px; display: flex; align-items: center; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="main-menu" class="view active">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0">Overwatch DB</h2>
+            <button class="btn btn-sec" onclick="openStats()">📊 Менеджер</button>
+        </div>
+
+        <div class="filter-row">
+            <button class="f-btn active" onclick="setMainFilter('all', this)">Все</button>
+            <button class="f-btn" onclick="setMainFilter('tank', this)">Танки</button>
+            <button class="f-btn" onclick="setMainFilter('damage', this)">Урон</button>
+            <button class="f-btn" onclick="setMainFilter('support', this)">Саппорты</button>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <button id="mode-c" class="btn btn-main" style="flex:1" onclick="setMode('counters')">КОНТРПИКИ</button>
+            <button id="mode-s" class="btn btn-main" style="flex:1; opacity:0.5" onclick="setMode('synergy')">СИНЕРГИЯ</button>
+        </div>
+
+        <div class="grid" id="hero-grid"></div>
+
+        <div style="margin-top: 25px; background: var(--card); padding: 15px; border-radius: 12px; border: 1px dashed #444;">
+            <input type="text" id="new-name" placeholder="Имя героя...">
+            <div style="display: flex; gap: 5px; margin-top: 8px;">
+                <select id="new-role" style="flex:2">
+                    <option value="tank">Танк</option>
+                    <option value="damage" selected>Урон</option>
+                    <option value="support">Саппорт</option>
+                </select>
+                <button class="btn btn-main" style="flex:1" onclick="addHero()">+</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="detail-view" class="view">
+        <button class="btn btn-sec" onclick="showMain()">← НАЗАД</button>
+        <h1 id="det-title" style="margin: 20px 0 5px 0">Имя</h1>
+        
+        <div style="background: #222; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 20px;">
+            <span>Lvl: <b id="det-lvl-val">0</b></span>
+            <span>Hrs: <b id="det-hrs-val">0</b></span>
+        </div>
+
+        <div style="background: var(--card); padding: 15px; border-radius: 12px;">
+            <label id="rel-label" style="font-weight:bold">Связи:</label>
+            <div class="filter-row">
+                <button class="f-btn active" onclick="setSelFilter('all', this)">Все</button>
+                <button class="f-btn" onclick="setSelFilter('tank', this)">Танки</button>
+                <button class="f-btn" onclick="setSelFilter('damage', this)">Урон</button>
+                <button class="f-btn" onclick="setSelFilter('support', this)">Саппорты</button>
+            </div>
+            <select id="rel-selector" onchange="addRel(this.value)"></select>
+            
+            <div id="rel-grid" class="grid"></div>
+        </div>
+    </div>
+
+    <div id="stats-view" class="view">
+        <button class="btn btn-sec" onclick="showMain()">← НАЗАД</button>
+        <div style="display: flex; gap: 8px; margin: 15px 0;">
+            <button class="btn btn-main" style="flex:1" onclick="exportJSON()">💾 ЭКСПОРТ</button>
+            <button class="btn btn-main" style="flex:1" onclick="document.getElementById('imp').click()">📂 ИМПОРТ</button>
+            <input type="file" id="imp" style="display:none" onchange="importJSON(this)">
+        </div>
+        <div id="stats-list"></div>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('ow_ultra_v5')) || {};
+        let currentMode = 'counters';
+        let mainFilter = 'all';
+        let selFilter = 'all';
+        let activeHero = null;
+
+        function save() { localStorage.setItem('ow_ultra_v5', JSON.stringify(db)); }
+
+        // Добавление героя
+        function addHero() {
+            const name = document.getElementById('new-name').value.trim();
+            const role = document.getElementById('new-role').value;
+            if (name && !db[name]) {
+                db[name] = { role, hours: 0, lvl: 0, counters: [], synergy: [] };
+                save();
+                document.getElementById('new-name').value = "";
+                renderGrid();
+            }
+        }
+
+        // Рендер главного меню
+        function renderGrid() {
+            const grid = document.getElementById('hero-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const sorted = Object.keys(db).sort((a,b) => (db[b].hours + db[b].lvl) - (db[a].hours + db[a].lvl));
+
+            sorted.forEach(name => {
+                const h = db[name];
+                if (mainFilter !== 'all' && h.role !== mainFilter) return;
+                const div = document.createElement('div');
+                div.className = `hero-btn ${h.role}`;
+                div.innerHTML = `<b>${name}</b><span style="font-size:10px; opacity:0.5; margin-top:5px;">Lvl: ${h.lvl}</span>`;
+                div.onclick = () => openHero(name);
+                grid.appendChild(div);
+            });
+        }
+
+        // Открытие карточки
+        function openHero(name) {
+    activeHero = name;
+    selFilter = 'all';
+    const h = db[name];
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('detail-view').classList.add('active');
+    
+    document.getElementById('det-title').innerText = name;
+    document.getElementById('det-title').style.color = `var(--${h.role})`;
+    document.getElementById('det-lvl-val').innerText = h.lvl || 0;
+    document.getElementById('det-hrs-val').innerText = h.hours || 0;
+    
+    // Устанавливаем правильный текст заголовка при открытии
+    const label = document.getElementById('rel-label');
+    label.innerText = currentMode === 'counters' ? 'Кем контрить:' : 'С кем лучше взаимодействия:';
+
+    document.querySelectorAll('#detail-view .f-btn').forEach(b => {
+        b.classList.toggle('active', b.innerText === 'Все');
+    });
+
+    updateSelector();
+    renderRels();
+}
+
+        // Рендер связей (контрпики/синергия)
+        function renderRels() {
+    const grid = document.getElementById('rel-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    // Создаем копию массива связей для сортировки, чтобы не менять порядок в базе навсегда
+    const rels = [...db[activeHero][currentMode]];
+
+    // СОРТИРОВКА: вычисляем вес каждого контрпика/синергии
+    rels.sort((a, b) => {
+        const hA = db[a.name] || {lvl: 0, hours: 0};
+        const hB = db[b.name] || {lvl: 0, hours: 0};
+        return (hB.lvl + hB.hours) - (hA.lvl + hA.hours);
+    });
+
+    rels.forEach((item) => {
+        const targetName = item.name;
+        const targetHero = db[targetName];
+        if(!targetHero) return;
+
+        // Фильтр по ролям
+        if (selFilter !== 'all' && targetHero.role !== selFilter) return;
+
+        // Находим оригинальный индекс для удаления (так как массив отсортирован)
+        const originalIndex = db[activeHero][currentMode].indexOf(item);
+        const note = item.note || "";
+        const container = document.createElement('div');
+        container.className = 'rel-item-container';
+
+        container.innerHTML = `
+            <div class="hero-btn ${targetHero.role}" onclick="openHero('${targetName}')">
+                <b>${targetName}</b>
+                <div style="font-size:9px; opacity:0.6; margin-top:4px;">${targetHero.lvl} L / ${targetHero.hours} H</div>
+                <button class="btn-icon del-rel" onclick="event.stopPropagation(); removeRel(${originalIndex})">✕</button>
+                <button class="btn-icon note-toggle" onclick="event.stopPropagation(); toggleNoteEdit(${originalIndex})">📝</button>
+            </div>
+            <div id="note-box-${originalIndex}" class="rel-external-note ${note ? 'show' : ''}" onclick="event.stopPropagation()">
+                <textarea oninput="saveRelNote(${originalIndex}, this.value)" placeholder="Заметка...">${note}</textarea>
+            </div>
+        `;
+        grid.appendChild(container);
+    });
+}
+
+        function toggleNoteEdit(idx) {
+            const box = document.getElementById(`note-box-${idx}`);
+            if (box) box.classList.toggle('show');
+        }
+
+        function saveRelNote(idx, text) {
+            db[activeHero][currentMode][idx].note = text;
+            save();
+        }
+
+        function removeRel(idx) {
+            db[activeHero][currentMode].splice(idx, 1);
+            save();
+            renderRels();
+        }
+
+        function updateSelector() {
+    const sel = document.getElementById('rel-selector');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">+ Добавить персонажа...</option>';
+    
+    // Просто алфавитный список для удобства поиска
+    const names = Object.keys(db).filter(n => 
+        n !== activeHero && (selFilter === 'all' || db[n].role === selFilter)
+    ).sort();
+
+    names.forEach(n => {
+        sel.innerHTML += `<option value="${n}">${n}</option>`;
+    });
+}
+
+        function addRel(target) {
+            if(!target) return;
+            const exists = db[activeHero][currentMode].find(i => (typeof i === 'string' ? i : i.name) === target);
+            if(!exists) {
+                db[activeHero][currentMode].push({ name: target, note: "" });
+                save();
+                renderRels();
+            }
+            document.getElementById('rel-selector').value = "";
+        }
+
+        // Фильтры
+        function setMainFilter(f, btn) {
+            mainFilter = f;
+            document.querySelectorAll('#main-menu .f-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderGrid();
+        }
+
+        function setSelFilter(f, btn) {
+            selFilter = f;
+            document.querySelectorAll('#detail-view .f-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateSelector();
+            renderRels();
+        }
+
+        function setMode(m) {
+    currentMode = m;
+    
+    // Подсвечиваем активную кнопку режима
+    document.getElementById('mode-c').style.opacity = m === 'counters' ? '1' : '0.4';
+    document.getElementById('mode-s').style.opacity = m === 'synergy' ? '1' : '0.4';
+    
+    // МЕНЯЕМ ТЕКСТ ЗАГОЛОВКА
+    const label = document.getElementById('rel-label');
+    if (label) {
+        label.innerText = m === 'counters' ? 'Кем контрить:' : 'С кем лучше взаимодействия:';
+    }
+    
+    if(activeHero) renderRels();
+}
+
+        // Менеджер статы
+        function openStats() {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('stats-view').classList.add('active');
+    const list = document.getElementById('stats-list');
+    list.innerHTML = '';
+    
+    const totalCount = Object.keys(db).length;
+    
+    // Шапка с общим счетчиком и названиями колонок
+    list.innerHTML = `
+        <div style="background: #333; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444;">
+            <div style="text-align: center; margin-bottom: 10px;">Всего героев: <b style="color:var(--accent)">${totalCount}</b></div>
+            <div style="display: flex; font-size: 10px; text-transform: uppercase; opacity: 0.6; padding: 0 10px;">
+                <span style="flex: 1;">Имя героя</span>
+                <span style="width: 55px; text-align: center;">Часы</span>
+                <span style="width: 55px; text-align: center;">Ур.</span>
+                <span style="width: 30px;"></span>
+            </div>
+        </div>
+    `;
+
+    Object.keys(db).sort().forEach(name => {
+        const h = db[name];
+        list.innerHTML += `
+            <div class="stat-item">
+                <b style="flex:1; color:var(--${h.role})">${name}</b>
+                <div style="display:flex; gap:5px;">
+                    <input type="number" value="${h.hours}" style="width:50px; text-align:center" onchange="quickUpd('${name}','hours',this.value)">
+                    <input type="number" value="${h.lvl}" style="width:50px; text-align:center" onchange="quickUpd('${name}','lvl',this.value)">
+                </div>
+                <button onclick="deleteHero('${name}')" style="background:none; border:none; color:red; cursor:pointer; width:30px">🗑️</button>
+            </div>`;
+    });
+}
+
+        function quickUpd(name, field, val) { db[name][field] = parseInt(val) || 0; save(); }
+        function deleteHero(n) { if(confirm('Удалить героя?')) { delete db[n]; save(); openStats(); } }
+        function showMain() { document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.getElementById('main-menu').classList.add('active'); renderGrid(); }
+
+        // Импорт/Экспорт
+        function exportJSON() {
+            const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", data);
+            dl.setAttribute("download", "ow_db.json");
+            dl.click();
+        }
+
+        function importJSON(i) {
+            const r = new FileReader();
+            r.onload = function() { 
+                try {
+                    db = JSON.parse(r.result); 
+                    save(); 
+                    location.reload();
+                } catch(e) { alert("Ошибка файла!"); }
+            };
+            r.readAsText(i.files[0]);
+        }
+
+        // Старт
+        renderGrid();
+    </script>
+</body>
+</html>
