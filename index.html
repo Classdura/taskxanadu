@@ -3,168 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XanadutodoMenu </title>
+    <title>Главное меню - Гигиена</title>
     <style>
-        /* --- CSS: Стиль Frutiger Aero --- */
-        body {
-            background: linear-gradient(135deg, #e1f5fe 0%, #ffffff 50%, #c8e6c9 100%);
+        /* Наследуем основной стиль из testhw.html */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #eef2f7; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
             min-height: 100vh;
-            display: flex;
-            flex-direction: column; /* Элементы теперь встают в колонку */
-            justify-content: center;
-            align-items: center;
+            margin: 0;
+            padding: 20px; 
+        }
+        
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            width: 100%; 
+            max-width: 600px; 
+            text-align: center;
         }
 
-        /* Контейнер для меню */
-        .fa-nav {
-            background: rgba(255, 255, 255, 0.4);
-            padding: 20px;
-            border-radius: 50px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 1.8em;
+        }
+
+        .lobby-menu {
             display: flex;
+            flex-direction: column;
             gap: 15px;
         }
 
-        /* Стили кнопок */
-        .fa-button {
-            position: relative;
+        /* Стили кнопок-ссылок в твоем стиле */
+        .nav-btn {
+            display: block;
+            padding: 18px 25px;
+            font-size: 1.1em;
             text-decoration: none;
-            color: #005a8d;
+            color: white;
+            border-radius: 12px;
             font-weight: 600;
-            padding: 12px 25px;
-            border-radius: 30px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            
-            /* Глянцевый эффект */
-            background: linear-gradient(180deg, 
-                rgba(255,255,255,0.8) 0%, 
-                rgba(255,255,255,0.2) 50%, 
-                rgba(0,162,255,0.1) 50%, 
-                rgba(0,162,255,0.2) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 
-                inset 0 1px 0 rgba(255,255,255,0.9),
-                0 4px 6px rgba(0,0,0,0.1);
-            
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        /* Эффект при наведении */
-        .fa-button:hover {
+        .nav-btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 15px rgba(0, 162, 255, 0.3);
-            color: #0084ff;
-            background: linear-gradient(180deg, 
-                rgba(255,255,255,0.9) 0%, 
-                rgba(255,255,255,0.4) 50%, 
-                rgba(0,255,127,0.1) 50%, 
-                rgba(0,255,127,0.2) 100%);
+            opacity: 0.9;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         }
 
-        /* Пузырьки (декор) */
-        .fa-button::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
+        /* Цвета для разных разделов (взято из твоих классов .random, .berserk, .chaos) */
+        .radiation { background: #6f42c1; } /* Радиационная (фиолетовый) */
+        .children { background: #007bff; }  /* ГДИП (синий) */
+        .communal { background: #28a745; }   /* Коммуналка (зеленый - новый акцент) */
+        .labor { background: #dc3545; }      /* Труды (красный) */
+        .nutrition { background: #fd7e14; }  /* Питание (оранжевый - новый акцент) */
+        .others { background: #6c757d; }     /* Другие (серый) */
 
-        .fa-button:hover::after {
-            opacity: 1;
-        }
-
-        .fa-button:active {
-            transform: translateY(1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-		/* Поле с заголовком и текстом */
-        .content-area {
-            margin-top: 10px; /* Сделаем 100px для уверенного Frutiger-стиля */
-            text-align: center;
-            max-width: 700px;
-            animation: fadeIn 1s ease-out;
-        }
-
-        .main-title {
-            font-size: 4rem;
-            font-weight: 800;
-            margin-bottom: 10px;
-            text-transform: lowercase;
-            background: linear-gradient(to bottom, #0084ff 30%, #00c6ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-            letter-spacing: -2px;
-        }
-
-        .description-card {
-            background: rgba(255, 255, 255, 0.25);
-            padding: 30px;
-            border-radius: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(8px);
-            color: #1a4a6e;
-            line-height: 1.6;
-            font-size: 1.1rem;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .footer-text {
+            margin-top: 25px;
+            font-size: 0.9em;
+            color: #888;
         }
     </style>
 </head>
 <body>
 
-    <!-- --- HTML: Структура меню --- -->
-	    <main class="content-area">
-        <h1 class="main-title">xanadutodo</h1>
-        <div class="description-card">
-            Твой персональный хаб продуктивности нового поколения. 
-            Организуй рабочие процессы, отслеживай прогресс в реальном времени и превращай рутину в захватывающее приключение с помощью RPG-системы задач. 
-        </div>
-    </main>
-	<nav class="fa-nav">
-        <a href="counter.html" class="fa-button" data-name="Счётчик">Счётчик</a>
-        <a href="owmenu2.html" class="fa-button" data-name="Овервоч 2">Овервоч 2 Меню героев</a>
-        <a href="tale.html" class="fa-button" data-name="ПрогрессБары">ПрогрессБары</a>
-        <a href="tast-tree.html" class="fa-button" data-name="Тудушка">Тудушка</a>
-        <a href="treeto-do%202.0.html" class="fa-button" data-name="РПГ-дерево">РПГ-дерево-задачник</a>
-    </nav>
+<div class="container">
+    <h1>Выбор направления. Тесты и проекты.</h1>
+    
+    <div class="lobby-menu">
+        <a href="radiation_test.html" class="nav-btn radiation">☢️ Радиационная гигиена</a>
+        <a href="children_test.html" class="nav-btn children">👶 Гигиена детей и подростков</a>
+        <a href="communal_test.html" class="nav-btn communal">🏢 Коммунальная гигиене</a>
+        <a href="labor_test.html" class="nav-btn labor">🛠️ Гигиена труда</a>
+        <a href="nutrition_test.html" class="nav-btn nutrition">🍎 Гигиена питания</a>
+        
+        <div style="margin: 10px 0; border-top: 1px solid #eee;"></div>
+        
+        <a href="projects.html" class="nav-btn others">📂 Другие проекты</a>
+    </div>
 
-
-
-    <!-- --- JS: Логика --- -->
-    <script>
-        document.querySelectorAll('.fa-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                // Если ссылка-заглушка, предотвращаем переход
-                if(button.getAttribute('href') === '#') {
-                    e.preventDefault();
-                    const name = button.getAttribute('data-name');
-                    console.log(`Переход в раздел: ${name}`);
-                    
-                    // Эффект нажатия
-                    button.style.filter = 'brightness(1.2)';
-                    setTimeout(() => {
-                        button.style.filter = 'brightness(1)';
-                    }, 200);
-                }
-            });
-        });
-    </script>
+    <div class="footer-text">Удачи на тестировании!</div>
+</div>
 
 </body>
 </html>
