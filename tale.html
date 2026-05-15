@@ -97,13 +97,35 @@
 		
         .sheet-item:hover { background: rgba(0,0,0,0.05); }
         .sheet-item.active { border-left: 4px solid var(--accent-color); font-weight: bold; }
-        .sidebar-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 5px; 
+        .sidebar-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 5px;
+/* Стили для оверлея (затемнения) */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none; /* Скрыт по умолчанию */
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block; /* Показываем, когда меню активно */
+        }
+        
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }		
 		</style>
 </head>
 <body>
     <div id="overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div id="sidebar" class="sidebar">
-        <h3>📚 Книга индикаторов</h3>
+        <div class="sidebar-header">
+            <h3>📚 Книга индикаторов</h3>
+            <button class="btn" style="background:none; font-size:20px;" onclick="toggleSidebar()">&times;</button>
+        </div>
         <div id="sheetsList"></div>
         <div class="sidebar-actions">
             <button class="btn" style="background:var(--accent-color); color:white;" onclick="addNewSheet()">+ Новый индикатор</button>
@@ -146,7 +168,6 @@
         <h2 id="displayTitle"></h2>
 		<div class="big-plus-btn" onclick="incrementFact()">+</div>
         <div id="visualizer" class="visualizer-box"></div>
-        <div id="statusText" style="font-weight: bold; font-size: 1.2rem;"></div>
 		<div id="statusText" style="font-weight: bold; font-size: 1.2rem;"></div>
         
         
@@ -165,8 +186,13 @@
     window.milestones = [];
 
     window.onload = () => {
+        // Загружаем сохраненную тему
+        const savedTheme = localStorage.getItem('indicator_theme');
+        if (savedTheme) {
+            document.body.setAttribute('data-theme', savedTheme);
+        }
+        
         loadActiveSheet();
-        // Принудительный вызов отрисовки после загрузки DOM
         setTimeout(() => update(false), 50);
     };
 	function incrementFact() {
@@ -212,7 +238,26 @@
         };
         localStorage.setItem('indicator_book', JSON.stringify(book));
     }
-
+function resetAll() {
+        if (confirm("Вы уверены, что хотите полностью сбросить текущий индикатор?")) {
+            // Сбрасываем визуальные поля
+            document.getElementById('titleInput').value = "Новый индикатор";
+            document.getElementById('valFact').value = 0;
+            document.getElementById('valMax').value = 100;
+            document.getElementById('typeSelect').value = "horizontal";
+            
+            // Очищаем рубежи
+            window.milestones = [];
+            
+            // Принудительно сохраняем пустые данные в текущий слот книги
+            saveCurrentToBook();
+            
+            // Обновляем всё
+            update(true); 
+            
+            console.log("Индикатор сброшен");
+        }
+    }
     function renderSheetsList() {
         const list = document.getElementById('sheetsList');
         list.innerHTML = book.sheets.map((s, i) => {
