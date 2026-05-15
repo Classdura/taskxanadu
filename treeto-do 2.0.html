@@ -265,9 +265,14 @@
 
 <button class="btn" id="sidebar-open" style="position:fixed; left:10px; top:10px; z-index:1001;" onclick="toggleSidebar()">☰</button>
 
-<div id="nav-menu" class="ui-panel">
-    <small>Быстрая навигация:</small>
-    <div id="nav-links"></div>
+<div id="nav-menu" class="ui-panel" style="transition: 0.3s; width: 200px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; border-bottom: 1px solid #444; cursor: pointer;" onclick="toggleNav()">
+        <small id="nav-title" style="white-space: nowrap;">Быстрая навигация</small>
+        <span id="nav-toggle-icon">▼</span>
+    </div>
+    <div id="nav-links-container" style="max-height: 250px; overflow-y: auto; padding: 10px;">
+        <div id="nav-links"></div>
+    </div>
 </div>
 
 <div id="viewport">
@@ -372,7 +377,6 @@
             save();
         }
     }
-
     // --- Работа с Узлами ---
     function addNode(type, input = null) {
     // 1. Проверяем наличие данных
@@ -543,7 +547,44 @@ div.appendChild(deleteBtn);
             e.stopPropagation();
 			playSound('ui-click'); // Звук при выборе/нажатии на узел
             if(state.mode === 'link') { handleLinking(node.id); return; }
+            // Поддержка перемещения узлов на мобилках
+        const handleDragStart = (e) => {
+            if(e.target.tagName === 'BUTTON' || e.target.classList.contains('delete-btn')) return;
+            if(state.mode === 'canvas-move' || state.mode === 'link') return;
             
+            e.stopPropagation();
+            const touch = e.touches ? e.touches[0] : e;
+            let startPos = {x: touch.clientX, y: touch.clientY};
+            let moved = false;
+
+            const onMove = (ev) => {
+                const t = ev.touches ? ev.touches[0] : ev;
+                moved = true;
+                node.x += (t.clientX - startPos.x) / scale;
+                node.y += (t.clientY - startPos.y) / scale;
+                startPos = {x: t.clientX, y: t.clientY};
+                div.style.left = node.x + 'px';
+                div.style.top = node.y + 'px';
+                renderLinks();
+            };
+
+            const onEnd = () => {
+                window.removeEventListener('mousemove', onMove);
+                window.removeEventListener('touchmove', onMove);
+                window.removeEventListener('mouseup', onEnd);
+                window.removeEventListener('touchend', onEnd);
+                if(!moved && !e.touches) openModal(node.id); // Для тача лучше открывать по долгому тапу или кнопке, но пока оставим так
+                save();
+            };
+
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, {passive: false});
+            window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchend', onEnd);
+        };
+
+        div.addEventListener('touchstart', handleDragStart, {passive: false});
+        // mousedown уже есть в коде, его можно заменить на handleDragStart для унификации
             let startPos = {x: e.clientX, y: e.clientY};
             let moved = false;
 
@@ -569,7 +610,21 @@ div.appendChild(deleteBtn);
         container.appendChild(div);
     });
 }
-
+function toggleNav() {
+    const container = document.getElementById('nav-links-container');
+    const menu = document.getElementById('nav-menu');
+    
+    // Если контейнер скрыт — разворачиваем
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        menu.style.width = '200px'; 
+        // Можно добавить смену иконки на открытый глаз, если хочешь
+    } else {
+        // Иначе — сворачиваем
+        container.style.display = 'none';
+        menu.style.width = '40px'; 
+    }
+}
 function toggleNodeStatus(e, id) {
         e.stopPropagation();
         const map = state.maps[state.activeMap];
@@ -691,10 +746,16 @@ function resetDependentNodes(map, parentId) {
 }
 
 function toggleMoveMode() {
+    // Переключаем между обычным режимом и режимом перемещения ХОЛСТА
     state.mode = (state.mode === 'canvas-move') ? 'move' : 'canvas-move';
     const moveBtn = document.getElementById('move-btn');
     if(moveBtn) moveBtn.classList.toggle('active', state.mode === 'canvas-move');
+    
+    // Меняем курсор для визуального фидбека
     document.getElementById('viewport').style.cursor = (state.mode === 'canvas-move') ? 'all-scroll' : 'grab';
+    
+    // Если включили перемещение холста, сбрасываем источник связей
+    if(state.mode === 'canvas-move') linkingSource = null;
 }
 
 function zoom(amt) {
