@@ -170,6 +170,43 @@
         }
         .task-controls button:hover { background: var(--border-color); }
         .btn-delete { color: var(--danger-color) !important; }
+		/* Стили для кнопки создания главной ветви */
+        .btn-main-add {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+            padding: 12px 20px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-main-add:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-main-add:active {
+            transform: translateY(0);
+        }
+
+        /* Улучшение кнопки меню в сайдбаре */
+        .sidebar-toggle-btn {
+            margin: 10px;
+            padding: 8px;
+            background: var(--btn-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 4px;
+            cursor: pointer;
+        }
         .hidden-file { display: none; }
         .brand-header { padding: 15px; border-bottom: 1px solid var(--border-color); font-weight: bold; }
 		.btn-toggle {
@@ -237,7 +274,7 @@
     <!-- Sidebar: Карты -->
     <div id="sidebar">
         <div class="brand-header">Книги / Карты</div>
-        <ul class="map-list" id="map-list"></ul>
+		<button class="sidebar-toggle-btn" onclick="app.toggleSidebar()">✕ Закрыть меню</button>        <ul class="map-list" id="map-list"></ul>
         <div class="toolbar" style="border-top: 1px solid var(--border-color); border-bottom: none;">
             <button onclick="app.addMap()">+ Новая карта</button>
         </div>
@@ -265,8 +302,10 @@
             <h1 id="map-title" contenteditable="true" onblur="app.updateMapTitle(this.innerText)">Название Карты</h1>
             <div class="global-stats" id="global-stats">Общий статус: 0/0 (0%)</div>
             <div class="tree-root" id="tree-root"></div>
-            <button onclick="app.addTask(null)" style="margin-top: 15px; padding: 10px; cursor: pointer;">+ Добавить главную ветвь</button>
-        </div>
+			<div style="display:flex; gap: 10px; justify-content: center;">
+    <button class="btn-main-add" onclick="app.addTask(null)">+ Добавить главную ветвь</button>
+    <button class="btn-main-add" onclick="app.addBulkTasks(null)">+📋 Массово</button>
+</div>
     </div>
 
     <script>
@@ -416,6 +455,29 @@
                     parent.children.push(newTask);
                 }
                 this.saveState(); this.render(); AudioSys.play('action');
+            },
+			addBulkTasks(parentId = null) {
+                const input = prompt("Введите список задач (каждая с новой строки):");
+                if (input === null) return; // Отмена
+
+                const lines = input.split('\n').filter(line => line.trim() !== "");
+                if (lines.length === 0) return;
+
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                
+                lines.forEach(text => {
+                    const newTask = { id: this.generateId(), text: text.trim(), completed: false, children: [] };
+                    if (!parentId || parentId === 'null') {
+                        map.tasks.push(newTask);
+                    } else {
+                        const parent = this.findTask(map.tasks, parentId).node;
+                        parent.children.push(newTask);
+                    }
+                });
+
+                this.saveState(); 
+                this.render(); 
+                AudioSys.play('action');
             },
             updateTaskText(id, text) {
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
@@ -604,7 +666,8 @@
                                 <button onclick="app.moveTask('${task.id}', 'out')" title="Наружу (Сделать сестринской)">←</button>
                                 <button onclick="app.duplicateTask('${task.id}')" title="Дублировать">⎘</button>
                                 <button onclick="app.addTask('${task.id}')" title="Добавить подветвь">+</button>
-                                <button class="btn-delete" onclick="app.deleteTask('${task.id}')" title="Удалить">✕</button>
+								<button onclick="app.addBulkTasks('${task.id}')" title="Добавить несколько веток">+📋</button>
+								<button class="btn-delete" onclick="app.deleteTask('${task.id}')" title="Удалить">✕</button>
                             </div>
                         </div>
                     `;
