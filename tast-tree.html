@@ -145,7 +145,10 @@
         }
         .task-content:hover { background-color: var(--btn-bg); }
         .task-content.completed > .task-text { text-decoration: line-through; opacity: 0.6; }
-        
+        .task-content.focused {
+    border: 2px solid var(--accent-color);
+    background-color: rgba(76, 175, 80, 0.1);
+}
         .task-text { 
             flex: 1; 
             outline: none; 
@@ -339,11 +342,12 @@
         // --- Core Application ---
         const app = {
             state: {
-                theme: 'light',
-                bgColor: '',
-                maps: [],
-                currentMapId: null
-            },
+    theme: 'light',
+    bgColor: '',
+    maps: [],
+    currentMapId: null,
+    activeTaskId: null 
+},
             history: [],
             historyIndex: -1,
             isRestoring: false,
@@ -430,6 +434,10 @@
                 if(this.state.maps.length === 0) this.addMap("Новая карта", false);
                 this.saveState(); this.render(); AudioSys.play('action');
             },
+			focusTask(id) {
+    this.state.activeTaskId = (this.state.activeTaskId === id) ? null : id;
+    this.render();
+},
             updateMapTitle(newTitle) {
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 if (map && map.name !== newTitle) { map.name = newTitle; this.saveState(); this.renderMapList(); }
@@ -654,7 +662,7 @@
                         : `<span class="btn-toggle"></span>`;
 
                     li.innerHTML = `
-                        <div class="task-content ${task.completed ? 'completed' : ''}">
+                        <div class="task-content ${task.completed ? 'completed' : ''} ${task.id === app.state.activeTaskId ? 'focused' : ''}">
                             ${toggleBtn}
                             <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="app.toggleComplete('${task.id}')">
                             <input type="text" class="task-text" value="${task.text.replace(/"/g, '&quot;')}" onblur="app.updateTaskText('${task.id}', this.value)">
@@ -666,6 +674,7 @@
                                 <button onclick="app.moveTask('${task.id}', 'out')" title="Наружу (Сделать сестринской)">←</button>
                                 <button onclick="app.duplicateTask('${task.id}')" title="Дублировать">⎘</button>
                                 <button onclick="app.addTask('${task.id}')" title="Добавить подветвь">+</button>
+								<button onclick="app.focusTask('${task.id}')" title="Сфокусироваться">👁</button>
 								<button onclick="app.addBulkTasks('${task.id}')" title="Добавить несколько веток">+📋</button>
 								<button class="btn-delete" onclick="app.deleteTask('${task.id}')" title="Удалить">✕</button>
                             </div>
