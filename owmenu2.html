@@ -411,8 +411,17 @@ function copyList(roleFilter) {
         function quickUpd(name, field, val) { db[name][field] = parseInt(val) || 0; save(); }
 
         function updateHeroImg(name, url) {
-            db[name].img = url.trim();
+            let cleanUrl = url.trim();
+
+            // Если это ссылка на Wiki, обрезаем всё лишнее после .png
+            if (cleanUrl.includes('static.wikia.nocookie.net')) {
+                const parts = cleanUrl.split('/revision/');
+                cleanUrl = parts[0];
+            }
+
+            db[name].img = cleanUrl;
             save();
+            
             const thumb = document.getElementById(`stat-thumb-${name}`);
             if (thumb) {
                 thumb.style.backgroundImage = db[name].img ? `url(${db[name].img})` : 'none';
