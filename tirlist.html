@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tier List Maker - Aero Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --sidebar-bg: rgba(244, 244, 244, 0.85);
+            --row-bg: #e0e0e0;
+            --sample-bg: #03a9f4;
+            --border-color: #4caf50;
+            --sample-width: 100px;
+        }
+        
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { 
+            margin: 0; padding: 0; 
+            background-color: var(--bg-color); 
+            /* Лёгкий природный фон в стиле Frutiger Aero (абстрактные пузыри/свечение) */
+            background-image: radial-gradient(circle at 80% 20%, rgba(3, 169, 244, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 20% 80%, rgba(76, 175, 80, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+            display: flex; height: 100vh; overflow: hidden;
+        }
+
+        /* Кнопка Гамбургер - Aero Стиль */
+        #menu-btn {
+            position: absolute; top: 15px; left: 15px; z-index: 100;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.7), rgba(255,255,255,0.2));
+            border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 2px 5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px); border-radius: 6px;
+            font-size: 20px; cursor: pointer; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        #menu-btn:hover {
+            background: linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(255,255,255,0.4));
+            box-shadow: 0 2px 8px rgba(3, 169, 244, 0.4);
+        }
+
+        /* Боковое меню - Эффект Glassmorphism / Aero Glass */
+        #sidebar {
+            width: 310px; height: 100%; 
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(240, 245, 250, 0.5));
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border-right: 1px solid rgba(255, 255, 255, 0.6); 
+            box-shadow: 5px 0 25px rgba(0,0,0,0.08);
+            padding: 70px 20px 20px;
+            position: fixed; left: 0; top: 0;
+            transform: translateX(-100%);
+            transition: transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
+            z-index: 90; display: flex; flex-direction: column; gap: 18px;
+            overflow-y: auto;
+        }
+        #sidebar.open { transform: translateX(0); }
+
+        /* Красивый скроллбар для сайдбара в стиле Windows */
+        #sidebar::-webkit-scrollbar { width: 8px; }
+        #sidebar::-webkit-scrollbar-track { background: rgba(0,0,0,0.03); border-radius: 4px; }
+        #sidebar::-webkit-scrollbar-thumb { background: rgba(0, 150, 136, 0.2); border-radius: 4px; }
+        #sidebar::-webkit-scrollbar-thumb:hover { background: rgba(0, 150, 136, 0.4); }
+
+        /* Основная зона */
+        #main-content {
+            flex-grow: 1; margin-left: 0; padding: 70px 30px 30px;
+            display: flex; flex-direction: column; gap: 10px;
+            transition: margin-left 0.4s cubic-bezier(0.1, 0.9, 0.2, 1); 
+            height: 100%; overflow-y: auto;
+        }
+
+        /* Контейнеры блоков в меню */
+        .sidebar-block {
+            border: 1px solid rgba(200, 215, 225, 0.6); 
+            padding: 12px; border-radius: 10px; 
+            background: rgba(255, 255, 255, 0.45);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.6);
+        }
+        .sidebar-block h3, .sidebar-block h4 { margin: 0 0 8px 0; color: #2c3e50; font-size: 14px; font-weight: 600; }
+
+        /* Стили контейнеров рядов (Глянец и сглаживание) */
+        .row-container {
+            display: flex; min-height: 100px; 
+            border: 1px solid rgba(255,255,255,0.5);
+            border-bottom: 2px solid rgba(0,0,0,0.08);
+            border-radius: 12px; overflow: hidden;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.4), rgba(255,255,255,0.1));
+            box-shadow: 0 6px 15px rgba(0,0,0,0.03);
+            align-items: stretch; margin-bottom: 5px;
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Заголовок ряда */
+        .row-header {
+            width: 110px; min-width: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border-right: 1px solid rgba(0,0,0,0.08); padding: 10px;
+            font-weight: bold; text-align: center; 
+            /* Динамический глянец поверх выбранного пользователем цвета фона ряда */
+            background: linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.1) 50%, rgba(0,0,0,0.03) 50%, rgba(255,255,255,0.1) 100%), var(--row-bg);
+            text-shadow: 0 1px 1px rgba(255,255,255,0.8); color: #333;
+            position: relative; box-shadow: inset -1px 0 0 rgba(255,255,255,0.4);
+        }
+
+        .row-items {
+            flex-grow: 1; display: flex; flex-wrap: nowrap;
+            overflow-x: auto; padding: 12px; gap: 12px; align-items: center; min-height: 100px;
+            background: rgba(255,255,255,0.15);
+        }
+
+        /* Нулевой ряд (Aero контейнер) */
+        #zero-row-container {
+            margin-top: 10px; min-height: 120px; 
+            border: 2px dashed rgba(3, 169, 244, 0.3);
+            border-radius: 14px; padding: 14px; 
+            background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,248,255,0.4)); 
+            display: flex; gap: 12px; flex-wrap: nowrap; overflow-x: auto;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.02), 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        /* Настоящий Frutiger Aero стиль для карточек-образцов */
+        .sample {
+            /* Базовый цвет из кастомизатора палитры */
+            background-color: var(--sample-bg); 
+            /* Многослойный 3D-глянец: верхний светлый блик, стеклянный перелом посередине, глубина */
+            background-image: linear-gradient(to bottom, 
+                rgba(255, 255, 255, 0.7) 0%, 
+                rgba(255, 255, 255, 0.3) 49%, 
+                rgba(255, 255, 255, 0.0) 50%, 
+                rgba(0, 0, 0, 0.05) 100%);
+            color: white;
+            font-weight: 600;
+            padding: 15px 20px; 
+            border-radius: 9px; 
+            min-width: var(--sample-width);
+            text-align: center;
+            cursor: grab; display: flex; align-items: center; justify-content: center;
+            user-select: none; 
+            /* Объёмная скевоморфная тень и сочный контур */
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-bottom: 2px solid rgba(0, 0, 0, 0.25);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15), 
+                        inset 0 1px 1px rgba(255, 255, 255, 0.6),
+                        0 0 4px rgba(255,255,255,0.2);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            transition: min-width 0.1s ease, transform 0.15s;
+        }
+        .sample:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2), 
+                        inset 0 1px 2px rgba(255, 255, 255, 0.8),
+                        0 0 8px var(--sample-bg);
+        }
+        .sample:active { cursor: grabbing; transform: translateY(1px); }
+        
+        /* Кнопки интерфейса - Стеклянные с мягкими углами */
+        button { 
+            padding: 8px 14px; border-radius: 6px; font-weight: 600;
+            background: linear-gradient(to bottom, #ffffff 0%, #f1f5f9 100%);
+            border: 1px solid #cbd5e1; border-bottom: 2px solid #b4c6d8;
+            color: #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(to bottom, #f8fafc 0%, #e2e8f0 100%);
+            border-color: #94a3b8; box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+        }
+        button:active { transform: translateY(1px); }
+
+        /* Поля ввода и Textarea */
+        textarea, input[type="text"] { 
+            width: 100%; border-radius: 6px; padding: 6px 10px;
+            border: 1px solid #cbd5e1; background: rgba(255,255,255,0.8);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.03); font-size: 13px;
+        }
+        textarea:focus, input[type="text"]:focus {
+            outline: none; border-color: #3498db; box-shadow: 0 0 6px rgba(52,152,219,0.4);
+        }
+
+        [contenteditable="true"]:focus { outline: 2px solid #3498db; background: #fff; border-radius: 4px; }
+        
+        h2 { color: #2c3e50; font-weight: 700; font-size: 22px; text-shadow: 0 1px 0 #fff; margin: 0; }
+        h4.zero-title { color: #34495e; font-weight: 600; margin: 15px 0 5px 0; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+    <button id="menu-btn">☰</button>
+
+    <div id="sidebar">
+        <h2 id="book-title" contenteditable="true">Моя Книга</h2>
+        
+        <div class="sidebar-block">
+            <h3>Добавить образцы</h3>
+            <p style="font-size: 11px; color:#667a8a; margin: 0 0 6px 0;">Вставь текст (CTRL+V), каждый абзац — образец:</p>
+            <textarea id="bulk-add-input" placeholder="Вставь список тут..."></textarea>
+            <button id="add-bulk-btn" style="width: 100%; margin-top: 6px; background: linear-gradient(to bottom, #fff, #e8f5e9); border-color:#a5d6a7;">Добавить в нулевой ряд</button>
+        </div>
+
+        <div class="sidebar-block" style="max-height: 180px; display: flex; flex-direction: column;">
+            <h4>Все образцы листа:</h4>
+            <div id="samples-manager-list" style="overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 5px; padding-right: 5px;">
+            </div>
+        </div>
+
+        <div class="sidebar-block">
+            <h4>Размер образцов:</h4>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="range" id="sample-size-slider" min="60" max="250" value="100" style="flex-grow: 1; cursor: pointer;">
+                <span id="slider-value" style="font-size: 12px; font-weight: bold; min-width: 40px; color:#34495e;">100px</span>
+            </div>
+        </div>
+
+        <div class="sidebar-block">
+            <h4>Экспорт в Таблицу:</h4>
+            <button id="copy-table-btn" style="width: 100%; background: linear-gradient(to bottom, #26a69a, #00897b); color: white; border: 1px solid #00796b; padding: 7px; font-size: 12px;">📋 Скопировать для Excel/Sheets</button>
+            <div id="hidden-table-container" style="display: none;"></div>
+        </div>
+
+        <button id="add-row-btn" style="background: linear-gradient(to bottom, #fff, #e3f2fd); border-color: #90caf9;">＋ Добавить Новый Ряд</button>
+
+        <div class="sidebar-block">
+            <h4>Цвета текущего листа:</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color:#475569;">
+                <label style="display: flex; justify-content: space-between; align-items: center;">Фон страницы: <input type="color" id="color-bg"></label>
+                <label style="display: flex; justify-content: space-between; align-items: center;">Границы ряда: <input type="color" id="color-border"></label>
+                <label style="display: flex; justify-content: space-between; align-items: center;">Фон подложки: <input type="color" id="color-row-bg"></label>
+                <label style="display: flex; justify-content: space-between; align-items: center;">Цвет образцов: <input type="color" id="color-sample-bg"></label>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 5px; padding-bottom: 20px;">
+            <div style="font-weight: 700; font-size: 13px; color: #475569;">Вся Книга (Все листы):</div>
+            <div style="display: flex; gap: 6px;">
+                <button id="export-book-btn" style="flex: 1; background: linear-gradient(to bottom, #42a5f5, #1e88e5); color: white; border: 1px solid #1565c0; padding: 6px; font-size: 11px;">Экспорт</button>
+                <button id="import-book-btn" style="flex: 1; background: linear-gradient(to bottom, #ffa726, #f57c00); color: white; border: 1px solid #e65100; padding: 6px; font-size: 11px;">Импорт</button>
+            </div>
+            
+            <div style="font-weight: 700; font-size: 13px; color: #475569; margin-top: 3px;">Текущий Лист:</div>
+            <div style="display: flex; gap: 6px;">
+                <button id="export-sheet-btn" style="flex: 1; background: linear-gradient(to bottom, #66bb6a, #43a047); color: white; border: 1px solid #2e7d32; padding: 6px; font-size: 11px;">Экспорт</button>
+                <button id="import-sheet-btn" style="flex: 1; background: linear-gradient(to bottom, #ab47bc, #8e24aa); color: white; border: 1px solid #6a1b9a; padding: 6px; font-size: 11px;">Импорт</button>
+            </div>
+            
+            <input type="file" id="import-book-file" accept=".json" style="display: none;">
+            <input type="file" id="import-sheet-file" accept=".json" style="display: none;">
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="tier-rows"></div>
+
+        <h4 class="zero-title">Нулевой ряд (входящие образцы)</h4>
+        <div id="zero-row-container" class="sortable-list" data-row-id="zero"></div>
+    </div>
+
+    <script>
+        const DEFAULT_COLORS = {
+            bg: "#ffffff",
+            border: "#cbd5e1",
+            rowBg: "#f1f5f9",
+            sampleBg: "#03a9f4"
+        };
+
+        let state = {
+            bookName: "Моя Книга",
+            activeSheetIndex: 0,
+            sampleWidth: 100,
+            sheets: [
+                {
+                    name: "Лист 1",
+                    colors: { ...DEFAULT_COLORS },
+                    rows: [
+                        { id: "row-1", name: "Ряд A", items: [{ id: "s-1", name: "ОБРАЗЕЦ 1" }] },
+                        { id: "row-2", name: "Ряд B", items: [] }
+                    ],
+                    zeroRow: [{ id: "s-3", name: "ОБРАЗЕЦ 2" }]
+                }
+            ]
+        };
+
+        const savedState = localStorage.getItem('tierListState');
+        if (savedState) {
+            try {
+                const parsed = JSON.parse(savedState);
+                if (parsed.sheets && parsed.sheets.length > 0) {
+                    state = parsed;
+                    state.sheets.forEach(s => { if (!s.colors) s.colors = { ...DEFAULT_COLORS }; });
+                }
+            } catch(e) { console.error("Ошибка загрузки данных", e); }
+        }
+
+        function saveState() {
+            localStorage.setItem('tierListState', JSON.stringify(state));
+        }
+
+        function getActiveSheet() {
+            if (state.activeSheetIndex >= state.sheets.length) state.activeSheetIndex = 0;
+            return state.sheets[state.activeSheetIndex];
+        }
+
+        const tierRowsContainer = document.getElementById('tier-rows');
+        const zeroRowContainer = document.getElementById('zero-row-container');
+        const bookTitleEl = document.getElementById('book-title');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        
+        const cpBg = document.getElementById('color-bg');
+        const cpBorder = document.getElementById('color-border');
+        const cpRowBg = document.getElementById('color-row-bg');
+        const cpSampleBg = document.getElementById('color-sample-bg');
+        
+        const samplesManagerList = document.getElementById('samples-manager-list');
+        const hiddenTableContainer = document.getElementById('hidden-table-container');
+
+        let tabsContainer = document.getElementById('sheets-tabs');
+        if (!tabsContainer) {
+            tabsContainer = document.createElement('div');
+            tabsContainer.id = 'sheets-tabs';
+            tabsContainer.style.cssText = "display: flex; gap: 6px; margin-bottom: 15px; border-bottom: 2px solid rgba(0,0,0,0.06); padding-bottom: 6px; flex-wrap: wrap; align-items: center;";
+            mainContent.insertBefore(tabsContainer, mainContent.firstChild);
+        }
+
+        function applyColors(colors) {
+            const c = colors || DEFAULT_COLORS;
+            document.documentElement.style.setProperty('--bg-color', c.bg);
+            document.documentElement.style.setProperty('--border-color', c.border);
+            document.documentElement.style.setProperty('--row-bg', c.rowBg);
+            document.documentElement.style.setProperty('--sample-bg', c.sampleBg);
+            cpBg.value = c.bg; cpBorder.value = c.border; cpRowBg.value = c.rowBg; cpSampleBg.value = c.sampleBg;
+        }
+
+        function render() {
+            const currentSheet = getActiveSheet();
+            bookTitleEl.innerText = state.bookName;
+            
+            document.documentElement.style.setProperty('--sample-width', (state.sampleWidth || 100) + 'px');
+            const slider = document.getElementById('sample-size-slider');
+            if(slider) {
+                slider.value = state.sampleWidth || 100;
+                document.getElementById('slider-value').innerText = (state.sampleWidth || 100) + 'px';
+            }
+            
+            applyColors(currentSheet.colors);
+            renderTabs();
+
+            tierRowsContainer.innerHTML = '';
+            zeroRowContainer.innerHTML = '';
+
+            currentSheet.rows.forEach(row => {
+                const rowEl = document.createElement('div');
+                rowEl.className = 'row-container';
+                rowEl.innerHTML = `
+                    <div class="row-header" data-row-id="${row.id}">
+                        <span class="row-title-text" style="cursor:pointer; width:100%; word-break:break-word;">${row.name}</span>
+                        <button class="delete-row-btn" data-row-id="${row.id}" style="margin-top:6px; background: rgba(255,82,82,0.85); color: white; border: none; border-radius: 4px; padding: 1px 6px; font-size: 11px; cursor: pointer; box-shadow:0 1px 3px rgba(0,0,0,0.1);">×</button>
+                    </div>
+                    <div class="row-items sortable-list" data-row-id="${row.id}">
+                        ${row.items.map(item => `
+                            <div class="sample" data-item-id="${item.id}">${item.name}</div>
+                        `).join('')}
+                    </div>
+                `;
+                tierRowsContainer.appendChild(rowEl);
+            });
+
+            zeroRowContainer.innerHTML = currentSheet.zeroRow.map(item => `
+                <div class="sample" data-item-id="${item.id}">${item.name}</div>
+            `).join('');
+
+            initSortable();
+            attachClickListeners();
+            renderSamplesManager();
+            generateTableData();
+        }
+
+        function renderTabs() {
+            tabsContainer.innerHTML = '';
+            state.sheets.forEach((sheet, index) => {
+                const tab = document.createElement('div');
+                const isActive = index === state.activeSheetIndex;
+                
+                // Вкладки в стиле стеклянных кнопок Aero Tab
+                tab.style.cssText = `
+                    padding: 6px 14px; border: 1px solid rgba(0,0,0,0.12); border-bottom: none; 
+                    cursor: pointer; border-radius: 6px 6px 0 0; font-size: 13px; font-weight: bold;
+                    background: ${isActive ? 'linear-gradient(to bottom, rgba(255,255,255,0.8), rgba(255,255,255,0.4))' : 'linear-gradient(to bottom, rgba(235,240,245,0.6), rgba(215,225,235,0.3))'};
+                    box-shadow: ${isActive ? 'inset 0 1px 0 #fff, 0 -2px 6px rgba(3,169,244,0.15)' : 'none'};
+                    border-top: ${isActive ? '2px solid var(--sample-bg)' : '1px solid rgba(0,0,0,0.12)'};
+                    color: #2c3e50; display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+                `;
+                
+                const titleSpan = document.createElement('span');
+                titleSpan.innerText = sheet.name;
+                titleSpan.onclick = () => { state.activeSheetIndex = index; saveState(); render(); };
+                titleSpan.ondblclick = () => {
+                    const newName = prompt('Введите новое название листа:', sheet.name);
+                    if (newName && newName.trim()) { sheet.name = newName.trim(); saveState(); render(); }
+                };
+                tab.appendChild(titleSpan);
+
+                if (state.sheets.length > 1) {
+                    const delBtn = document.createElement('span');
+                    delBtn.innerText = '×';
+                    delBtn.style.cssText = "color: #ff5252; font-weight: bold; cursor: pointer; padding: 0 2px; font-size: 14px;";
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Удалить лист "${sheet.name}"?`)) {
+                            state.sheets.splice(index, 1);
+                            if (state.activeSheetIndex >= state.sheets.length) state.activeSheetIndex = state.sheets.length - 1;
+                            saveState(); render();
+                        }
+                    };
+                    tab.appendChild(delBtn);
+                }
+                tabsContainer.appendChild(tab);
+            });
+
+            const addTabBtn = document.createElement('button');
+            addTabBtn.innerText = '＋ Новый лист';
+            addTabBtn.style.cssText = "padding: 4px 10px; cursor: pointer; font-size: 12px; background: linear-gradient(to bottom, #fff, #e8f5e9); border-color: #a5d6a7; border-radius: 4px; margin-left: 5px;";
+            addTabBtn.onclick = () => {
+                state.sheets.push({
+                    name: `Лист ${state.sheets.length + 1}`,
+                    colors: { ...DEFAULT_COLORS },
+                    rows: [
+                        { id: "row-" + Date.now() + "-1", name: "Ряд 1", items: [] },
+                        { id: "row-" + Date.now() + "-2", name: "Ряд 2", items: [] }
+                    ],
+                    zeroRow: []
+                });
+                state.activeSheetIndex = state.sheets.length - 1;
+                saveState(); render();
+            };
+            tabsContainer.appendChild(addTabBtn);
+        }
+
+        function renderSamplesManager() {
+            samplesManagerList.innerHTML = '';
+            const currentSheet = getActiveSheet();
+
+            let allItems = [];
+            currentSheet.rows.forEach(r => r.items.forEach(i => allItems.push({ item: i, location: r.items })));
+            currentSheet.zeroRow.forEach(i => allItems.push({ item: i, location: currentSheet.zeroRow }));
+
+            if (allItems.length === 0) {
+                samplesManagerList.innerHTML = '<div style="color:#7f8c8d; font-size:12px; text-align:center; padding-top:10px; font-style:italic;">Образцов нет</div>';
+                return;
+            }
+
+            allItems.forEach(data => {
+                const itemDiv = document.createElement('div');
+                itemDiv.style.cssText = "display: flex; gap: 5px; align-items: center; margin-bottom: 2px;";
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = data.item.name;
+                input.style.cssText = "flex-grow: 1; padding: 4px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; min-width: 0; background: rgba(255,255,255,0.7);";
+                
+                input.onchange = (e) => {
+                    if (e.target.value.trim()) {
+                        data.item.name = e.target.value.trim();
+                        saveState(); render(); 
+                    }
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.innerText = '×';
+                delBtn.style.cssText = "background: #ff5252; color: white; border: none; border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);";
+                delBtn.onclick = () => {
+                    const index = data.location.indexOf(data.item);
+                    if (index !== -1) {
+                        data.location.splice(index, 1);
+                        saveState(); render();
+                    }
+                };
+
+                itemDiv.appendChild(input);
+                itemDiv.appendChild(delBtn);
+                samplesManagerList.appendChild(itemDiv);
+            });
+        }
+
+        function generateTableData() {
+            const currentSheet = getActiveSheet();
+            hiddenTableContainer.innerHTML = '';
+            if (currentSheet.rows.length === 0) return;
+
+            const maxRowsCount = Math.max(...currentSheet.rows.map(r => r.items.length), 0);
+            let tableHTML = '<table border="1" style="border-collapse: collapse; text-align: center;">';
+            
+            tableHTML += '<thead><tr>';
+            currentSheet.rows.forEach(row => {
+                tableHTML += `<th style="padding: 8px; background-color: #f2f2f2; font-weight: bold;">${row.name}</th>`;
+            });
+            tableHTML += '</tr></thead>';
+
+            tableHTML += '<tbody>';
+            for (let i = 0; i < maxRowsCount; i++) {
+                tableHTML += '<tr>';
+                currentSheet.rows.forEach(row => {
+                    const item = row.items[i];
+                    tableHTML += `<td style="padding: 6px;">${item ? item.name : ''}</td>`;
+                });
+                tableHTML += '</tr>';
+            }
+            tableHTML += '</tbody></table>';
+
+            hiddenTableContainer.innerHTML = tableHTML;
+        }
+
+        document.getElementById('copy-table-btn').onclick = async () => {
+            const tableEl = hiddenTableContainer.querySelector('table');
+            if (!tableEl) { alert('Нечего копировать. Добавьте ряды и образцы!'); return; }
+
+            try {
+                const blob = new Blob([tableEl.outerHTML], { type: 'text/html' });
+                const data = [new ClipboardItem({ 'text/html': blob })];
+                await navigator.clipboard.write(data);
+                alert('Таблица скопирована! Нажмите CTRL+V в Excel/Google Sheets.');
+            } catch (err) {
+                console.error(err); alert('Ошибка копирования.');
+            }
+        };
+
+        let sortableInstances = [];
+        function initSortable() {
+            sortableInstances.forEach(inst => inst.destroy());
+            sortableInstances = [];
+
+            document.querySelectorAll('.sortable-list').forEach(listEl => {
+                const inst = new Sortable(listEl, {
+                    group: 'shared', animation: 180, delay: 60, delayOnTouchOnly: true, fallbackTolerance: 3,
+                    onEnd: function () { updateStateFromDOM(); }
+                });
+                sortableInstances.push(inst);
+            });
+        }
+
+        function updateStateFromDOM() {
+            const currentSheet = getActiveSheet();
+            currentSheet.rows.forEach(row => {
+                const rowEl = document.querySelector(`.sortable-list[data-row-id="${row.id}"]`);
+                if (rowEl) {
+                    row.items = Array.from(rowEl.querySelectorAll('.sample')).map(el => ({
+                        id: el.getAttribute('data-item-id'),
+                        name: el.innerText
+                    }));
+                }
+            });
+            const zeroEl = document.querySelector('.sortable-list[data-row-id="zero"]');
+            if (zeroEl) {
+                currentSheet.zeroRow = Array.from(zeroEl.querySelectorAll('.sample')).map(el => ({
+                    id: el.getAttribute('data-item-id'),
+                    name: el.innerText
+                }));
+            }
+            saveState();
+            renderSamplesManager();
+            generateTableData();
+        }
+
+        function attachClickListeners() {
+            bookTitleEl.onclick = () => {
+                const newName = prompt("Изменить название книги:", state.bookName);
+                if (newName && newName.trim()) { state.bookName = newName.trim(); saveState(); render(); }
+            };
+
+            document.querySelectorAll('.row-title-text').forEach(titleEl => {
+                titleEl.onclick = () => {
+                    const rowId = titleEl.parentElement.getAttribute('data-row-id');
+                    const currentSheet = getActiveSheet();
+                    const row = currentSheet.rows.find(r => r.id === rowId);
+                    if (row) {
+                        const newName = prompt("Изменить название ряда:", row.name);
+                        if (newName && newName.trim()) { row.name = newName.trim(); saveState(); render(); }
+                    }
+                };
+            });
+
+            document.querySelectorAll('.delete-row-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const rowId = btn.getAttribute('data-row-id');
+                    const currentSheet = getActiveSheet();
+                    const rowIndex = currentSheet.rows.findIndex(r => r.id === rowId);
+                    if (rowIndex !== -1) {
+                        if (confirm(`Удалить ряд "${currentSheet.rows[rowIndex].name}"? Карточки вернутся в нулевой ряд.`)) {
+                            currentSheet.zeroRow = [...currentSheet.zeroRow, ...currentSheet.rows[rowIndex].items];
+                            currentSheet.rows.splice(rowIndex, 1);
+                            saveState(); render();
+                        }
+                    }
+                };
+            });
+
+            document.querySelectorAll('.sample').forEach(sampleEl => {
+                sampleEl.onclick = (e) => {
+                    if (e.defaultPrevented) return;
+                    const itemId = sampleEl.getAttribute('data-item-id');
+                    const currentSheet = getActiveSheet();
+                    let foundItem = currentSheet.zeroRow.find(i => i.id === itemId);
+                    if (!foundItem) {
+                        for (let row of currentSheet.rows) {
+                            foundItem = row.items.find(i => i.id === itemId);
+                            if (foundItem) break;
+                        }
+                    }
+                    if (foundItem) {
+                        const newName = prompt("Изменить имя образца:", foundItem.name);
+                        if (newName && newName.trim()) { foundItem.name = newName.trim(); saveState(); render(); }
+                    }
+                };
+            });
+        }
+
+        function handleColorChange(key, value) {
+            const currentSheet = getActiveSheet();
+            currentSheet.colors[key] = value; saveState();
+            document.documentElement.style.setProperty(`--${key === 'bg' ? 'bg-color' : key === 'rowBg' ? 'row-bg' : key === 'sampleBg' ? 'sample-bg' : 'border-color'}`, value);
+        }
+
+        cpBg.addEventListener('input', (e) => handleColorChange('bg', e.target.value));
+        cpBorder.addEventListener('input', (e) => handleColorChange('border', e.target.value));
+        cpRowBg.addEventListener('input', (e) => handleColorChange('rowBg', e.target.value));
+        cpSampleBg.addEventListener('input', (e) => handleColorChange('sampleBg', e.target.value));
+
+        const sizeSlider = document.getElementById('sample-size-slider');
+        const sliderValueText = document.getElementById('slider-value');
+
+        sizeSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            sliderValueText.innerText = val + 'px';
+            document.documentElement.style.setProperty('--sample-width', val + 'px');
+            state.sampleWidth = parseInt(val);
+            saveState();
+        });
+
+        function downloadJSON(data, filename) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('export-book-btn').onclick = () => downloadJSON(state, `${state.bookName || 'book'}-all.json`);
+        document.getElementById('export-sheet-btn').onclick = () => {
+            const currentSheet = getActiveSheet(); downloadJSON(currentSheet, `${currentSheet.name}-sheet.json`);
+        };
+
+        document.getElementById('import-book-btn').onclick = () => document.getElementById('import-book-file').click();
+        document.getElementById('import-sheet-btn').onclick = () => document.getElementById('import-sheet-file').click();
+
+        document.getElementById('import-book-file').onchange = (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const parsed = JSON.parse(evt.target.result);
+                    if (parsed.sheets) { state = parsed; saveState(); render(); alert('Книга импортирована!'); }
+                } catch(err) { alert('Ошибка JSON книги.'); }
+            };
+            reader.readAsText(file); e.target.value = '';
+        };
+
+        document.getElementById('import-sheet-file').onchange = (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const parsedSheet = JSON.parse(evt.target.result);
+                    if (parsedSheet.rows && parsedSheet.name) {
+                        if (!parsedSheet.colors) parsedSheet.colors = { ...DEFAULT_COLORS };
+                        state.sheets.push(parsedSheet); state.activeSheetIndex = state.sheets.length - 1;
+                        saveState(); render(); alert('Лист добавлен!');
+                    }
+                } catch(err) { alert('Ошибка JSON листа.'); }
+            };
+            reader.readAsText(file); e.target.value = '';
+        };
+
+        document.getElementById('menu-btn').onclick = () => {
+            sidebar.classList.toggle('open');
+            mainContent.style.marginLeft = window.innerWidth > 768 && sidebar.classList.contains('open') ? '310px' : '0';
+        };
+
+        document.getElementById('add-row-btn').onclick = () => {
+            getActiveSheet().rows.push({ id: 'row-' + Date.now(), name: 'Новый ряд', items: [] });
+            saveState(); render();
+        };
+
+        document.getElementById('add-bulk-btn').onclick = () => {
+            const text = document.getElementById('bulk-add-input').value; if (!text.trim()) return;
+            const currentSheet = getActiveSheet();
+            text.split('\n').forEach(line => {
+                if (line.trim()) currentSheet.zeroRow.push({ id: 's-' + Date.now() + Math.random(), name: line.trim() });
+            });
+            document.getElementById('bulk-add-input').value = ''; saveState(); render();
+        };
+
+        render();
+    </script>
+</body>
+</html>
