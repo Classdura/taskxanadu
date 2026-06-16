@@ -7,117 +7,281 @@
     <title>Индикатор с дугой и рубежами</title>
     <style>
         :root {
-            --bg-color: #f0f2f5; --card-bg: #ffffff; --text-color: #333;
-            --accent-color: #3498db; --border-color: #ddd; --bar-bg: #e0e0e0;
-            --ms-color: #e74c3c; --ms-done: #2ecc71;
+            /* Яркая эко-техно палитра Frutiger Aero */
+            --bg-color: #e8f5f8;
+            --bg-gradient: linear-gradient(135deg, #c3f0f5 0%, #9aeccc 50%, #dbf7e7 100%);
+            --card-bg: rgba(255, 255, 255, 0.4);
+            --card-border: rgba(255, 255, 255, 0.6);
+            --text-color: #0b2530;
+            --accent-color: #00b4d8;
+            --accent-grad: linear-gradient(to bottom, #48cae4 0%, #0077b6 100%);
+            --border-color: rgba(0, 180, 216, 0.3);
+            --bar-bg: rgba(255, 255, 255, 0.5);
+            --ms-color: #ff5a5f;
+            --ms-grad: linear-gradient(to bottom, #ff7e82 0%, #e74c3c 100%);
+            --ms-done: #2ecc71;
+            --ms-done-grad: linear-gradient(to bottom, #56e396 0%, #2ecc71 100%);
+            --glossy-top: linear-gradient(to bottom, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 50.1%, rgba(255,255,255,0.1) 100%);
         }
+        
         [data-theme="dark"] {
-            --bg-color: #121212; --card-bg: #1e1e1e; --text-color: #e0e0e0;
-            --border-color: #333; --bar-bg: #444;
+            --bg-color: #0a1128;
+            --bg-gradient: linear-gradient(135deg, #0a1128 0%, #1c2541 60%, #1f4068 100%);
+            --card-bg: rgba(28, 37, 65, 0.55);
+            --card-border: rgba(255, 255, 255, 0.12);
+            --text-color: #e2f1f7;
+            --border-color: rgba(72, 202, 228, 0.25);
+            --bar-bg: rgba(11, 19, 43, 0.6);
+            --accent-grad: linear-gradient(to bottom, #00b4d8 0%, #005f73 100%);
+            --glossy-top: linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 50.1%, rgba(255,255,255,0.05) 100%);
         }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { background: var(--card-bg); padding: 2rem; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 100%; max-width: 600px; text-align: center; }
+
+        body { 
+            font-family: 'Segoe UI', -apple-system, sans-serif; 
+            background: var(--bg-color); 
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-color); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            min-height: 100vh;
+            margin: 0;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 1px rgba(255,255,255,0.6);
+        }
         
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; text-align: left; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; }
+        [data-theme="dark"] body { text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
+
+        .container { 
+            background: var(--card-bg); 
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            padding: 2rem; 
+            border-radius: 28px; 
+            border: 2px solid var(--card-border);
+            box-shadow: 0 20px 50px rgba(0, 180, 216, 0.15), inset 0 1px 0 rgba(255,255,255,0.5); 
+            width: 100%; 
+            max-width: 600px; 
+            text-align: center; 
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Общий верхний блик для контейнера */
+        .container::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 45%;
+            background: var(--glossy-top); pointer-events: none; z-index: 1;
+        }
+        
+        .controls { 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; 
+            text-align: left; background: rgba(255,255,255,0.3); padding: 15px; 
+            border-radius: 16px; border: 1px solid rgba(255,255,255,0.4);
+            position: relative; z-index: 2;
+        }
+        [data-theme="dark"] .controls { background: rgba(0,0,0,0.25); border-color: rgba(255,255,255,0.05); }
+
         .control-group { display: flex; flex-direction: column; }
-        input, select { padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); }
         
-        .milestone-tag { background: var(--ms-color); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 5px; margin: 2px; }
-        .milestone-tag span { cursor: pointer; font-weight: bold; }
-
-        .visualizer-box { min-height: 250px; display: flex; justify-content: center; align-items: center; position: relative; margin: 30px 0; width: 100%; }
-
-        /* Контейнеры шкал */
-        .progress-wrapper { position: relative; border: 2px solid var(--border-color); background: var(--bar-bg); border-radius: 10px; overflow: visible; }
-        .fill { background: var(--accent-color); transition: all 0.4s ease; border-radius: 7px; }
+        input, select { 
+            padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); 
+            background: rgba(255,255,255,0.6); color: var(--text-color); 
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;
+        }
+        [data-theme="dark"] input, [data-theme="dark"] select { background: rgba(11, 19, 43, 0.5); }
+        input:focus, select:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 8px rgba(0,180,216,0.3); }
         
-        .h-bar { width: 100%; height: 40px; }
-        .v-bar { width: 50px; height: 200px; display: flex; flex-direction: column-reverse; }
-        .seg-container { display: flex; gap: 4px; width: 100%; height: 40px; }
-        .seg-item { flex: 1; background: var(--bar-bg); border: 1px solid var(--border-color); border-radius: 4px; position: relative; overflow: hidden; }
+        /* Мильстоны (теги) */
+        .milestone-tag { 
+            background: var(--ms-grad); color: white; padding: 5px 12px; 
+            border-radius: 50px; font-size: 0.8rem; display: inline-flex; 
+            align-items: center; gap: 6px; margin: 4px; font-weight: 600;
+            box-shadow: 0 3px 8px rgba(231, 76, 60, 0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.2);
+        }
+        .milestone-tag.done {
+            background: var(--ms-done-grad);
+            box-shadow: 0 3px 8px rgba(46, 204, 113, 0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+        }
+        .milestone-tag span { cursor: pointer; font-weight: bold; opacity: 0.8; }
+        .milestone-tag span:hover { opacity: 1; }
 
-        /* Маркеры */
-        .ms-mark { position: absolute; z-index: 10; pointer-events: none; }
-        .ms-label { position: absolute; font-size: 10px; font-weight: bold; color: var(--ms-color); white-space: nowrap; z-index: 11; }
+        .visualizer-box { min-height: 250px; display: flex; justify-content: center; align-items: center; position: relative; margin: 30px 0; width: 100%; z-index: 2; }
 
-.btn { border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; }
+        /* Контейнеры шкал — эффект стеклянной капсулы (Aero Progress) */
+        .progress-wrapper { 
+            position: relative; border: 2px solid rgba(255,255,255,0.6); 
+            background: var(--bar-bg); border-radius: 14px; overflow: hidden;
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.1), 0 4px 15px rgba(0,0,0,0.05);
+        }
+        [data-theme="dark"] .progress-wrapper { border-color: rgba(255,255,255,0.05); }
+
+        /* Наполнение шкалы жидкостью с бликом */
+        .fill { 
+            background: var(--accent-color); 
+            background: var(--accent-grad);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            border-radius: 10px; 
+            position: relative;
+        }
+        .fill::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+        }
         
-        /* Стили бокового меню */
+        .h-bar { width: 100%; height: 42px; }
+        .v-bar { width: 55px; height: 220px; display: flex; flex-direction: column-reverse; }
+        
+        /* Сегментированная шкала */
+        .seg-container { display: flex; gap: 5px; width: 100%; height: 42px; }
+        .seg-item { 
+            flex: 1; background: var(--bar-bg); border: 1px solid var(--border-color); 
+            border-radius: 6px; position: relative; overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .seg-item.active {
+            background: var(--accent-grad);
+        }
+        .seg-item::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
+        }
+
+        /* Маркеры мильстонов на шкале */
+        .ms-mark { position: absolute; z-index: 10; pointer-events: none; width: 4px; background: #fff; box-shadow: 0 0 8px var(--ms-color); }
+        .h-bar .ms-mark { height: 100%; top: 0; }
+        .v-bar .ms-mark { width: 100%; left: 0; height: 4px; }
+        .ms-label { position: absolute; font-size: 11px; font-weight: bold; color: var(--ms-color); text-shadow: 0 1px 2px white; white-space: nowrap; z-index: 11; }
+        [data-theme="dark"] .ms-label { text-shadow: 0 1px 2px black; }
+
+        /* Обычные кнопки */
+        .btn { 
+            border: none; padding: 10px 20px; border-radius: 50px; cursor: pointer; 
+            font-weight: bold; margin: 5px; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.6);
+            color: var(--text-color); box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: relative; overflow: hidden;
+        }
+        [data-theme="dark"] .btn { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+        .btn::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+            background: rgba(255,255,255,0.2);
+        }
+        .btn:hover { background: var(--accent-grad); color: white; border-color: transparent; text-shadow: 0 -1px 0 rgba(0,0,0,0.2); }
+        .btn:active { transform: scale(0.95); }
+        
+        /* Стили бокового меню (Glassmorphism Sidebar) */
         .sidebar {
             position: fixed; left: -350px; top: 0; width: 320px; height: 100%;
-            background: var(--card-bg); box-shadow: 2px 0 15px rgba(0,0,0,0.3);
-            transition: 0.3s; z-index: 1000; padding: 20px; box-sizing: border-box;
+            background: var(--card-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border-right: 1px solid var(--card-border); box-shadow: 15px 0 40px rgba(0,0,0,0.15);
+            transition: 0.4s cubic-bezier(0.19, 1, 0.22, 1); z-index: 1000; padding: 25px; box-sizing: border-box;
             overflow-y: auto; text-align: left;
         }
         .sidebar.active { left: 0; }
         
         .sheet-item {
-            padding: 12px; border-bottom: 1px solid var(--border-color);
-            cursor: pointer; display: flex; align-items: flex-start; gap: 10px; /* flex-start для высоких строк */
+            padding: 14px; border-bottom: 1px solid var(--border-color);
+            cursor: pointer; display: flex; flex-direction: column; gap: 5px;
+            transition: all 0.2s; border-radius: 12px; margin-bottom: 4px;
         }
-        .sheet-name { 
-            flex-grow: 1; 
-            word-break: break-word;
-            line-height: 1.2;
-            margin-bottom: 4px; /* Отступ до полоски */
+        .sheet-item:hover { background: rgba(255,255,255,0.4); transform: translateX(5px); }
+        [data-theme="dark"] .sheet-item:hover { background: rgba(255,255,255,0.05); }
+        
+        .sheet-item.active { 
+            background: rgba(0, 180, 216, 0.12); 
+            border-left: 5px solid var(--accent-color); 
+            font-weight: bold; 
         }
         
+        .sheet-name { flex-grow: 1; word-break: break-word; line-height: 1.3; font-size: 0.95rem; }
+        
         /* Мини-полоска в меню */
-        .mini-progress-bg {
-            width: 100%;
-            height: 4px;
-            background: var(--bar-bg);
-            border-radius: 2px;
-            margin-top: 4px;
-            overflow: hidden;
-        }
-        .mini-progress-fill {
-            height: 100%;
-            background: var(--accent-color);
-            transition: width 0.3s ease;
-        }
+        .mini-progress-bg { width: 100%; height: 6px; background: var(--bar-bg); border-radius: 10px; margin-top: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.3); }
+        .mini-progress-fill { height: 100%; background: var(--accent-grad); transition: width 0.3s ease; }
 
-        /* Большая голубая кнопка */
+        /* Тот самый водянистый Aqua-пузырь (Большая голубая кнопка) */
         .big-plus-btn {
             width: 80px; height: 80px;
-            background: var(--accent-color);
+            background: var(--accent-grad);
             color: white;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-size: 40px; font-weight: bold;
-            margin: 20px auto;
+            font-size: 42px; font-weight: 300;
+            margin: 25px auto;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
-            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 10px 25px rgba(0, 180, 216, 0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+            transition: transform 0.1s, filter 0.2s;
             user-select: none;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.1);
+            text-shadow: 0 -1px 2px rgba(0,0,0,0.2);
         }
-        .big-plus-btn:active { transform: scale(0.9); background: #2980b9; }
-        .sheet-controls { display: flex; gap: 8px; opacity: 0.6; }
+        .big-plus-btn::before {
+            content: ''; position: absolute; top: 2px; left: 15%; right: 15%; height: 35%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 100%);
+            border-radius: 50% / 40%;
+        }
+        .big-plus-btn:hover { filter: brightness(1.1); }
+        .big-plus-btn:active { transform: scale(0.9); }
+        
+        .sheet-controls { display: flex; gap: 10px; opacity: 0.6; font-size: 0.85rem; }
         .sheet-controls span:hover { opacity: 1; color: var(--accent-color); }
 		
-        .sheet-item:hover { background: rgba(0,0,0,0.05); }
-        .sheet-item.active { border-left: 4px solid var(--accent-color); font-weight: bold; }
-        .sidebar-actions { margin-top: 20px; display: flex; flex-direction: column; gap: 5px;
-/* Стили для оверлея (затемнения) */
+        .sidebar-actions { margin-top: 25px; display: flex; flex-direction: column; gap: 8px; }
+
+        /* Стили для оверлея (затемнения) */
         .sidebar-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: none; /* Скрыт по умолчанию */
-            z-index: 999;
+            position: fixed; inset: 0;
+            background: rgba(11, 19, 43, 0.2);
+            backdrop-filter: blur(5px);
+            display: none; z-index: 999;
         }
-        .sidebar-overlay.active {
-            display: block; /* Показываем, когда меню активно */
-        }
+        .sidebar-overlay.active { display: block; }
         
         .sidebar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 25px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
+        }	
+        /* Стиль для индикатора типа "Диск" */
+        .disk-indicator {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 2px solid var(--card-border);
+            position: relative;
+            box-shadow: var(--shadow-main, 0 15px 35px rgba(0,180,216,0.2)), inset 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: background 0.4s ease;
+        }
+
+        /* Глянцевый блик поверх диска */
+        .disk-indicator::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 50%;
+            background: var(--glossy-top);
+            border-radius: 90px 90px 0 0;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        /* Центральная точка или внутреннее затенение для объема */
+        .disk-indicator::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.1) 100%);
+            pointer-events: none;
+            z-index: 2;
         }		
-		</style>
+</style>
 </head>
 <body>
     <div id="overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
@@ -153,6 +317,7 @@
                     <option value="gauge">Полоска-дуга</option>
                     <option value="battery">Сегменты</option>
                     <option value="circle">Круг</option>
+                    <option value="disk">Диск (Радиальный)</option>
                     <option value="vertical">Вертикальная</option>
                 </select>
             </div>
@@ -238,7 +403,7 @@
         };
         localStorage.setItem('indicator_book', JSON.stringify(book));
     }
-function resetAll() {
+    function resetAll() {
         if (confirm("Вы уверены, что хотите полностью сбросить текущий индикатор?")) {
             // Сбрасываем визуальные поля
             document.getElementById('titleInput').value = "Новый индикатор";
@@ -364,6 +529,7 @@ function resetAll() {
     function toggleTheme() {
         const curr = document.body.getAttribute('data-theme');
         document.body.setAttribute('data-theme', curr === 'dark' ? 'light' : 'dark');
+        update(false);
     }
 
     function addMS() {
@@ -384,6 +550,11 @@ function resetAll() {
         const type = document.getElementById('typeSelect').value;
         const p = Math.min(Math.max((f / m) * 100, 0), 100);
 
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        // Динамические цвета для градиентов SVG
+        const stop1 = isDark ? '#00b4d8' : '#48cae4';
+        const stop2 = isDark ? '#005f73' : '#0077b6';
+
         if (shouldSave) {
             saveCurrentToBook();
             renderSheetsList();
@@ -398,6 +569,19 @@ function resetAll() {
         const container = document.getElementById('visualizer');
         if (!container) return; 
         container.innerHTML = '';
+
+        // Общие градиенты для SVG шкал (Gauge и Circle)
+        const svgDefs = `
+            <defs>
+                <linearGradient id="aquaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="${stop1}" />
+                    <stop offset="100%" stop-color="${stop2}" />
+                </linearGradient>
+                <filter id="aquaGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="${stop1}" flood-opacity="0.4"/>
+                </filter>
+            </defs>
+        `;
 
         // --- ЛОГИКА ОТРИСОВКИ ---
         if (type === 'horizontal' || type === 'battery') {
@@ -432,18 +616,29 @@ function resetAll() {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.setAttribute("width", "220"); svg.setAttribute("height", "130");
             svg.style.overflow = "visible";
+            
             let msHTML = '';
             window.milestones.forEach(ms => {
                 const msP = Math.min(100, (ms.v / m) * 100);
                 const angle = 180 + (msP / 100) * 180;
                 const rad = angle * (Math.PI / 180);
                 const mx = 110 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
-                msHTML += `<circle cx="${mx}" cy="${my}" r="5" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" />
-                           <text x="${mx}" y="${my-10}" text-anchor="middle" style="font-size:10px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
+                msHTML += `<circle cx="${mx}" cy="${my}" r="6" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
+                           <text x="${mx}" y="${my-12}" text-anchor="middle" style="font-size:11px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
             });
-            svg.innerHTML = `<path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="var(--bar-bg)" stroke-width="15" stroke-linecap="round" />
-                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="var(--accent-color)" stroke-width="15" 
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" style="transition:0.5s" />${msHTML}`;
+
+            svg.innerHTML = `
+                ${svgDefs}
+                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="var(--bar-bg)" stroke-width="18" stroke-linecap="round" />
+                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="20" stroke-linecap="round" />
+                
+                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="url(#aquaGrad)" stroke-width="16" 
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" filter="url(#aquaGlow)" style="transition:0.5s" />
+                
+                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="4" 
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" style="transition:0.5s; pointer-events:none;" />
+                ${msHTML}
+            `;
             container.appendChild(svg);
         }
         else if (type === 'circle') {
@@ -452,17 +647,28 @@ function resetAll() {
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.setAttribute("width", "200"); svg.setAttribute("height", "200");
             svg.style.overflow = "visible";
+            
             let msHTML = '';
             window.milestones.forEach(ms => {
                 const angle = (ms.v / m) * 360 - 90;
                 const rad = angle * (Math.PI / 180);
                 const mx = 100 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
-                msHTML += `<circle cx="${mx}" cy="${my}" r="5" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" />
-                           <text x="${mx}" y="${my-10}" text-anchor="middle" style="font-size:10px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
+                msHTML += `<circle cx="${mx}" cy="${my}" r="6" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
+                           <text x="${mx}" y="${my-12}" text-anchor="middle" style="font-size:11px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
             });
-            svg.innerHTML = `<circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--bar-bg)" stroke-width="15" />
-                <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--accent-color)" stroke-width="15" 
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" style="transition:0.5s" />${msHTML}`;
+
+            svg.innerHTML = `
+                ${svgDefs}
+                <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--bar-bg)" stroke-width="18" />
+                <circle cx="100" cy="100" r="${r}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="20" />
+                
+                <circle cx="100" cy="100" r="${r}" fill="none" stroke="url(#aquaGrad)" stroke-width="16" 
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" filter="url(#aquaGlow)" style="transition:0.5s" />
+                
+                <circle cx="100" cy="100" r="${r}" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="4" 
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" style="transition:0.5s; pointer-events:none;" />
+                ${msHTML}
+            `;
             container.appendChild(svg);
         }
         else if (type === 'vertical') {
@@ -480,6 +686,49 @@ function resetAll() {
                 lbl.style.bottom = pos + '%'; lbl.style.left = '110%';
                 wrap.appendChild(mark); wrap.appendChild(lbl);
             });
+            container.appendChild(wrap);
+        }
+		else if (type === 'disk') {
+            const wrap = document.createElement('div');
+            wrap.className = 'disk-indicator';
+            
+            const activeColor = isDark ? '#00b4d8' : '#0077b6';
+            const baseColor = isDark ? 'rgba(11, 19, 43, 0.6)' : 'rgba(255, 255, 255, 0.5)';
+            
+            wrap.style.background = `conic-gradient(${activeColor} 0% ${p}%, ${baseColor} ${p}% 100%)`;
+
+            window.milestones.forEach(ms => {
+                const angle = (ms.v / m) * 360 - 90; 
+                const rad = angle * (Math.PI / 180);
+                const r = 90; 
+                
+                const mx = 90 + r * Math.cos(rad); 
+                const my = 90 + r * Math.sin(rad);
+
+                const dot = document.createElement('div');
+                dot.style.position = 'absolute';
+                dot.style.zIndex = '10';
+                dot.style.width = '10px';
+                dot.style.height = '10px';
+                dot.style.borderRadius = '50%';
+                dot.style.border = '1px solid white';
+                dot.style.background = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
+                dot.style.left = `calc(${mx}px - 5px)`;
+                dot.style.top = `calc(${my}px - 5px)`;
+                dot.style.boxShadow = '0 0 6px rgba(0,0,0,0.3)';
+
+                const lbl = document.createElement('div');
+                lbl.className = 'ms-label';
+                lbl.innerText = ms.l;
+                lbl.style.position = 'absolute';
+                lbl.style.left = `${mx}px`;
+                lbl.style.top = `${my - 18}px`;
+                lbl.style.transform = 'translateX(-50%)';
+                
+                wrap.appendChild(dot);
+                wrap.appendChild(lbl);
+            });
+
             container.appendChild(wrap);
         }
     }
