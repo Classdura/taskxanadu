@@ -552,13 +552,22 @@ header { display: flex; justify-content: space-between; align-items: center; mar
             async downloadData() {
                 if (!this.token) return alert('Требуется авторизация!');
                 try {
+                    // Шаг 1: Получаем ссылку на скачивание
                     const urlRes = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/download?path=app:/${YANDEX_CONFIG.filename}`, {
                         headers: this.getHeaders()
                     });
-                    if (!urlRes.ok) throw new Error('Файл бэкапа не найден в облаке.');
+                    if (!urlRes.ok) throw new Error('Файл бэкапа не найден в облаке. Возможно, вы еще ни разу не делали выгрузку.');
                     const urlData = await urlRes.json();
 
-                    const fileRes = await fetch(urlData.href);
+                    // Шаг 2: Скачиваем файл. Чтобы обойти CORS-ограничения downloader.yandex.ru,
+                    // мы делаем чистый запрос без учетных данных и заголовков, принудительно очищая кэш.
+                    const fileRes = await fetch(urlData.href, {
+                        method: 'GET',
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    if (!fileRes.ok) throw new Error(`Ошибка загрузки содержимого: ${fileRes.status}`);
                     return await fileRes.json();
                 } catch (err) {
                     console.error(err);
