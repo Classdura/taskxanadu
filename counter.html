@@ -190,6 +190,32 @@ header { display: flex; justify-content: space-between; align-items: center; mar
         
         .sidebar-section { margin-bottom: 20px; border-bottom: 1px solid rgba(128,128,128,0.2); padding-bottom: 15px; }
         .sidebar-title { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; margin-bottom: 10px; }
+        
+        /* Стили для облачной синхронизации */
+        .cloud-section {
+            background: rgba(128, 128, 128, 0.08);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px dashed var(--border-color);
+        }
+        .sync-btn {
+            background-color: #ffcc00;
+            color: #000;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+            width: 100%;
+            margin-top: 5px;
+            transition: 0.2s;
+        }
+        .sync-btn:hover { background-color: #f5c200; }
+        .sync-btn:active { transform: scale(0.98); }
+        .sync-btn.cloud-io { background-color: var(--border-color); color: white; }
+        .sync-status { font-size: 0.8rem; display: block; margin-bottom: 5px; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -208,6 +234,16 @@ header { display: flex; justify-content: space-between; align-items: center; mar
             <div class="sidebar-title">Счетчики</div>
             <div id="counters-list" style="max-height: 300px; overflow-y: auto;"></div>
             <button class="btn-save" id="btn-add" style="font-size: 0.8rem; padding: 8px;">+ Добавить новый</button>
+        </div>
+
+        <!-- Новая секция Яндекс.Диска -->
+        <div class="sidebar-section cloud-section">
+            <div class="sidebar-title">Синхронизация</div>
+            <span id="sync-info" class="sync-status">☁️ Облако: Отключено</span>
+            <button id="btn-cloud-auth" class="sync-btn">Войти в Яндекс</button>
+            <button id="btn-cloud-up" class="sync-btn cloud-io" style="display:none;">Выгрузить в облако ⬆️</button>
+            <button id="btn-cloud-down" class="sync-btn cloud-io" style="display:none; margin-top:8px;">Загрузить из облака ⬇️</button>
+            <button id="btn-cloud-logout" class="sync-btn" style="display:none; background:rgba(128,128,128,0.2); color:var(--text-color); margin-top:8px;">Выйти из аккаунта</button>
         </div>
 
         <div class="sidebar-section" style="margin-top: auto; border:none;">
@@ -446,6 +482,132 @@ header { display: flex; justify-content: space-between; align-items: center; mar
         document.getElementById('theme-toggle').onclick = () => {
             const current = document.body.getAttribute('data-theme');
             setTheme(current === 'dark' ? 'light' : 'dark');
+        };
+
+        // --- МОДУЛЬ ЯНДЕКС ДИСКА ДЛЯ GITHUB PAGES ---
+        const YANDEX_CONFIG = {
+            clientId: '0da4ae98ab584b3ba432ec1cf90e0ca4', // Твой зарегистрированный Client ID
+            filename: 'counter_backup.json'
+        };
+
+        class YandexDiskSync {
+            constructor() {
+                this.token = localStorage.getItem('yd_token') || null;
+                this.init();
+            }
+
+            init() {
+                const hash = window.location.hash;
+                if (hash.includes('access_token')) {
+                    const params = new URLSearchParams(hash.replace('#', '?'));
+                    this.token = params.get('access_token');
+                    localStorage.setItem('yd_token', this.token);
+                    window.location.hash = ''; // Очищаем хэш в URL
+                }
+                this.updateStatusUI();
+            }
+
+            getHeaders() {
+                return {
+                    'Authorization': `OAuth ${this.token}`,
+                    'Content-Type': 'application/json'
+                };
+            }
+
+            async uploadData(dataObj) {
+                if (!this.token) return alert('Требуется авторизация!');
+                try {
+                    const urlRes = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/upload?path=app:/${YANDEX_CONFIG.filename}&overwrite=true`, {
+                        headers: this.getHeaders()
+                    });
+                    if (!urlRes.ok) throw new Error('Ошибка получения URL для отправки.');
+                    const urlData = await urlRes.json();
+
+                    const uploadRes = await fetch(urlData.href, {
+                        method: 'PUT',
+                        body: JSON.stringify(dataObj)
+                    });
+
+                    if (uploadRes.ok) {
+                        alert('Отлично! Данные сохранены в Яндекс.Диск.');
+                    } else {
+                        throw new Error('Не удалось передать файл.');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Ошибка сохранения: ' + err.message);
+                }
+            }
+
+            async downloadData() {
+                if (!this.token) return alert('Требуется авторизация!');
+                try {
+                    const urlRes = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/download?path=app:/${YANDEX_CONFIG.filename}`, {
+                        headers: this.getHeaders()
+                    });
+                    if (!urlRes.ok) throw new Error('Файл бэкапа не найден в облаке.');
+                    const urlData = await urlRes.json();
+
+                    const fileRes = await fetch(urlData.href);
+                    return await fileRes.json();
+                } catch (err) {
+                    console.error(err);
+                    alert('Ошибка загрузки: ' + err.message);
+                    return null;
+                }
+            }
+
+            login() {
+                // Автоматически подстраивается под твой URL репозитория на GitHub Pages
+                const redirectUri = window.location.origin + window.location.pathname;
+                window.location.href = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YANDEX_CONFIG.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+            }
+
+            logout() {
+                localStorage.removeItem('yd_token');
+                this.token = null;
+                this.updateStatusUI();
+            }
+
+            updateStatusUI() {
+                const info = document.getElementById('sync-info');
+                const btnAuth = document.getElementById('btn-cloud-auth');
+                const btnUp = document.getElementById('btn-cloud-up');
+                const btnDown = document.getElementById('btn-cloud-down');
+                const btnLogout = document.getElementById('btn-cloud-logout');
+
+                if (this.token) {
+                    info.innerText = '☁️ Облако: Подключено';
+                    btnAuth.style.display = 'none';
+                    btnUp.style.display = 'block';
+                    btnDown.style.display = 'block';
+                    btnLogout.style.display = 'block';
+                } else {
+                    info.innerText = '☁️ Облако: Отключено';
+                    btnAuth.style.display = 'block';
+                    btnUp.style.display = 'none';
+                    btnDown.style.display = 'none';
+                    btnLogout.style.display = 'none';
+                }
+            }
+        }
+
+        const cloudSync = new YandexDiskSync();
+
+        document.getElementById('btn-cloud-auth').onclick = () => cloudSync.login();
+        document.getElementById('btn-cloud-logout').onclick = () => cloudSync.logout();
+        document.getElementById('btn-cloud-up').onclick = () => cloudSync.uploadData(appState);
+
+        document.getElementById('btn-cloud-down').onclick = async () => {
+            const cloudData = await cloudSync.downloadData();
+            if (cloudData) {
+                if (confirm('Внимание! Данные из облака заменят текущие локальные счетчики. Продолжить?')) {
+                    appState = cloudData;
+                    saveToLS(); // Сохраняем скачанное в LocalStorage
+                    updateUI(); // Перерисовываем интерфейс новыми данными
+                    alert('Данные успешно синхронизированы!');
+                }
+            }
         };
 
         // Запуск приложения
