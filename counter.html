@@ -524,19 +524,28 @@ header { display: flex; justify-content: space-between; align-items: center; mar
                     if (!urlRes.ok) throw new Error('Ошибка получения URL для отправки.');
                     const urlData = await urlRes.json();
 
+                    console.log('Шаг 1 пройден. Получен URL для загрузки:', urlData.href);
+
+                    // Шаг 2: Отправляем JSON-файл по полученному адресу
                     const uploadRes = await fetch(urlData.href, {
                         method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json' // явно указываем тип контента для сервера хранения
+                        },
                         body: JSON.stringify(dataObj)
                     });
 
                     if (uploadRes.ok) {
                         alert('Отлично! Данные сохранены в Яндекс.Диск.');
                     } else {
-                        throw new Error('Не удалось передать файл.');
+                        throw new Error(`Сервер вернул статус ${uploadRes.status}`);
                     }
                 } catch (err) {
-                    console.error(err);
-                    alert('Ошибка сохранения: ' + err.message);
+                    console.error('--- ПОДРОБНОСТИ ОШИБКИ ОБЛАКА ---');
+                    console.error('Тип ошибки:', err.name);
+                    console.error('Сообщение:', err.message);
+                    console.error('Стек вызова:', err.stack);
+                    alert('Ошибка сохранения: ' + err.message + '. Открой консоль (F12) для деталей!');
                 }
             }
 
