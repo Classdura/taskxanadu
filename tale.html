@@ -50,6 +50,7 @@
             margin: 0;
             transition: all 0.3s ease;
             text-shadow: 0 1px 1px rgba(255,255,255,0.6);
+            user-select: none; /* Предотвращаем выделение текста при перетаскивании */
         }
         
         [data-theme="dark"] body { text-shadow: 0 1px 3px rgba(0,0,0,0.6); }
@@ -109,7 +110,24 @@
         .milestone-tag span { cursor: pointer; font-weight: bold; opacity: 0.8; }
         .milestone-tag span:hover { opacity: 1; }
 
-        .visualizer-box { min-height: 250px; display: flex; justify-content: center; align-items: center; position: relative; margin: 30px 0; width: 100%; z-index: 2; }
+        .visualizer-box { 
+            min-height: 250px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            position: relative; 
+            margin: 30px 0; 
+            width: 100%; 
+            z-index: 2; 
+        }
+
+        /* Интерактивный курсор для перетаскивания элементов */
+        .draggable {
+            cursor: grab;
+        }
+        .draggable:active {
+            cursor: grabbing;
+        }
 
         /* Контейнеры шкал — эффект стеклянной капсулы (Aero Progress) */
         .progress-wrapper { 
@@ -123,7 +141,7 @@
         .fill { 
             background: var(--accent-color); 
             background: var(--accent-grad);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            transition: all 0.1s linear; /* Быстрый отклик при drag */
             border-radius: 10px; 
             position: relative;
         }
@@ -133,11 +151,11 @@
             pointer-events: none;
         }
         
-        .h-bar { width: 100%; height: 42px; }
-        .v-bar { width: 55px; height: 220px; display: flex; flex-direction: column-reverse; }
+        .h-bar { width: 100%; height: 42px; cursor: pointer; }
+        .v-bar { width: 55px; height: 220px; display: flex; flex-direction: column-reverse; cursor: pointer; }
         
         /* Сегментированная шкала */
-        .seg-container { display: flex; gap: 5px; width: 100%; height: 42px; }
+        .seg-container { display: flex; gap: 5px; width: 100%; height: 42px; cursor: pointer; }
         .seg-item { 
             flex: 1; background: var(--bar-bg); border: 1px solid var(--border-color); 
             border-radius: 6px; position: relative; overflow: hidden;
@@ -152,10 +170,18 @@
         }
 
         /* Маркеры мильстонов на шкале */
-        .ms-mark { position: absolute; z-index: 10; pointer-events: none; width: 4px; background: #fff; box-shadow: 0 0 8px var(--ms-color); }
-        .h-bar .ms-mark { height: 100%; top: 0; }
-        .v-bar .ms-mark { width: 100%; left: 0; height: 4px; }
-        .ms-label { position: absolute; font-size: 11px; font-weight: bold; color: var(--ms-color); text-shadow: 0 1px 2px white; white-space: nowrap; z-index: 11; }
+        .ms-mark { 
+            position: absolute; 
+            z-index: 10; 
+            width: 6px; 
+            background: #fff; 
+            box-shadow: 0 0 8px var(--ms-color); 
+            cursor: grab;
+        }
+        .ms-mark:active { cursor: grabbing; }
+        .h-bar .ms-mark { height: 100%; top: 0; transform: translateX(-50%); }
+        .v-bar .ms-mark { width: 100%; left: 0; height: 6px; transform: translateY(50%); }
+        .ms-label { position: absolute; font-size: 11px; font-weight: bold; color: var(--ms-color); text-shadow: 0 1px 2px white; white-space: nowrap; z-index: 11; pointer-events: none; }
         [data-theme="dark"] .ms-label { text-shadow: 0 1px 2px black; }
 
         /* Обычные кнопки */
@@ -221,6 +247,7 @@
             overflow: hidden;
             border: 1px solid rgba(0,0,0,0.1);
             text-shadow: 0 -1px 2px rgba(0,0,0,0.2);
+            z-index: 10;
         }
         .big-plus-btn::before {
             content: ''; position: absolute; top: 2px; left: 15%; right: 15%; height: 35%;
@@ -258,6 +285,7 @@
             box-shadow: var(--shadow-main, 0 15px 35px rgba(0,180,216,0.2)), inset 0 2px 5px rgba(0,0,0,0.1);
             overflow: hidden;
             transition: background 0.4s ease;
+            cursor: pointer;
         }
 
         /* Глянцевый блик поверх диска */
@@ -280,10 +308,125 @@
             background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.1) 100%);
             pointer-events: none;
             z-index: 2;
-        }		
+        }
+
+        /* КАСТОМНОЕ МОДАЛЬНОЕ ОКНО */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(10, 17, 40, 0.4);
+            backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 2000;
+        }
+        .modal-overlay.active {
+            opacity: 1; pointer-events: auto;
+        }
+        .modal-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(25px) saturate(180%);
+            border: 2px solid var(--card-border);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.4);
+            padding: 25px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: left;
+            transform: scale(0.9);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            position: relative;
+            overflow: hidden;
+        }
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+        .modal-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 45%;
+            background: var(--glossy-top); pointer-events: none;
+        }
+        .modal-header {
+            font-size: 1.25rem; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-body {
+            display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;
+        }
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 10px;
+        }
+
+        /* Стиль для радиусных полосок на диске */
+        .ms-disk-radial-line {
+            position: absolute;
+            left: 90px;
+            top: 90px;
+            width: 90px;
+            height: 4px;
+            transform-origin: left center;
+            cursor: grab;
+            z-index: 8;
+        }
+        .ms-disk-radial-line::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -2px;
+            width: 50px;
+            height: 8px;
+            border-radius: 4px;
+            background: inherit;
+            box-shadow: 0 0 6px rgba(0,0,0,0.2);
+        }
 </style>
 </head>
 <body>
+    <!-- Модальное окно редактирования метки -->
+    <div id="editModal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span>✏️ Редактирование метки</span>
+                <span style="cursor:pointer; font-size: 1.5rem;" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label style="margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Название метки</label>
+                    <input type="text" id="modalLabelInput" placeholder="Название">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="control-group">
+                        <label style="margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Значение</label>
+                        <input type="number" id="modalValueInput" placeholder="Число" oninput="syncModalPercent()">
+                    </div>
+                    <div class="control-group">
+                        <label style="margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Процент %</label>
+                        <input type="text" id="modalPercentInput" placeholder="%" oninput="syncModalValue()">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" style="background: rgba(0,0,0,0.1);" onclick="closeModal()">Отмена (Esc)</button>
+                <button class="btn" style="background: var(--accent-color); color: white;" onclick="saveModalData()">Сохранить (Enter)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кастомные неблокирующие Alert/Confirm окна (вместо стандартных alert/confirm) -->
+    <div id="dialogModal" class="modal-overlay" onclick="closeDialog(false)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span id="dialogTitle">Сообщение</span>
+                <span style="cursor:pointer; font-size: 1.5rem;" onclick="closeDialog(false)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="dialogMessage" style="margin: 0; line-height: 1.5; font-size: 0.95rem;"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="dialogCancelBtn" class="btn" style="background: rgba(0,0,0,0.1);" onclick="closeDialog(false)">Отмена</button>
+                <button id="dialogOkBtn" class="btn" style="background: var(--accent-color); color: white;" onclick="closeDialog(true)">OK</button>
+            </div>
+        </div>
+    </div>
+
     <div id="overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div id="sidebar" class="sidebar">
         <div class="sidebar-header">
@@ -323,20 +466,50 @@
             </div>
         </div>
 
-        <div style="text-align: left; padding: 10px; border: 1px dashed var(--border-color); border-radius: 10px; margin-bottom: 10px;">
-            <input type="number" id="msValue" placeholder="Значение" style="width: 70px;">
-            <input type="text" id="msLabel" placeholder="Метка" style="width: 100px;">
-            <button class="btn" style="background:#2ecc71; color:white;" onclick="addMS()">+</button>
+        <!-- Раздел добавления и автораспределения рубежей -->
+        <div style="text-align: left; padding: 12px; border: 1px dashed var(--border-color); border-radius: 12px; margin-bottom: 15px; background: rgba(255,255,255,0.15);">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <label style="font-size: 0.75rem; opacity: 0.8; font-weight: 600;">Значение</label>
+                    <input type="number" id="msValue" placeholder="Число" style="width: 75px;" oninput="syncMSPercent()">
+                </div>
+                <span style="align-self: flex-end; margin-bottom: 10px; font-weight: bold;">=</span>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <label style="font-size: 0.75rem; opacity: 0.8; font-weight: 600;">Процент %</label>
+                    <input type="text" id="msPercent" placeholder="%" style="width: 75px;" oninput="syncMSValue()">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+                    <label style="font-size: 0.75rem; opacity: 0.8; font-weight: 600;">Метка</label>
+                    <input type="text" id="msLabel" placeholder="Название" style="width: 100%; box-sizing: border-box;">
+                </div>
+                <button class="btn" style="background:#2ecc71; color:white; align-self: flex-end; margin: 0; padding: 10px 15px;" onclick="addMS()">+</button>
+            </div>
+            
+            <!-- Автораспределение кратных меток -->
+            <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px; margin-top: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span style="font-size: 0.8rem; font-weight: 600; opacity: 0.8;">Автораспределение %:</span>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <span style="font-size: 0.8rem; opacity: 0.7;">Кол-во:</span>
+                        <input type="number" id="autoSteps" value="4" min="1" max="100" style="padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; width: 50px;">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; opacity: 0.8; cursor: pointer;">
+                        <input type="checkbox" id="excludePassed" style="margin: 0; width: 16px; height: 16px; cursor: pointer;">
+                        <span>Учитывать пройденное (факт)</span>
+                    </label>
+                    <button class="btn" style="margin: 0; padding: 5px 12px; font-size: 0.8rem; background: var(--accent-color); color: white;" onclick="applyAutoMilestones()">Создать</button>
+                </div>
+            </div>
             <div id="milestoneList" style="margin-top: 10px;"></div>
         </div>
 
         <h2 id="displayTitle"></h2>
 		<div class="big-plus-btn" onclick="incrementFact()">+</div>
         <div id="visualizer" class="visualizer-box"></div>
-		<div id="statusText" style="font-weight: bold; font-size: 1.2rem;"></div>
+		<div id="statusText" style="font-weight: bold; font-size: 1.2rem; margin-top: 10px;"></div>
         
-        
-
         <button class="btn" style="background:#95a5a6; color:white; font-size:0.7rem; margin-top:20px;" onclick="resetAll()">🗑️ Сброс</button>
     </div>
 
@@ -347,11 +520,17 @@
         sheets: [{ t: "Мой первый отчет", f: 60, m: 100, type: "horizontal", ms: [] }]
     };
 
-    // Глобальная переменная для текущих рубежей (чтобы старые функции их видели)
+    // Глобальная переменная для текущих рубежей
     window.milestones = [];
+    
+    // Структура для отслеживания интерактивного перетаскивания (Drag & Drop)
+    let dragData = {
+        type: null,        // 'fact' или 'milestone'
+        index: null,       // индекс мильстона, если перетаскиваем его
+        isActive: false
+    };
 
     window.onload = () => {
-        // Загружаем сохраненную тему
         const savedTheme = localStorage.getItem('indicator_theme');
         if (savedTheme) {
             document.body.setAttribute('data-theme', savedTheme);
@@ -359,7 +538,14 @@
         
         loadActiveSheet();
         setTimeout(() => update(false), 50);
+
+        // Вешаем глобальные события мыши/тача для реализации плавного перетаскивания без рывков
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('mouseup', onDragEnd);
+        window.addEventListener('touchend', onDragEnd);
     };
+
 	function incrementFact() {
         const input = document.getElementById('valFact');
         let currentVal = parseFloat(input.value) || 0;
@@ -367,9 +553,8 @@
         
         if (currentVal < maxVal) {
             input.value = currentVal + 1;
-            update(); // Запускаем перерисовку и сохранение
+            update(); 
         } else {
-            // Маленький спецэффект, если достигли максимума (опционально)
             input.style.borderColor = 'var(--ms-done)';
             setTimeout(() => input.style.borderColor = 'var(--border-color)', 500);
         }
@@ -403,30 +588,30 @@
         };
         localStorage.setItem('indicator_book', JSON.stringify(book));
     }
+
     function resetAll() {
-        if (confirm("Вы уверены, что хотите полностью сбросить текущий индикатор?")) {
-            // Сбрасываем визуальные поля
-            document.getElementById('titleInput').value = "Новый индикатор";
-            document.getElementById('valFact').value = 0;
-            document.getElementById('valMax').value = 100;
-            document.getElementById('typeSelect').value = "horizontal";
-            
-            // Очищаем рубежи
-            window.milestones = [];
-            
-            // Принудительно сохраняем пустые данные в текущий слот книги
-            saveCurrentToBook();
-            
-            // Обновляем всё
-            update(true); 
-            
-            console.log("Индикатор сброшен");
-        }
+        showDialog("⚠️ Сброс", "Вы уверены, что хотите полностью сбросить текущий индикатор?", true, (confirmed) => {
+            if (confirmed) {
+                document.getElementById('titleInput').value = "Новый индикатор";
+                document.getElementById('valFact').value = 0;
+                document.getElementById('valMax').value = 100;
+                document.getElementById('typeSelect').value = "horizontal";
+                
+                document.getElementById('msValue').value = '';
+                document.getElementById('msPercent').value = '';
+                document.getElementById('msLabel').value = '';
+                document.getElementById('excludePassed').checked = false;
+                
+                window.milestones = [];
+                saveCurrentToBook();
+                update(true); 
+            }
+        });
     }
+
     function renderSheetsList() {
         const list = document.getElementById('sheetsList');
         list.innerHTML = book.sheets.map((s, i) => {
-            // Считаем прогресс для каждого листа
             const fact = parseFloat(s.f) || 0;
             const max = parseFloat(s.m) || 1;
             const percent = Math.min(Math.max((fact / max) * 100, 0), 100);
@@ -450,7 +635,10 @@
 
     function renameSheet(e, idx) {
         e.stopPropagation();
-        const newName = prompt("Введите новое название:", book.sheets[idx].t);
+        
+        // Показываем кастомный ввод для переименования листа
+        const oldName = book.sheets[idx].t;
+        const newName = prompt("Введите новое название:", oldName);
         if (newName !== null && newName.trim() !== "") {
             book.sheets[idx].t = newName.trim();
             if (idx === book.activeIdx) {
@@ -489,13 +677,18 @@
 
     function deleteSheet(e, idx) {
         e.stopPropagation();
-        if (book.sheets.length <= 1) return alert("Нельзя удалить последний индикатор!");
-        if (confirm("Удалить '" + book.sheets[idx].t + "'?")) {
-            book.sheets.splice(idx, 1);
-            book.activeIdx = 0;
-            loadActiveSheet();
-            update(false);
+        if (book.sheets.length <= 1) {
+            return showDialog("Предупреждение", "Нельзя удалить последний индикатор!");
         }
+        
+        showDialog("Удаление", "Удалить '" + book.sheets[idx].t + "'?", true, (confirmed) => {
+            if (confirmed) {
+                book.sheets.splice(idx, 1);
+                book.activeIdx = 0;
+                loadActiveSheet();
+                update(false);
+            }
+        });
     }
 
     function exportBook() {
@@ -519,9 +712,11 @@
                     saveCurrentToBook();
                     loadActiveSheet();
                     update(false);
-                    alert("Готово!");
+                    showDialog("Успех", "Готово!");
                 }
-            } catch (err) { alert("Файл поврежден"); }
+            } catch (err) { 
+                showDialog("Ошибка", "Файл поврежден"); 
+            }
         };
         reader.readAsText(file);
     }
@@ -532,17 +727,289 @@
         update(false);
     }
 
+    // --- ФУНКЦИИ СИНХРОНИЗАЦИИ ПОЛЕЙ ВВОДА РУБЕЖЕЙ ---
+    function syncMSPercent() {
+        const max = parseFloat(document.getElementById('valMax').value) || 1;
+        const val = parseFloat(document.getElementById('msValue').value);
+        const percentField = document.getElementById('msPercent');
+        
+        if (isNaN(val)) {
+            percentField.value = '';
+            return;
+        }
+        
+        const pct = (val / max) * 100;
+        percentField.value = pct.toFixed(2).replace('.', ',');
+    }
+
+    function syncMSValue() {
+        const max = parseFloat(document.getElementById('valMax').value) || 1;
+        let pctStr = document.getElementById('msPercent').value.trim();
+        const valueField = document.getElementById('msValue');
+        
+        if (pctStr === '') {
+            valueField.value = '';
+            return;
+        }
+        
+        pctStr = pctStr.replace(',', '.');
+        const pct = parseFloat(pctStr);
+        if (isNaN(pct)) {
+            valueField.value = '';
+            return;
+        }
+        
+        valueField.value = Math.round((pct / 100) * max);
+    }
+
     function addMS() {
         const v = parseFloat(document.getElementById('msValue').value);
         const l = document.getElementById('msLabel').value || v;
         if (!isNaN(v)) {
             window.milestones.push({ v, l });
             document.getElementById('msValue').value = '';
+            document.getElementById('msPercent').value = '';
             document.getElementById('msLabel').value = '';
             update();
         }
     }
 
+    // --- УЛУЧШЕННОЕ АВТОРАСПРЕДЕЛЕНИЕ МЕТОК ---
+    function applyAutoMilestones() {
+        const steps = parseInt(document.getElementById('autoSteps').value);
+        if (isNaN(steps) || steps < 1) return;
+        const max = parseFloat(document.getElementById('valMax').value) || 100;
+        const fact = parseFloat(document.getElementById('valFact').value) || 0;
+        const excludePassed = document.getElementById('excludePassed').checked;
+        
+        window.milestones = []; // Очищаем старые метки
+        
+        let start = 0;
+        // Если учитываем пройденное и факт не превысил максимум, начинаем распределение от факта
+        if (excludePassed && fact < max) {
+            start = fact;
+        }
+        const end = max;
+        const range = end - start;
+        const stepSize = range / steps;
+        
+        for (let i = 0; i < steps; i++) {
+            // Распределяем метки строго посередине каждого шага-сегмента
+            const currentVal = start + stepSize * i + (stepSize / 2);
+            const numericVal = Math.round(currentVal);
+            
+            // Расчет процента относительно глобального максимума
+            const pct = (numericVal / max) * 100;
+            const labelName = `${Math.round(pct)}%`;
+            
+            window.milestones.push({ v: numericVal, l: labelName });
+        }
+        update();
+    }
+
+    // --- КАСТОМНОЕ МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ---
+    let currentEditingIndex = null;
+
+    window.editMS = function(idx) {
+        currentEditingIndex = idx;
+        const ms = window.milestones[idx];
+        const max = parseFloat(document.getElementById('valMax').value) || 1;
+        
+        document.getElementById('modalLabelInput').value = ms.l;
+        document.getElementById('modalValueInput').value = ms.v;
+        
+        const currentPct = (ms.v / max) * 100;
+        document.getElementById('modalPercentInput').value = currentPct.toFixed(2).replace('.', ',');
+        
+        const modal = document.getElementById('editModal');
+        modal.classList.add('active');
+        document.getElementById('modalLabelInput').focus();
+
+        // Подключаем слушатель горячих клавиш для этого модального окна
+        window.addEventListener('keydown', handleModalKeys);
+    };
+
+    function closeModal() {
+        const modal = document.getElementById('editModal');
+        modal.classList.remove('active');
+        window.removeEventListener('keydown', handleModalKeys);
+        currentEditingIndex = null;
+    }
+
+    function handleModalKeys(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveModalData();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            closeModal();
+        }
+    }
+
+    function syncModalPercent() {
+        const max = parseFloat(document.getElementById('valMax').value) || 1;
+        const val = parseFloat(document.getElementById('modalValueInput').value);
+        const percentField = document.getElementById('modalPercentInput');
+        if (isNaN(val)) {
+            percentField.value = '';
+            return;
+        }
+        const pct = (val / max) * 100;
+        percentField.value = pct.toFixed(2).replace('.', ',');
+    }
+
+    function syncModalValue() {
+        const max = parseFloat(document.getElementById('valMax').value) || 1;
+        let pctStr = document.getElementById('modalPercentInput').value.trim();
+        const valueField = document.getElementById('modalValueInput');
+        if (pctStr === '') {
+            valueField.value = '';
+            return;
+        }
+        pctStr = pctStr.replace(',', '.');
+        const pct = parseFloat(pctStr);
+        if (isNaN(pct)) {
+            valueField.value = '';
+            return;
+        }
+        valueField.value = Math.round((pct / 100) * max);
+    }
+
+    function saveModalData() {
+        if (currentEditingIndex === null) return;
+        const newLabel = document.getElementById('modalLabelInput').value.trim();
+        const newVal = parseFloat(document.getElementById('modalValueInput').value);
+        
+        if (!isNaN(newVal)) {
+            window.milestones[currentEditingIndex] = {
+                v: newVal,
+                l: newLabel || newVal.toString()
+            };
+            update();
+            closeModal();
+        }
+    }
+
+    // --- КАСТОМНЫЕ ДИАЛОГИ (ALERT / CONFIRM) ---
+    let dialogCallback = null;
+    
+    function showDialog(title, message, showCancel = false, callback = null) {
+        document.getElementById('dialogTitle').innerText = title;
+        document.getElementById('dialogMessage').innerText = message;
+        document.getElementById('dialogCancelBtn').style.display = showCancel ? 'block' : 'none';
+        dialogCallback = callback;
+        document.getElementById('dialogModal').classList.add('active');
+    }
+    
+    function closeDialog(result) {
+        document.getElementById('dialogModal').classList.remove('active');
+        if (dialogCallback) {
+            dialogCallback(result);
+            dialogCallback = null;
+        }
+    }
+
+    // --- ДИНАМИЧЕСКИЙ РАСЧЕТ И ИНТЕРАКТИВНОЕ ПЕРЕТАСКИВАНИЕ (DRAG & DROP) ---
+    
+    // Запуск Drag & Drop
+    function startDrag(e, type, index = null) {
+        // Останавливаем выделение текста и нативное поведение браузера
+        if (e.cancelable) e.preventDefault();
+        
+        dragData.type = type;
+        dragData.index = index;
+        dragData.isActive = true;
+    }
+
+    function onDragMove(e) {
+        if (!dragData.isActive) return;
+        if (e.cancelable) e.preventDefault();
+
+        // Получаем объект координат (для мобильных и ПК)
+        const touch = e.touches ? e.touches[0] : e;
+        const container = document.getElementById('visualizer');
+        if (!container) return;
+        
+        const rect = container.getBoundingClientRect();
+        const type = document.getElementById('typeSelect').value;
+        const max = parseFloat(document.getElementById('valMax').value) || 100;
+        
+        let newPct = 0;
+
+        if (type === 'horizontal' || type === 'battery') {
+            const wrapper = container.querySelector('.progress-wrapper, .seg-container');
+            if (wrapper) {
+                const wRect = wrapper.getBoundingClientRect();
+                const offsetX = touch.clientX - wRect.left;
+                newPct = Math.min(Math.max((offsetX / wRect.width) * 100, 0), 100);
+            }
+        } 
+        else if (type === 'vertical') {
+            const wrapper = container.querySelector('.progress-wrapper');
+            if (wrapper) {
+                const wRect = wrapper.getBoundingClientRect();
+                // Для вертикального индикатора 100% вверху, 0% внизу
+                const offsetY = wRect.bottom - touch.clientY;
+                newPct = Math.min(Math.max((offsetY / wRect.height) * 100, 0), 100);
+            }
+        }
+        else if (type === 'circle' || type === 'disk') {
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const dx = touch.clientX - centerX;
+            const dy = touch.clientY - centerY;
+            
+            // Получаем угол в радианах
+            let angle = Math.atan2(dy, dx); 
+            // Переводим в диапазон 0 - 2PI, начиная сверху (с -PI/2)
+            let rawDegree = (angle * 180) / Math.PI + 90;
+            if (rawDegree < 0) rawDegree += 360;
+            
+            newPct = (rawDegree / 360) * 100;
+        }
+        else if (type === 'gauge') {
+            // Для полукруглой дуги расчет угла от 180 до 360 градусов
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + 100; // Центр у основания дуги
+            const dx = touch.clientX - centerX;
+            const dy = touch.clientY - centerY;
+            
+            let angle = Math.atan2(dy, dx);
+            let degree = (angle * 180) / Math.PI;
+            if (degree < 0) degree += 360;
+
+            // Нас интересует верхняя половина: от 180 (слева) до 360/0 (справа)
+            if (degree > 0 && degree < 180) {
+                // Если курсор опустился ниже основания дуги
+                newPct = dx < 0 ? 0 : 100;
+            } else {
+                let adjustedDegree = degree - 180;
+                newPct = (adjustedDegree / 180) * 100;
+            }
+        }
+
+        // Вычисляем новое значение
+        const finalVal = Math.round((newPct / 100) * max);
+
+        if (dragData.type === 'fact') {
+            document.getElementById('valFact').value = finalVal;
+            update(true);
+        } else if (dragData.type === 'milestone' && dragData.index !== null) {
+            window.milestones[dragData.index].v = finalVal;
+            update(true);
+        }
+    }
+
+    function onDragEnd() {
+        if (dragData.isActive) {
+            dragData.isActive = false;
+            dragData.type = null;
+            dragData.index = null;
+            saveCurrentToBook();
+        }
+    }
+
+    // --- ОБНОВЛЕНИЕ ИНТЕРФЕЙСА И ВИЗУАЛИЗАЦИИ ---
     function update(shouldSave = true) {
         const t = document.getElementById('titleInput').value;
         const f = parseFloat(document.getElementById('valFact').value) || 0;
@@ -551,7 +1018,6 @@
         const p = Math.min(Math.max((f / m) * 100, 0), 100);
 
         const isDark = document.body.getAttribute('data-theme') === 'dark';
-        // Динамические цвета для градиентов SVG
         const stop1 = isDark ? '#00b4d8' : '#48cae4';
         const stop2 = isDark ? '#005f73' : '#0077b6';
 
@@ -561,16 +1027,23 @@
         }
 
         document.getElementById('displayTitle').innerText = t;
-        document.getElementById('statusText').innerText = `${f} / ${m} (${Math.round(p)}%)`;
+        
+        const formattedPercent = p.toFixed(2).replace('.', ',');
+        document.getElementById('statusText').innerText = `${f} / ${m} (${formattedPercent}%)`;
+        
+        // Рендерим теги рубежей
         document.getElementById('milestoneList').innerHTML = window.milestones.map((ms, i) => `
-            <div class="milestone-tag">${ms.l}: ${ms.v} <span onclick="window.milestones.splice(${i},1);update()">&times;</span></div>
+            <div class="milestone-tag">
+                <span>${ms.l}: ${ms.v}</span>
+                <span onclick="editMS(${i})" style="margin-left: 6px;" title="Редактировать">✏️</span>
+                <span onclick="window.milestones.splice(${i},1);update()" title="Удалить">&times;</span>
+            </div>
         `).join('');
 
         const container = document.getElementById('visualizer');
         if (!container) return; 
         container.innerHTML = '';
 
-        // Общие градиенты для SVG шкал (Gauge и Circle)
         const svgDefs = `
             <defs>
                 <linearGradient id="aquaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -583,29 +1056,51 @@
             </defs>
         `;
 
-        // --- ЛОГИКА ОТРИСОВКИ ---
+        // Отрисовка типов индикаторов
         if (type === 'horizontal' || type === 'battery') {
             const wrap = document.createElement('div');
             wrap.className = type === 'horizontal' ? 'progress-wrapper h-bar' : 'seg-container';
+            
+            // Вешаем событие изменения Факта зажатием
+            wrap.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('ms-mark')) return; // Игнорируем зажатие на самих рубежах
+                startDrag(e, 'fact');
+            });
+            wrap.addEventListener('touchstart', (e) => {
+                if (e.target.classList.contains('ms-mark')) return;
+                startDrag(e, 'fact');
+            });
+
             if (type === 'horizontal') {
-                wrap.innerHTML = `<div class="fill" style="width:${p}%; height:100%"></div>`;
+                wrap.innerHTML = `<div class="fill" style="width:${p}%; height:100%; pointer-events:none;"></div>`;
             } else {
                 for(let i=0; i<10; i++) {
                     let fillW = Math.max(0, Math.min(100, (p - (i*10)) * 10));
-                    wrap.innerHTML += `<div class="seg-item"><div class="fill" style="width:${fillW}%; height:100%; border-radius:0"></div></div>`;
+                    wrap.innerHTML += `<div class="seg-item" style="pointer-events:none;"><div class="fill" style="width:${fillW}%; height:100%; border-radius:0;"></div></div>`;
                 }
             }
-            window.milestones.forEach(ms => {
+
+            // Рендер маркеров
+            window.milestones.forEach((ms, idx) => {
                 const pos = (ms.v / m) * 100;
                 if (pos >= 0 && pos <= 100) {
                     const mark = document.createElement('div');
                     mark.className = 'ms-mark';
-                    mark.style.left = pos + '%'; mark.style.width = '2px'; mark.style.height = '100%'; 
+                    mark.style.left = pos + '%'; 
+                    mark.style.width = '6px'; 
+                    mark.style.height = '100%'; 
                     mark.style.background = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
+                    
+                    // Вешаем зажатие рубежа
+                    mark.addEventListener('mousedown', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+                    mark.addEventListener('touchstart', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+
                     const lbl = document.createElement('div');
                     lbl.className = 'ms-label'; lbl.innerText = ms.l;
                     lbl.style.left = pos + '%'; lbl.style.bottom = '110%'; lbl.style.transform = 'translateX(-50%)';
-                    wrap.appendChild(mark); wrap.appendChild(lbl);
+                    
+                    wrap.appendChild(mark); 
+                    wrap.appendChild(lbl);
                 }
             });
             container.appendChild(wrap);
@@ -616,29 +1111,39 @@
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.setAttribute("width", "220"); svg.setAttribute("height", "130");
             svg.style.overflow = "visible";
+            svg.classList.add('draggable');
             
-            let msHTML = '';
-            window.milestones.forEach(ms => {
-                const msP = Math.min(100, (ms.v / m) * 100);
-                const angle = 180 + (msP / 100) * 180;
-                const rad = angle * (Math.PI / 180);
-                const mx = 110 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
-                msHTML += `<circle cx="${mx}" cy="${my}" r="6" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
-                           <text x="${mx}" y="${my-12}" text-anchor="middle" style="font-size:11px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
-            });
+            // Нажатие на дугу меняет Факт
+            svg.addEventListener('mousedown', (e) => startDrag(e, 'fact'));
+            svg.addEventListener('touchstart', (e) => startDrag(e, 'fact'));
 
             svg.innerHTML = `
                 ${svgDefs}
                 <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="var(--bar-bg)" stroke-width="18" stroke-linecap="round" />
                 <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="20" stroke-linecap="round" />
-                
                 <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="url(#aquaGrad)" stroke-width="16" 
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" filter="url(#aquaGlow)" style="transition:0.5s" />
-                
-                <path d="M 30 100 A 80 80 0 0 1 190 100" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="4" 
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" style="transition:0.5s; pointer-events:none;" />
-                ${msHTML}
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" stroke-linecap="round" filter="url(#aquaGlow)" style="transition:0.1s" />
             `;
+
+            window.milestones.forEach((ms, idx) => {
+                const msP = Math.min(100, (ms.v / m) * 100);
+                const angle = 180 + (msP / 100) * 180;
+                const rad = angle * (Math.PI / 180);
+                const mx = 110 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
+
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                group.style.cursor = 'grab';
+                
+                group.addEventListener('mousedown', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+                group.addEventListener('touchstart', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+
+                group.innerHTML = `
+                    <circle cx="${mx}" cy="${my}" r="8" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
+                    <text x="${mx}" y="${my-14}" text-anchor="middle" style="font-size:11px; fill:var(--text-color); font-weight:bold; pointer-events:none;">${ms.l}</text>
+                `;
+                svg.appendChild(group);
+            });
+
             container.appendChild(svg);
         }
         else if (type === 'circle') {
@@ -647,85 +1152,124 @@
             const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
             svg.setAttribute("width", "200"); svg.setAttribute("height", "200");
             svg.style.overflow = "visible";
-            
-            let msHTML = '';
-            window.milestones.forEach(ms => {
-                const angle = (ms.v / m) * 360 - 90;
-                const rad = angle * (Math.PI / 180);
-                const mx = 100 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
-                msHTML += `<circle cx="${mx}" cy="${my}" r="6" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
-                           <text x="${mx}" y="${my-12}" text-anchor="middle" style="font-size:11px; fill:var(--text-color); font-weight:bold;">${ms.l}</text>`;
-            });
+            svg.classList.add('draggable');
+
+            svg.addEventListener('mousedown', (e) => startDrag(e, 'fact'));
+            svg.addEventListener('touchstart', (e) => startDrag(e, 'fact'));
 
             svg.innerHTML = `
                 ${svgDefs}
                 <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--bar-bg)" stroke-width="18" />
                 <circle cx="100" cy="100" r="${r}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="20" />
-                
                 <circle cx="100" cy="100" r="${r}" fill="none" stroke="url(#aquaGrad)" stroke-width="16" 
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" filter="url(#aquaGlow)" style="transition:0.5s" />
-                
-                <circle cx="100" cy="100" r="${r}" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="4" 
-                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" style="transition:0.5s; pointer-events:none;" />
-                ${msHTML}
+                stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 100 100)" filter="url(#aquaGlow)" style="transition:0.1s" />
             `;
+
+            window.milestones.forEach((ms, idx) => {
+                const angle = (ms.v / m) * 360 - 90;
+                const rad = angle * (Math.PI / 180);
+                const mx = 100 + r * Math.cos(rad); const my = 100 + r * Math.sin(rad);
+
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                group.style.cursor = 'grab';
+                
+                group.addEventListener('mousedown', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+                group.addEventListener('touchstart', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+
+                group.innerHTML = `
+                    <circle cx="${mx}" cy="${my}" r="8" fill="${f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)'}" stroke="white" stroke-width="2" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
+                    <text x="${mx}" y="${my-14}" text-anchor="middle" style="font-size:11px; fill:var(--text-color); font-weight:bold; pointer-events:none;">${ms.l}</text>
+                `;
+                svg.appendChild(group);
+            });
+
             container.appendChild(svg);
         }
         else if (type === 'vertical') {
             const wrap = document.createElement('div');
             wrap.className = 'progress-wrapper v-bar';
-            wrap.innerHTML = `<div class="fill" style="height:${p}%; width:100%"></div>`;
-            window.milestones.forEach(ms => {
+            
+            wrap.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('ms-mark')) return;
+                startDrag(e, 'fact');
+            });
+            wrap.addEventListener('touchstart', (e) => {
+                if (e.target.classList.contains('ms-mark')) return;
+                startDrag(e, 'fact');
+            });
+
+            wrap.innerHTML = `<div class="fill" style="height:${p}%; width:100%; pointer-events:none;"></div>`;
+            
+            window.milestones.forEach((ms, idx) => {
                 const pos = (ms.v / m) * 100;
                 const mark = document.createElement('div');
                 mark.className = 'ms-mark';
-                mark.style.bottom = pos + '%'; mark.style.width = '100%'; mark.style.height = '2px';
+                mark.style.bottom = pos + '%'; 
+                mark.style.width = '100%'; 
+                mark.style.height = '6px';
                 mark.style.background = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
+                
+                mark.addEventListener('mousedown', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+                mark.addEventListener('touchstart', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+
                 const lbl = document.createElement('div');
                 lbl.className = 'ms-label'; lbl.innerText = ms.l;
                 lbl.style.bottom = pos + '%'; lbl.style.left = '110%';
-                wrap.appendChild(mark); wrap.appendChild(lbl);
+                
+                wrap.appendChild(mark); 
+                wrap.appendChild(lbl);
             });
             container.appendChild(wrap);
         }
 		else if (type === 'disk') {
             const wrap = document.createElement('div');
-            wrap.className = 'disk-indicator';
+            wrap.className = 'disk-indicator draggable';
             
+            wrap.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.ms-disk-radial-line')) return;
+                startDrag(e, 'fact');
+            });
+            wrap.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.ms-disk-radial-line')) return;
+                startDrag(e, 'fact');
+            });
+
             const activeColor = isDark ? '#00b4d8' : '#0077b6';
             const baseColor = isDark ? 'rgba(11, 19, 43, 0.6)' : 'rgba(255, 255, 255, 0.5)';
             
             wrap.style.background = `conic-gradient(${activeColor} 0% ${p}%, ${baseColor} ${p}% 100%)`;
 
-            window.milestones.forEach(ms => {
+            window.milestones.forEach((ms, idx) => {
                 const angle = (ms.v / m) * 360 - 90; 
+
+                // Создаем элемент радиальной полосы рубежа
+                const line = document.createElement('div');
+                line.className = 'ms-disk-radial-line';
+                line.style.transform = `rotate(${angle}deg)`;
+                
+                // Назначаем цвет в зависимости от достижения факта
+                const colorValue = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
+                line.style.background = colorValue;
+
+                // Перетаскивание полоски-радиуса
+                line.addEventListener('mousedown', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+                line.addEventListener('touchstart', (e) => { e.stopPropagation(); startDrag(e, 'milestone', idx); });
+
+                // Добавим лейбл к полоске
                 const rad = angle * (Math.PI / 180);
                 const r = 90; 
-                
                 const mx = 90 + r * Math.cos(rad); 
                 const my = 90 + r * Math.sin(rad);
-
-                const dot = document.createElement('div');
-                dot.style.position = 'absolute';
-                dot.style.zIndex = '10';
-                dot.style.width = '10px';
-                dot.style.height = '10px';
-                dot.style.borderRadius = '50%';
-                dot.style.border = '1px solid white';
-                dot.style.background = f >= ms.v ? 'var(--ms-done)' : 'var(--ms-color)';
-                dot.style.left = `calc(${mx}px - 5px)`;
-                dot.style.top = `calc(${my}px - 5px)`;
-                dot.style.boxShadow = '0 0 6px rgba(0,0,0,0.3)';
 
                 const lbl = document.createElement('div');
                 lbl.className = 'ms-label';
                 lbl.innerText = ms.l;
                 lbl.style.position = 'absolute';
                 lbl.style.left = `${mx}px`;
-                lbl.style.top = `${my - 18}px`;
+                lbl.style.top = `${my - 20}px`;
                 lbl.style.transform = 'translateX(-50%)';
                 
-                wrap.appendChild(dot);
+                wrap.appendChild(line);
                 wrap.appendChild(lbl);
             });
 
