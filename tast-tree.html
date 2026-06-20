@@ -34,13 +34,12 @@
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: var(--bg-color);
-            background-attachment: fixed;
             color: var(--text-color);
             margin: 0;
             display: flex;
             height: 100vh;
             overflow: hidden;
-            transition: background 0.5s, color 0.3s;
+            transition: color 0.3s; /* Убрали тяжелую анимацию бэкграунда */
             font-size: 16px;
         }
 
@@ -48,13 +47,12 @@
         #sidebar {
             width: 250px;
             background: var(--container-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            transition: transform 0.3s;
+            transition: transform 0.3s ease;
             box-shadow: var(--glass-shadow);
+            will-change: transform; /* Подсказываем браузеру вынести сайдбар на GPU */
         }
         #sidebar.hidden {
             display: none;
@@ -72,8 +70,6 @@
             gap: 10px;
             padding: 12px;
             background: var(--container-bg);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
             align-items: center;
@@ -153,14 +149,12 @@
             align-items: center;
             gap: 12px;
             padding: 12px;
-            /* Если кастомного цвета нет, льем сочный водянисто-белый Frutiger-эффект */
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(240, 249, 255, 0.6) 50%, rgba(224, 242, 254, 0.4) 100%), var(--node-custom-color, transparent);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            /* Слегка повысили непрозрачность плашек (с 0.85 до 0.92), чтобы компенсировать отсутствие блюра */
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(240, 249, 255, 0.8) 50%, rgba(224, 242, 254, 0.7) 100%), var(--node-custom-color, transparent);
             border: 1px solid rgba(255, 255, 255, 0.6);
             border-radius: 14px;
             box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), 0 4px 12px rgba(14, 165, 233, 0.08);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Анимируем только то, что нужно */
         }
         .task-content:hover {
             background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.7) 50%, rgba(224, 242, 254, 0.5) 100%), var(--node-custom-color, transparent);
@@ -622,16 +616,6 @@
                     this.saveState(); this.render();
                 }
             },
-            updateTaskText(id, newText) {
-                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
-                const taskInfo = this.findTask(map.tasks, id);
-                if (taskInfo) {
-                    taskInfo.node.text = newText;
-                    // Сохраняем в LocalStorage, но не вызываем render(), 
-                    // чтобы не сбрасывать фокус и каретку при вводе текста
-                    this.saveState(false); 
-                }
-            },
             deleteTask(id) {
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 const info = this.findTask(map.tasks, id);
@@ -835,8 +819,8 @@
                         <div class="task-content ${task.completed ? 'completed' : ''} ${task.id === app.state.activeTaskId ? 'focused' : ''}" style="${inlineStyle}">
                             ${toggleBtn}
                             <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="app.toggleComplete('${task.id}')">
-<input type="text" class="task-text" value="${task.text.replace(/"/g, '&quot;')}" oninput="app.updateTaskText('${task.id}', this.value)">
-${statsHtml}
+                            <input type="text" class="task-text" value="${task.text.replace(/"/g, '&quot;')}" onblur="app.updateTaskText('${task.id}', this.value)">
+                            ${statsHtml}
                             <div class="task-controls">
                                 <input type="color" class="node-color-picker" value="${task.color || '#ffffff'}" onchange="app.updateTaskColor('${task.id}', this.value)" title="Цвет ветки">
                                 <button onclick="app.moveTask('${task.id}', 'up')" title="Вверх">↑</button>
