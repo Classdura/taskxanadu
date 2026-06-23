@@ -7,28 +7,26 @@
     <title>Advanced Multi-Branch To-Do</title>
     <style>
         :root {
-            --bg-color: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 50%, #e0f7fa 100%);
+            --bg-color: #f8fafc;
             --text-color: #0f172a;
-            --container-bg: rgba(255, 255, 255, 0.65);
-            --border-color: rgba(255, 255, 255, 0.6);
+            --container-bg: #ffffff;
+            --border-color: #8a9098;
             --accent-color: #0284c7;
-            --btn-bg: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-            --btn-hover: linear-gradient(180deg, #f1f5f9 0%, #cbd5e1 100%);
+            --btn-bg: #ffffff;
+            --btn-hover: #f1f5f9;
             --danger-color: #ef4444;
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            --glossy-glow: inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 6px rgba(0,0,0,0.05);
+            --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
 
         body.dark-theme {
-            --bg-color: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --bg-color: #0f172a;
             --text-color: #f8fafc;
-            --container-bg: rgba(30, 41, 59, 0.7);
-            --border-color: rgba(255, 255, 255, 0.1);
+            --container-bg: #1e293b;
+            --border-color: #5f6f86;
             --accent-color: #38bdf8;
-            --btn-bg: linear-gradient(180deg, #334155 0%, #1e293b 100%);
-            --btn-hover: linear-gradient(180deg, #475569 0%, #334155 100%);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            --glossy-glow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.15);
+            --btn-bg: #1e293b;
+            --btn-hover: #334155;
+            --glass-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
 
         body {
@@ -39,7 +37,7 @@
             display: flex;
             height: 100vh;
             overflow: hidden;
-            transition: color 0.3s; /* Убрали тяжелую анимацию бэкграунда */
+            transition: background-color 0.3s, color 0.3s;
             font-size: 16px;
         }
 
@@ -52,7 +50,7 @@
             flex-direction: column;
             transition: transform 0.3s ease;
             box-shadow: var(--glass-shadow);
-            will-change: transform; /* Подсказываем браузеру вынести сайдбар на GPU */
+            will-change: transform;
         }
         #sidebar.hidden {
             display: none;
@@ -73,23 +71,20 @@
             border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
             align-items: center;
-            box-shadow: var(--glossy-glow);
         }
         .toolbar button, .toolbar label {
             background: var(--btn-bg);
             border: 1px solid var(--border-color);
             color: var(--text-color);
             padding: 6px 14px;
-            border-radius: 20px; /* Круглые глянцевые кнопки! */
+            border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
             font-weight: 500;
-            box-shadow: var(--glossy-glow);
             transition: all 0.2s ease;
         }
         .toolbar button:hover, .toolbar label:hover {
             background: var(--btn-hover);
-            transform: translateY(-1px);
         }
         .toolbar input[type="color"] {
             border: none;
@@ -114,19 +109,21 @@
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
-        .map-item:hover { background-color: var(--btn-bg); }
+        .map-item:hover { background-color: var(--btn-hover); }
         .map-item.active { border-left: 4px solid var(--accent-color); font-weight: bold; }
-		.btn-edit { 
-    margin-left: auto; 
-    margin-right: 5px; 
-    background: transparent; 
-    border: none; 
-    color: var(--text-color); 
-    cursor: pointer; 
-    opacity: 0.6;
-}
-.btn-edit:hover { opacity: 1; }
+        .btn-edit { 
+            margin-left: auto; 
+            margin-right: 5px; 
+            background: transparent; 
+            border: none; 
+            color: var(--text-color); 
+            cursor: pointer; 
+            opacity: 0.6;
+        }
+        .btn-edit:hover { opacity: 1; }
+        
         /* Tree Area */
         .board { padding: 20px; }
         .global-stats {
@@ -149,118 +146,98 @@
             align-items: center;
             gap: 12px;
             padding: 12px;
-            /* Слегка повысили непрозрачность плашек (с 0.85 до 0.92), чтобы компенсировать отсутствие блюра */
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(240, 249, 255, 0.8) 50%, rgba(224, 242, 254, 0.7) 100%), var(--node-custom-color, transparent);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            border-radius: 14px;
-            box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), 0 4px 12px rgba(14, 165, 233, 0.08);
-            transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Анимируем только то, что нужно */
+            background: var(--container-bg);
+            background-color: var(--node-custom-color, var(--container-bg));
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: var(--glass-shadow);
+            transition: border-color 0.2s ease;
         }
         .task-content:hover {
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.7) 50%, rgba(224, 242, 254, 0.5) 100%), var(--node-custom-color, transparent);
-            box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), 0 6px 18px rgba(14, 165, 233, 0.15);
-            border-color: rgba(255, 255, 255, 0.9);
+            border-color: var(--accent-color);
         }
         .task-content.completed > .task-text { text-decoration: line-through; opacity: 0.5; }
         .task-content.focused {
-            border: 2px solid #38bdf8;
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.3) 0%, rgba(255, 255, 255, 0.5) 100%), var(--node-custom-color, var(--container-bg)) !important;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.5), var(--glossy-glow);
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
         }
         .node-color-picker {
-            border: 1px solid rgba(255,255,255,0.8);
+            border: 1px solid var(--border-color);
             width: 22px;
             height: 22px;
             padding: 0;
             background: none;
             cursor: pointer;
-            border-radius: 50%;
+            border-radius: 4px;
             overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1);
             transition: transform 0.2s;
-            margin-left: 4px; /* Чтобы кнопка цвета держала дистанцию в ряду управления */
+            margin-left: 4px;
         }
         .node-color-picker:hover {
-            transform: scale(1.15);
+            transform: scale(1.1);
         }
         .task-text {
             flex: 1;
             background: transparent;
             border: none;
-            /* В светлой теме — глубокий контрастный чернильно-синий, в темной — белый */
-            color: #0f172a; 
+            color: var(--text-color); 
             font-size: 16px;
             font-weight: 500;
-            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8); /* Эффект гравировки букв на стекле */
-            transition: color 0.3s;
         }
-        body.dark-theme .task-text {
-            color: #f8fafc;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-        }
-		.task-text:focus { 
+        .task-text:focus { 
             outline: none; 
-            background: rgba(255, 255, 255, 0.5); 
-            border-radius: 6px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--btn-hover); 
+            border-radius: 4px;
         }
         .task-stats { 
             font-size: 0.85em; 
             color: var(--text-color); 
             opacity: 0.65;
             margin-right: 10px;
-            background: rgba(0, 0, 0, 0.05); /* Легкий фон для светлой темы */
+            background: var(--btn-hover);
             padding: 2px 6px;
-            border-radius: 8px;
-            transition: color 0.3s, background 0.3s;
-        }
-        body.dark-theme .task-stats {
-            background: rgba(255, 255, 255, 0.08); /* Светлый фон для темной темы */
+            border-radius: 4px;
         }
         .task-controls button {
             background: var(--btn-bg); 
             border: 1px solid var(--border-color);
             color: var(--text-color); 
             cursor: pointer; 
-            border-radius: 6px;
-            padding: 8px 12px; /* Кнопки стали ощутимо больше */
+            border-radius: 4px;
+            padding: 4px 8px;
             font-size: 14px; 
             margin-left: 4px;
         }
-        .task-controls button:hover { background: var(--border-color); }
+        .task-controls button:hover { background: var(--btn-hover); }
         .btn-delete { color: var(--danger-color) !important; }
-		/* Стили для кнопки создания главной ветви во Фрутайгер-стиле */
+        
+        /* Плоская современная кнопка */
         .btn-main-add {
             display: block;
             width: 100%;
             max-width: 300px;
             margin: 20px auto;
             padding: 12px 24px;
-            /* Эффект яркого водяного пузыря */
-            background: linear-gradient(180deg, #4ade80 0%, #22c55e 50%, #15803d 100%);
+            background: var(--accent-color);
             color: white;
-            border: 1px solid rgba(255,255,255,0.4);
-            border-radius: 30px; /* Округлая форма капсулы */
+            border: none;
+            border-radius: 6px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
             transition: all 0.2s ease;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 12px rgba(34, 197, 94, 0.3);
+            box-shadow: var(--glass-shadow);
         }
 
         .btn-main-add:hover {
-            background: linear-gradient(180deg, #22c55e 0%, #16a34a 50%, #166534 100%);
-            transform: translateY(-2px);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 6px 16px rgba(34, 197, 94, 0.4);
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         .btn-main-add:active {
             transform: translateY(1px);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 2px 4px rgba(34, 197, 94, 0.2);
         }
 
-        /* Улучшение кнопки меню в сайдбаре */
         .sidebar-toggle-btn {
             margin: 10px;
             padding: 8px;
@@ -272,88 +249,78 @@
         }
         .hidden-file { display: none; }
         .brand-header { padding: 15px; border-bottom: 1px solid var(--border-color); font-weight: bold; }
-		.btn-toggle {
-    background: transparent;
-    border: none;
-    color: var(--text-color);
-    cursor: pointer;
-    font-size: 10px;
-    width: 20px;
-    padding: 0;
-    opacity: 0.7;
-}
-/* Прокачка чекбокса: крупный, круглый и глянцевый */
+        .btn-toggle {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 10px;
+            width: 20px;
+            padding: 0;
+            opacity: 0.7;
+        }
+        
+        /* Современный аккуратный чекбокс */
         .task-content input[type="checkbox"] {
             appearance: none;
             -webkit-appearance: none;
-            width: 22px; /* Увеличили размер */
-            height: 22px;
-            border: 2px solid #38bdf8; /* Голубой контур */
-            border-radius: 50%; /* Идеально круглая форма капли */
+            width: 25px;
+            height: 25px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
             cursor: pointer;
             position: relative;
-            background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 100%);
-            box-shadow: inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.05);
+            background: var(--btn-bg);
             transition: all 0.2s ease;
-            flex-shrink: 0; /* Чтобы не сжимался при длинном тексте */
+            flex-shrink: 0;
             margin: 0;
         }
 
-        /* Эффект при наведении на чекбокс */
         .task-content input[type="checkbox"]:hover {
-            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
-            box-shadow: inset 0 1px 2px rgba(255,255,255,0.8), 0 0 6px rgba(56, 189, 248, 0.6);
+            border-color: var(--accent-color);
         }
 
-        /* Сочный зеленый глянец при активации */
         .task-content input[type="checkbox"]:checked {
-            background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
-            border-color: #16a34a;
-            box-shadow: inset 0 1px 3px rgba(255,255,255,0.5), 0 2px 6px rgba(34, 197, 94, 0.3);
+            background: var(--accent-color);
+            border-color: var(--accent-color);
         }
 
-        /* Белая аккуратная галочка внутри */
         .task-content input[type="checkbox"]:checked::after {
             content: '✓';
             position: absolute;
             color: white;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
         }
-.collapsed-content { display: none; }
-/* --- Мобильная адаптация --- */
+        .collapsed-content { display: none; }
+
         @media (max-width: 768px) {
             #sidebar {
                 position: fixed;
                 z-index: 2000;
                 height: 100%;
                 transform: translateX(0);
-                transition: transform 0.3s ease;
             }
             #sidebar.hidden {
                 display: flex !important;
                 transform: translateX(-100%);
             }
-            
             .toolbar {
                 padding: 15px;
                 gap: 8px;
                 justify-content: center;
             }
-            
             .toolbar button, .toolbar label {
-                flex: 1 1 45%; /* Кнопки в тулбаре по две в ряд */
+                flex: 1 1 45%;
                 text-align: center;
                 padding: 12px 5px;
             }
-
             .task-content {
-                flex-wrap: wrap; /* Разрешаем кнопкам управления уходить на вторую строку */
+                flex-wrap: wrap;
             }
-
             .task-controls {
                 width: 100%;
                 display: flex;
@@ -362,19 +329,8 @@
                 padding-top: 10px;
                 border-top: 1px dashed var(--border-color);
             }
-
-            .board {
-                padding: 10px;
-            }
-            
-            #map-title {
-                font-size: 1.8rem;
-            }
-        }
-    body.dark-theme .task-content {
-            background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.6) 100%), var(--node-custom-color, transparent);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.3);
+            .board { padding: 10px; }
+            #map-title { font-size: 1.8rem; }
         }
     </style>
 </head>
@@ -459,9 +415,15 @@
 
             init() {
                 this.loadState();
-                if (this.state.maps.length === 0) this.addMap("Моя первая карта", false);
+                if (this.state.maps.length === 0) {
+                    this.addMap("Моя первая карта", false);
+                    this.saveState(true);
+                } else {
+                    // Создаем базовую точку истории для Undo/Redo из загруженного состояния
+                    this.history.push(JSON.stringify(this.state));
+                    this.historyIndex = 0;
+                }
                 this.applySettings();
-                this.saveState(true);
                 this.render();
             },
 
@@ -522,22 +484,20 @@
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 
                 if (map && map.bgColor) {
-                    // Если это HEX-цвет, можем сделать из него приятный мягкий градиент во Фрутайгер стиле
-                    if (map.bgColor.startsWith('#')) {
-                        document.body.style.background = `linear-gradient(135deg, ${map.bgColor} 0%, #bae6fd 100%)`;
-                        document.getElementById('bg-color').value = map.bgColor;
-                    } else {
-                        document.body.style.background = map.bgColor;
-                    }
+                    document.body.style.backgroundColor = map.bgColor;
+                    document.body.style.background = ''; // Сбрасываем старые градиенты
+                    document.getElementById('bg-color').value = map.bgColor;
                 } else {
+                    document.body.style.backgroundColor = '';
                     document.body.style.background = '';
                 }
             },
 
             // --- Maps (Книги/Карты) ---
             addMap(name = "Новая Карта", record = true) {
-                // Каждой карте при рождении даем индивидуальный сочный цвет фона!
-                const newMap = { id: this.generateId(), name: name, tasks: [], bgColor: '#bae6fd' };
+                // Ставим дефолтный нейтральный цвет в зависимости от темы
+                const defColor = this.state.theme === 'dark' ? '#0f172a' : '#f8fafc';
+                const newMap = { id: this.generateId(), name: name, tasks: [], bgColor: defColor };
                 this.state.maps.push(newMap);
                 this.state.currentMapId = newMap.id;
                 if(record) { this.saveState(); this.render(); AudioSys.play('action'); }
@@ -584,6 +544,14 @@
                     parent.children.push(newTask);
                 }
                 this.saveState(); this.render(); AudioSys.play('action');
+            },
+            updateTaskText(id, newText) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const taskInfo = this.findTask(map.tasks, id);
+                if (taskInfo && taskInfo.node.text !== newText) {
+                    taskInfo.node.text = newText;
+                    this.saveState(); // Вот теперь автосохранение сработает железно!
+                }
             },
 			addBulkTasks(parentId = null) {
                 const input = prompt("Введите список задач (каждая с новой строки):");
