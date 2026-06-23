@@ -31,7 +31,7 @@
 
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: var(--bg-color);
+            background-color: var(--bg-color); /* Исправлено: заменено с background на background-color для плавной работы JS */
             color: var(--text-color);
             margin: 0;
             display: flex;
@@ -160,7 +160,9 @@
         .task-content.focused {
             border: 2px solid var(--accent-color);
             box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
+            background-color: color(display-p3 0.32 0.74 1 / 0.42);
         }
+
         .node-color-picker {
             border: 1px solid var(--border-color);
             width: 22px;
@@ -368,9 +370,18 @@
             <div class="global-stats" id="global-stats">Общий статус: 0/0 (0%)</div>
             <div class="tree-root" id="tree-root"></div>
 			<div style="display:flex; gap: 10px; justify-content: center;">
-    <button class="btn-main-add" onclick="app.addTask(null)">+ Добавить главную ветвь</button>
-    <button class="btn-main-add" onclick="app.addBulkTasks(null)">+📋 Массово</button>
-</div>
+                <button class="btn-main-add" onclick="app.addTask(null)">+ Добавить главную ветвь</button>
+                <button class="btn-main-add" onclick="app.addBulkTasks(null)">+📋 Массово</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Стильный кастомный оверлей для модальных диалогов -->
+    <div id="custom-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: var(--container-bg); color: var(--text-color); padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: var(--glass-shadow); border: 1px solid var(--border-color); text-align: center;">
+            <p id="custom-modal-text" style="font-size: 16px; margin: 0 0 20px 0; font-weight: 500; line-height: 1.5;"></p>
+            <div style="display: flex; gap: 12px; justify-content: center;" id="custom-modal-buttons"></div>
+        </div>
     </div>
 
     <script>
@@ -419,7 +430,6 @@
                     this.addMap("Моя первая карта", false);
                     this.saveState(true);
                 } else {
-                    // Создаем базовую точку истории для Undo/Redo из загруженного состояния
                     this.history.push(JSON.stringify(this.state));
                     this.historyIndex = 0;
                 }
@@ -429,13 +439,45 @@
 
             generateId() { return '_' + Math.random().toString(36).substr(2, 9); },
 
+            // --- Кастомная система диалогов (вместо alert и confirm) ---
+            showAlert(message) {
+                const overlay = document.getElementById('custom-modal-overlay');
+                const text = document.getElementById('custom-modal-text');
+                const buttons = document.getElementById('custom-modal-buttons');
+                
+                text.innerText = message;
+                buttons.innerHTML = `<button onclick="document.getElementById('custom-modal-overlay').style.display='none'" style="padding: 8px 24px; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">OK</button>`;
+                overlay.style.display = 'flex';
+            },
+
+            showConfirm(message, onConfirm) {
+                const overlay = document.getElementById('custom-modal-overlay');
+                const text = document.getElementById('custom-modal-text');
+                const buttons = document.getElementById('custom-modal-buttons');
+                
+                text.innerText = message;
+                buttons.innerHTML = `
+                    <button id="modal-cancel-btn" style="padding: 8px 20px; background: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer;">Отмена</button>
+                    <button id="modal-confirm-btn" style="padding: 8px 20px; background: var(--danger-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Удалить</button>
+                `;
+                
+                document.getElementById('modal-cancel-btn').onclick = () => {
+                    overlay.style.display = 'none';
+                };
+                
+                document.getElementById('modal-confirm-btn').onclick = () => {
+                    overlay.style.display = 'none';
+                    onConfirm();
+                };
+                overlay.style.display = 'flex';
+            },
+
             // --- State Management (Undo/Redo, Autosave) ---
             saveState(recordHistory = true) {
                 if (!this.isRestoring && recordHistory) {
-                    // Удаляем будущее, если сделали изменение после Undo
                     this.history = this.history.slice(0, this.historyIndex + 1);
                     this.history.push(JSON.stringify(this.state));
-                    if (this.history.length > 50) this.history.shift(); // Лимит 50 шагов
+                    if (this.history.length > 50) this.history.shift();
                     else this.historyIndex++;
                 }
                 localStorage.setItem('todoData', JSON.stringify(this.state));
@@ -468,13 +510,23 @@
                 document.getElementById('sidebar').classList.toggle('hidden');
             },
             toggleTheme() {
-                this.state.theme = this.state.theme === 'light' ? 'dark' : 'light';
+                const oldTheme = this.state.theme;
+                this.state.theme = oldTheme === 'light' ? 'dark' : 'light';
+                
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const oldDefColor = oldTheme === 'dark' ? '#0f172a' : '#f8fafc';
+                const newDefColor = this.state.theme === 'dark' ? '#0f172a' : '#f8fafc';
+                
+                if (map && map.bgColor === oldDefColor) {
+                    map.bgColor = newDefColor;
+                }
+                
                 this.applySettings(); this.saveState(); AudioSys.play('action');
             },
             changeBackground(color) {
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 if (map) {
-                    map.bgColor = color; // Пишем строго в саму карту!
+                    map.bgColor = color;
                     this.applySettings(); 
                     this.saveState();
                 }
@@ -482,58 +534,63 @@
             applySettings() {
                 document.body.className = this.state.theme === 'dark' ? 'dark-theme' : '';
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const colorInput = document.getElementById('bg-color');
                 
                 if (map && map.bgColor) {
-                    document.body.style.backgroundColor = map.bgColor;
-                    document.body.style.background = ''; // Сбрасываем старые градиенты
-                    document.getElementById('bg-color').value = map.bgColor;
+                    // Исправлено: переопределяем CSS-переменную на теге body напрямую
+                    document.body.style.setProperty('--bg-color', map.bgColor);
+                    if (colorInput) colorInput.value = map.bgColor;
                 } else {
-                    document.body.style.backgroundColor = '';
-                    document.body.style.background = '';
+                    document.body.style.removeProperty('--bg-color');
+                    if (colorInput) {
+                        colorInput.value = this.state.theme === 'dark' ? '#0f172a' : '#f8fafc';
+                    }
                 }
             },
 
             // --- Maps (Книги/Карты) ---
             addMap(name = "Новая Карта", record = true) {
-                // Ставим дефолтный нейтральный цвет в зависимости от темы
                 const defColor = this.state.theme === 'dark' ? '#0f172a' : '#f8fafc';
                 const newMap = { id: this.generateId(), name: name, tasks: [], bgColor: defColor };
                 this.state.maps.push(newMap);
                 this.state.currentMapId = newMap.id;
+                this.applySettings(); // Мгновенно применяем цвет новой карты
                 if(record) { this.saveState(); this.render(); AudioSys.play('action'); }
             },
             switchMap(id) {
                 this.state.currentMapId = id;
+                this.applySettings();
                 this.saveState(); this.render();
-				if (window.innerWidth <= 768) this.toggleSidebar(); // Закрываем на мобилках
+				if (window.innerWidth <= 768) this.toggleSidebar();
             },
             deleteMap(id, e) {
                 e.stopPropagation();
-                if(!confirm('Удалить карту?')) return;
-                this.state.maps = this.state.maps.filter(m => m.id !== id);
-                if(this.state.currentMapId === id) this.state.currentMapId = this.state.maps.length ? this.state.maps[0].id : null;
-                if(this.state.maps.length === 0) this.addMap("Новая карта", false);
-                this.saveState(); this.render(); AudioSys.play('action');
+                this.showConfirm('Вы действительно хотите удалить эту карту со всеми ветвями?', () => {
+                    this.state.maps = this.state.maps.filter(m => m.id !== id);
+                    if(this.state.currentMapId === id) this.state.currentMapId = this.state.maps.length ? this.state.maps[0].id : null;
+                    if(this.state.maps.length === 0) this.addMap("Новая карта", false);
+                    this.saveState(); this.render(); AudioSys.play('action');
+                });
             },
 			focusTask(id) {
-    this.state.activeTaskId = (this.state.activeTaskId === id) ? null : id;
-    this.render();
-},
+                this.state.activeTaskId = (this.state.activeTaskId === id) ? null : id;
+                this.render();
+            },
             updateMapTitle(newTitle) {
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 if (map && map.name !== newTitle) { map.name = newTitle; this.saveState(); this.renderMapList(); }
             },
 			renameMap(id, e) {
-    e.stopPropagation(); // Чтобы не сработал switchMap
-    const map = this.state.maps.find(m => m.id === id);
-    const newName = prompt("Введите новое название карты:", map.name);
-    if (newName && newName.trim() !== "") {
-        map.name = newName.trim();
-        this.saveState();
-        this.render();
-        AudioSys.play('action');
-    }
-},
+                e.stopPropagation();
+                const map = this.state.maps.find(m => m.id === id);
+                const newName = prompt("Введите новое название карты:", map.name);
+                if (newName && newName.trim() !== "") {
+                    map.name = newName.trim();
+                    this.saveState();
+                    this.render();
+                    AudioSys.play('action');
+                }
+            },
             // --- Task Logic ---
             addTask(parentId = null) {
                 const newTask = { id: this.generateId(), text: "Новая ветвь", completed: false, children: [] };
@@ -550,12 +607,12 @@
                 const taskInfo = this.findTask(map.tasks, id);
                 if (taskInfo && taskInfo.node.text !== newText) {
                     taskInfo.node.text = newText;
-                    this.saveState(); // Вот теперь автосохранение сработает железно!
+                    this.saveState();
                 }
             },
 			addBulkTasks(parentId = null) {
                 const input = prompt("Введите список задач (каждая с новой строки):");
-                if (input === null) return; // Отмена
+                if (input === null) return;
 
                 const lines = input.split('\n').filter(line => line.trim() !== "");
                 if (lines.length === 0) return;
@@ -594,13 +651,11 @@
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 const info = this.findTask(map.tasks, id);
                 const clone = JSON.parse(JSON.stringify(info.node));
-                // Регенерируем ID для клона и всех его детей
                 const regenIds = (task) => { task.id = this.generateId(); task.children.forEach(regenIds); };
                 regenIds(clone);
                 info.parentArray.splice(info.index + 1, 0, clone);
                 this.saveState(); this.render(); AudioSys.play('action');
             },
-            // Глобальный обход дерева в массив для вычисления следующего элемента
             flattenTasks(tasks) {
                 let flat = [];
                 tasks.forEach(t => {
@@ -624,12 +679,10 @@
                 
                 setCompleteDeep(info.node, newVal);
 
-                // ЕСЛИ выполнен отслеживаемый в данный момент объект -> ищем замену снизу
                 if (newVal && this.state.activeTaskId === id) {
                     const flatList = this.flattenTasks(map.tasks);
                     const currentIndex = flatList.findIndex(t => t.id === id);
                     
-                    // Ищем первую невыполненную задачу ниже по списку во всем дереве
                     let nextTask = null;
                     for (let i = currentIndex + 1; i < flatList.length; i++) {
                         if (!flatList[i].completed) {
@@ -648,13 +701,12 @@
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 const info = this.findTask(map.tasks, id);
                 if (info) {
-                    // Если свойства еще нет, создаем его. По умолчанию ветки развернуты.
                     info.node.expanded = info.node.expanded === undefined ? false : !info.node.expanded;
                     this.saveState();
                     this.render();
                     AudioSys.play('action');
                 }
-					},
+			},
 
             // --- Movement (Вверх, Вниз, Внутрь, Наружу) ---
             moveTask(id, direction) {
@@ -667,16 +719,14 @@
                 } else if (direction === 'down' && index < parentArray.length - 1) {
                     [parentArray[index + 1], parentArray[index]] = [parentArray[index], parentArray[index + 1]];
                 } else if (direction === 'in' && index > 0) {
-                    // Делаем дочерним элементом предыдущего сиблинга
                     const prevSibling = parentArray[index - 1];
                     prevSibling.children.push(node);
                     parentArray.splice(index, 1);
                 } else if (direction === 'out' && parent) {
-                    // Выносим на уровень выше родителя
                     const parentInfo = this.findTask(map.tasks, parent.id);
                     parentInfo.parentArray.splice(parentInfo.index + 1, 0, node);
                     parentArray.splice(index, 1);
-                } else return; // Движение невозможно
+                } else return;
 
                 this.saveState(); this.render(); AudioSys.play('action');
             },
@@ -701,7 +751,6 @@
                 tasks.forEach(task => {
                     if (task.children && task.children.length > 0) {
                         const stats = this.computeTree(task.children);
-                        // АВТОМАТИЧЕСКАЯ ПРОВЕРКА: Материнская зависит от дочерних
                         task.completed = (stats.total > 0 && stats.completed === stats.total);
                         task.stats = stats;
                         totalLeaves += stats.total;
@@ -724,14 +773,10 @@
 
                 document.getElementById('map-title').innerText = map.name;
                 
-                // Пересчитываем статусы
                 const globalStats = this.computeTree(map.tasks);
-                
-                // Отрисовка глобального статуса
                 const percent = globalStats.total === 0 ? 0 : Math.round((globalStats.completed / globalStats.total) * 100);
                 document.getElementById('global-stats').innerText = `Общий статус: ${globalStats.completed}/${globalStats.total} (${percent}%)`;
 
-                // Отрисовка дерева
                 const treeRoot = document.getElementById('tree-root');
                 treeRoot.innerHTML = '';
                 if(map.tasks.length > 0) {
@@ -743,18 +788,18 @@
                 const list = document.getElementById('map-list');
                 list.innerHTML = '';
                 this.state.maps.forEach(m => {
-    const li = document.createElement('li');
-    li.className = `map-item ${m.id === this.state.currentMapId ? 'active' : ''}`;
-    li.innerHTML = `
-        <span>${m.name}</span> 
-        <div style="display:flex; align-items:center;">
-            <button class="btn-edit" onclick="app.renameMap('${m.id}', event)">✎</button>
-            <button class="btn-delete" onclick="app.deleteMap('${m.id}', event)">✕</button>
-        </div>
-    `;
-    li.onclick = () => this.switchMap(m.id);
-    list.appendChild(li);
-});
+                    const li = document.createElement('li');
+                    li.className = `map-item ${m.id === this.state.currentMapId ? 'active' : ''}`;
+                    li.innerHTML = `
+                        <span>${m.name}</span> 
+                        <div style="display:flex; align-items:center;">
+                            <button class="btn-edit" onclick="app.renameMap('${m.id}', event)">✎</button>
+                            <button class="btn-delete" onclick="app.deleteMap('${m.id}', event)">✕</button>
+                        </div>
+                    `;
+                    li.onclick = () => this.switchMap(m.id);
+                    list.appendChild(li);
+                });
             },
 
             createTaskNodes(tasks) {
@@ -763,7 +808,6 @@
                     const li = document.createElement('li');
                     li.className = 'task-item';
                     
-                    // Проверяем, развернута ли ветка (по умолчанию true)
                     const isExpanded = task.expanded !== false;
                     const hasChildren = task.children.length > 0;
                     
@@ -773,14 +817,10 @@
                         statsHtml = `<span class="task-stats">${task.stats.completed}/${task.stats.total} (${pct}%)</span>`;
                     }
 
-                    // Кнопка сворачивания отображается только если есть дети
                     const toggleBtn = hasChildren 
                         ? `<button class="btn-toggle" onclick="app.toggleExpand('${task.id}')">${isExpanded ? '▼' : '▶'}</button>`
                         : `<span class="btn-toggle"></span>`;
 
-                    const nodeBgColor = task.color ? task.color : '';
-
-                    // Если цвет у ветки задан, передаем его как CSS-переменную, иначе пустая строка
                     const inlineStyle = task.color ? `--node-custom-color: ${task.color};` : '';
 
                     li.innerHTML = `
@@ -806,7 +846,6 @@
                     
                     if (hasChildren) {
                         const childrenContainer = this.createTaskNodes(task.children);
-                        // Если свернуто, добавляем CSS-класс скрытия
                         if (!isExpanded) childrenContainer.classList.add('collapsed-content');
                         li.appendChild(childrenContainer);
                     }
@@ -836,17 +875,18 @@
                         this.state = data;
                         this.history = []; this.historyIndex = -1;
                         this.saveState(true); this.init();
-                    } else alert("Неверный формат книги.");
+                    } else this.showAlert("Неверный формат книги.");
                 });
             },
             importMap(e) {
                 this.handleFile(e, (data) => {
                     if(data.id && data.tasks) {
-                        data.id = this.generateId(); // Генерируем новый ID, чтобы не было конфликтов
+                        data.id = this.generateId();
                         this.state.maps.push(data);
                         this.state.currentMapId = data.id;
+                        this.applySettings(); // Мгновенно переключаем фон на импортированную карту
                         this.saveState(); this.render();
-                    } else alert("Неверный формат карты.");
+                    } else this.showAlert("Неверный формат карты.");
                 });
             },
             handleFile(e, callback) {
@@ -855,8 +895,8 @@
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     try { callback(JSON.parse(ev.target.result)); }
-                    catch(err) { alert("Ошибка чтения файла"); }
-                    e.target.value = ''; // Сброс инпута
+                    catch(err) { this.showAlert("Ошибка чтения файла"); }
+                    e.target.value = '';
                 };
                 reader.readAsText(file);
             }
