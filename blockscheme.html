@@ -1,0 +1,2978 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ГОСТ Блок-Схемы Редактор</title>
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-sidebar: #0f172a;
+      --bg-sidebar-hover: #1e293b;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-light: #f8fafc;
+      --border-color: #cbd5e1;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --grid-color: rgba(203, 213, 225, 0.4);
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: #090d16;
+      --bg-secondary: #111827;
+      --bg-sidebar: #030712;
+      --bg-sidebar-hover: #1f2937;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-light: #f3f4f6;
+      --border-color: #374151;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --grid-color: rgba(55, 65, 81, 0.6);
+      --danger: #f87171;
+      --danger-hover: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Главный контейнер */
+    .app-container {
+      display: flex;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Сайдбар */
+    .sidebar {
+      width: 320px;
+      background-color: var(--bg-sidebar);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 50;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-320px);
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .sidebar-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Панель элементов ГОСТ */
+    .gost-palette {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .palette-item {
+      background: var(--bg-sidebar-hover);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+      cursor: grab;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      -webkit-user-drag: element !important;
+    }
+
+    .palette-item:hover {
+      border-color: var(--accent);
+      background: rgba(37, 99, 235, 0.15);
+    }
+
+    .palette-icon {
+      font-size: 1.5rem;
+    }
+
+    /* Свойства элемента */
+    .properties-panel {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .prop-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .prop-group label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .prop-input, .prop-select {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 0.5rem;
+      color: var(--text-light);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .prop-input:focus, .prop-select:focus {
+      border-color: var(--accent);
+    }
+
+    .prop-checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      max-height: 120px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .prop-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    /* Бейджи переменных для помощника */
+    .var-badge {
+      background: var(--bg-sidebar-hover);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--text-light);
+      transition: all 0.15s;
+    }
+    .var-badge:hover {
+      background: var(--accent);
+      border-color: var(--accent-hover);
+    }
+
+    /* Кнопки управления */
+    .btn {
+      background: var(--accent);
+      color: var(--text-light);
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-hover);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Верхняя панель */
+    .topbar {
+      position: absolute;
+      top: 1rem;
+      left: 340px;
+      right: 1rem;
+      height: 56px;
+      background-color: var(--bg-secondary);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+      z-index: 40;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid var(--border-color);
+    }
+
+    .sidebar.collapsed ~ .topbar {
+      left: 1rem;
+    }
+
+    .menu-toggle {
+      background: transparent;
+      border: none;
+      font-size: 1.25rem;
+      color: var(--text-main);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 4px;
+    }
+
+    .menu-toggle:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border-color);
+      margin: 0 0.25rem;
+    }
+
+    /* Бесконечный холст */
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      outline: none;
+    }
+
+    /* Фоновая бесконечная сетка */
+    .grid-background {
+      position: absolute;
+      top: -2000%;
+      left: -2000%;
+      width: 4000%;
+      height: 4000%;
+      background-image: 
+        linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      will-change: transform;
+      z-index: 1;
+    }
+
+    /* Сама рабочая сцена */
+    .scene-viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Контейнер интерактивных блоков */
+    .blocks-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    /* Отдельный SVG слой для связей */
+    .connections-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    /* Стилизация SVG линий связей */
+    .connections-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .flow-line {
+      fill: none;
+      stroke: var(--text-main);
+      stroke-width: 2.5;
+      marker-end: url(#arrow-default);
+      pointer-events: stroke;
+      cursor: pointer;
+      transition: stroke 0.2s, stroke-width 0.2s;
+    }
+
+    /* Подсвечивание стрелок, если они активны в процессе */
+    .flow-line.active {
+      stroke: #22c55e;
+      stroke-width: 3;
+      marker-end: url(#arrow-flow-active);
+    }
+
+    .return-line {
+      fill: none;
+      stroke: var(--text-main);
+      stroke-width: 2.5;
+      marker-end: url(#arrow-default);
+      pointer-events: stroke;
+      cursor: pointer;
+      transition: stroke 0.2s, stroke-width 0.2s;
+    }
+
+    .return-line.active {
+      stroke: #3b82f6;
+      stroke-width: 3;
+      marker-end: url(#arrow-return-active);
+    }
+
+    .comment-line {
+      fill: none;
+      stroke: var(--text-muted);
+      stroke-width: 1.5;
+      stroke-dasharray: 5, 5;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+
+    .line-hover-target {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 12;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+
+    .line-hover-target:hover + .flow-line,
+    .line-hover-target:hover + .return-line,
+    .line-hover-target:hover + .comment-line {
+      stroke-width: 4;
+      filter: drop-shadow(0 0 4px var(--accent));
+    }
+
+    .line-selected {
+      stroke-width: 4;
+      stroke: #f59e0b !important;
+    }
+
+    /* Текст-лейбл на линии */
+    .line-label-bg {
+      fill: var(--bg-secondary);
+      stroke: var(--border-color);
+      rx: 4;
+    }
+
+    .line-label-text {
+      font-size: 11px;
+      font-weight: 600;
+      fill: var(--text-main);
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .arrow-path-default {
+      fill: var(--text-main);
+    }
+
+    /* HTML Блок */
+    .gost-block {
+      position: absolute;
+      pointer-events: auto;
+      cursor: move;
+      will-change: transform;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-sizing: border-box;
+      background: var(--bg-secondary);
+      color: var(--text-main);
+      box-shadow: var(--shadow);
+      border-radius: 0px;
+    }
+
+    .gost-block.selected {
+      outline: 3px solid #f59e0b;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+    }
+
+    .gost-block-content {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 0.5rem;
+      word-break: break-all;
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+    /* Отрисовка фигур по ГОСТу с помощью CSS clip-path или рамок */
+    .shape-oval {
+      border-radius: 20px;
+      border: 2px solid var(--text-main);
+    }
+
+    .shape-rectangle {
+      border: 2px solid var(--text-main);
+    }
+
+    .shape-rhombus {
+      border: 2px solid var(--text-main);
+      clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    }
+
+    .shape-parallelogram {
+      border: 2px solid var(--text-main);
+      clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+    }
+
+    .shape-subroutine {
+      border: 2px solid var(--text-main);
+      box-shadow: 
+        inset 10px 0 0 0 var(--bg-secondary),
+        inset -10px 0 0 0 var(--bg-secondary),
+        inset 12px 0 0 0 var(--text-main),
+        inset -12px 0 0 0 var(--text-main),
+        var(--shadow);
+    }
+
+    .shape-comment {
+      border-left: 2px solid var(--text-main);
+      border-top: 2px dashed transparent;
+      border-bottom: 2px dashed transparent;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    .shape-comment::before, .shape-comment::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      width: 16px;
+      height: 2px;
+      background-color: var(--text-main);
+    }
+    .shape-comment::before { top: 0; }
+    .shape-comment::after { bottom: 0; }
+
+    /* Дополнительные обозначения типов переменных в параллелограмме */
+    .gost-block-type-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 12%;
+      font-size: 8px;
+      color: var(--accent);
+      font-weight: bold;
+      background: var(--bg-secondary);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    /* Панель листов снизу - Перемещена на уровень body */
+    .bottom-tabs-bar {
+      height: 48px;
+      background-color: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 0.5rem;
+      z-index: 40;
+    }
+
+    .tabs-scroll-container {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      overflow-x: auto;
+      flex: 1;
+      height: 100%;
+    }
+
+    .tabs-scroll-container::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .tabs-scroll-container::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 2px;
+    }
+
+    .sheet-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+      background-color: var(--bg-primary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      height: 36px;
+      margin-top: 11px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .sheet-tab.active {
+      background-color: var(--bg-secondary);
+      border-color: var(--border-color);
+      border-bottom: 2px solid var(--accent);
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .sheet-tab-close {
+      font-size: 10px;
+      color: var(--text-muted);
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .sheet-tab-close:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .add-sheet-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px dashed var(--border-color);
+      background: transparent;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .add-sheet-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    /* Модальные окна (Кастомные, без блокировки потока) */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-container {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+      width: 90%;
+      max-width: 450px;
+      transform: scale(0.9);
+      transition: transform 0.2s ease-out;
+      overflow: hidden;
+    }
+
+    .modal-overlay.active .modal-container {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .modal-body {
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .modal-footer {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    /* Инструменты масштаба на холсте */
+    .zoom-controls {
+      position: absolute;
+      bottom: 24px;
+      right: 1rem;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 40;
+      padding: 2px;
+    }
+
+    .zoom-btn {
+      width: 36px;
+      height: 36px;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      border-radius: 6px;
+    }
+
+    .zoom-btn:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .zoom-text {
+      font-size: 10px;
+      font-weight: bold;
+      text-align: center;
+      padding: 2px 0;
+      color: var(--text-muted);
+    }
+
+    /* Скрытый инпут файла */
+    #file-input {
+      display: none;
+    }
+
+    /* Нотис режима линковки */
+    .link-mode-indicator {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 45;
+      animation: pulse 1.5s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.9; }
+      50% { opacity: 0.6; }
+      100% { opacity: 0.9; }
+    }
+
+    /* Специфические панели свойств */
+    .action-badge-btn {
+      background: var(--bg-sidebar-hover);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-light);
+      font-size: 11px;
+      transition: background 0.15s;
+    }
+    .action-badge-btn:hover {
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body data-theme="light">
+
+  <div class="app-container">
+    
+    <!-- Левый сайдбар -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">⚙️ СВОЙСТВА</span>
+        <button class="menu-toggle" style="color: white;" onclick="toggleSidebar()">✕</button>
+      </div>
+      <div class="sidebar-content">
+        
+        <!-- Добавление элементов по ГОСТ -->
+        <div>
+          <div class="section-title">Фигуры ГОСТ</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; line-height: 1.3;">
+            💡 Перетащите фигуру на холст или просто кликните на нее, чтобы добавить в центр.
+          </div>
+          <div class="gost-palette">
+            <div class="palette-item" draggable="true" data-shape="oval">
+              <span class="palette-icon">⚪</span>
+              <span>Старт / Стоп</span>
+            </div>
+            <div class="palette-item" draggable="true" data-shape="rectangle">
+              <span class="palette-icon">⬜</span>
+              <span>Процесс</span>
+            </div>
+            <div class="palette-item" draggable="true" data-shape="rhombus">
+              <span class="palette-icon">🔶</span>
+              <span>Решение</span>
+            </div>
+            <div class="palette-item" draggable="true" data-shape="parallelogram">
+              <span class="palette-icon">▱</span>
+              <span>Ввод / Вывод</span>
+            </div>
+            <div class="palette-item" draggable="true" data-shape="subroutine">
+              <span class="palette-icon">🪵</span>
+              <span>Подпрограмма</span>
+            </div>
+            <div class="palette-item" draggable="true" data-shape="comment">
+              <span class="palette-icon">💬</span>
+              <span>Комментарий</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Управление переменными -->
+        <div>
+          <div class="section-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span>📋 Переменные листа</span>
+            <button class="btn" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;" onclick="addVariable()">+ Создать</button>
+          </div>
+          <div id="variables-list-container" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 220px; overflow-y: auto; padding-right: 2px;">
+            <!-- Сюда динамически рендерятся переменные с их значениями -->
+          </div>
+        </div>
+
+        <!-- Свойства выбранного элемента -->
+        <div>
+          <div class="section-title">Параметры элемента</div>
+          <div class="properties-panel" id="no-selection-msg">
+            <span style="font-size: 0.85rem; color: var(--text-muted); text-align: center;">Выберите блок или линию для редактирования параметров</span>
+          </div>
+          
+          <!-- Форма параметров блока -->
+          <div class="properties-panel" id="block-props-panel" style="display: none;">
+            
+            <!-- Базовый Текст -->
+            <div class="prop-group">
+              <label>Отображаемый текст</label>
+              <input type="text" class="prop-input" id="prop-block-text">
+            </div>
+
+            <!-- ИНТЕРАКТИВНЫЙ ПРОЦЕСС (Rectangle) -->
+            <div id="rectangle-options" style="display: none; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.75rem;">
+              <span style="font-size: 0.8rem; font-weight: 600; color: #3b82f6; display: block; margin-bottom: 0.5rem;">🤖 Операция присвоения:</span>
+              <div class="prop-group" style="gap: 0.5rem;">
+                <select class="prop-select" id="prop-rect-target-var">
+                  <!-- Заполняется переменными -->
+                </select>
+                <select class="prop-select" id="prop-rect-operator">
+                  <option value="=">=</option>
+                  <option value="+=">+=</option>
+                  <option value="-=">-=</option>
+                  <option value="*=">*=</option>
+                  <option value="/=">/=</option>
+                </select>
+                <input type="text" class="prop-input" id="prop-rect-expression" placeholder="Выражение, например: x + 1">
+              </div>
+              <div style="margin-top: 0.5rem; display: flex; gap: 0.25rem;">
+                <button class="action-badge-btn" onclick="applyRectOperationTemplate('increment')">+1</button>
+                <button class="action-badge-btn" onclick="applyRectOperationTemplate('decrement')">-1</button>
+                <button class="action-badge-btn" onclick="applyRectOperationTemplate('clear')">Очистить (0)</button>
+              </div>
+              <button class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%; font-size: 0.75rem; padding: 4px;" onclick="syncBlockTextWithOperation()">
+                🔄 Синхронизировать текст блока
+              </button>
+            </div>
+
+            <!-- ИНТЕРАКТИВНОЕ РЕШЕНИЕ (Rhombus) -->
+            <div id="rhombus-options" style="display: none; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.75rem;">
+              <span style="font-size: 0.8rem; font-weight: 600; color: #f59e0b; display: block; margin-bottom: 0.5rem;">🤖 Логическое Условие:</span>
+              <div class="prop-group" style="gap: 0.5rem;">
+                <input type="text" class="prop-input" id="prop-rhom-left" placeholder="Переменная / Выражение">
+                <select class="prop-select" id="prop-rhom-operator">
+                  <option value="==">==</option>
+                  <option value="!=">!=</option>
+                  <option value="<">&lt;</option>
+                  <option value=">">&gt;</option>
+                  <option value="<=">&lt;=</option>
+                  <option value=">=">&gt;=</option>
+                </select>
+                <input type="text" class="prop-input" id="prop-rhom-right" placeholder="Значение / Переменная">
+              </div>
+              <button class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%; font-size: 0.75rem; padding: 4px; margin-bottom: 0.5rem;" onclick="syncBlockTextWithCondition()">
+                🔄 Синхронизировать текст блока
+              </button>
+              <div style="font-size: 0.75rem; color: #f59e0b; line-height: 1.3; background: rgba(245, 158, 11, 0.1); padding: 6px; border-radius: 4px;">
+                ⚠️ <strong>Важно для генерации кода:</strong> Чтобы компилятор понял ветвление, исходящие связи из этого ромба должны содержать метки <strong>Да</strong> (или <strong>Yes</strong>, <strong>+</strong>, <strong>1</strong>) и <strong>Нет</strong> (или <strong>No</strong>, <strong>-</strong>, <strong>0</strong>).
+              </div>
+            </div>
+
+            <!-- Бейджи быстрой вставки переменных (помощник формул) -->
+            <div id="block-variable-helpers" style="display: none;">
+              <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 2px; display: block;">Вставить переменную:</label>
+              <div id="block-vars-helper-list" style="display: flex; flex-wrap: wrap; gap: 4px;"></div>
+            </div>
+            
+            <!-- Опции связей переменных для Параллелограмма (Ввод/Вывод) -->
+            <div id="parallelogram-options" style="display: none;">
+              <div class="prop-group">
+                <label>Привязать переменные:</label>
+                <div class="prop-checkbox-group" id="parallelogram-vars-select">
+                  <!-- Список чекбоксов переменных -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Общие геометрические параметры -->
+            <div class="prop-group">
+              <label>Ширина (px)</label>
+              <input type="number" class="prop-input" id="prop-block-w">
+            </div>
+            <div class="prop-group">
+              <label>Высота (px)</label>
+              <input type="number" class="prop-input" id="prop-block-h">
+            </div>
+
+            <button class="btn btn-danger" onclick="deleteCurrentSelected()">Удалить элемент</button>
+          </div>
+
+          <!-- Форма параметров связи -->
+          <div class="properties-panel" id="connection-props-panel" style="display: none;">
+            <div class="prop-group">
+              <label>Тип связи</label>
+              <select class="prop-select" id="prop-conn-type">
+                <option value="flow">Ход алгоритма</option>
+                <option value="return">Возврат</option>
+                <option value="comment">Комментарий</option>
+              </select>
+            </div>
+            <div class="prop-group">
+              <label>Метка («Да» / «Нет» / др.)</label>
+              <input type="text" class="prop-input" id="prop-conn-label">
+              <div style="display: flex; gap: 0.25rem; margin-top: 0.25rem;">
+                <button class="action-badge-btn" onclick="setConnectionLabel('Да')">«Да»</button>
+                <button class="action-badge-btn" onclick="setConnectionLabel('Нет')">«Нет»</button>
+                <button class="action-badge-btn" onclick="setConnectionLabel('')">Сбросить</button>
+              </div>
+            </div>
+            <div class="prop-group" style="flex-direction: row; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+              <input type="checkbox" id="prop-conn-active" style="cursor: pointer; width: 16px; height: 16px;">
+              <label for="prop-conn-active" style="cursor: pointer; user-select: none; font-size: 0.85rem;">Активна в процессе</label>
+            </div>
+            <button class="btn btn-danger" onclick="deleteCurrentSelected()">Удалить связь</button>
+          </div>
+        </div>
+
+        <!-- Настройки Листа и Книги -->
+        <div>
+          <div class="section-title">Параметры Листа</div>
+          <div class="properties-panel">
+            <div class="prop-group">
+              <label>Цвет фона листа</label>
+              <input type="color" class="prop-input" id="prop-sheet-bg" value="#f8fafc">
+            </div>
+            <button class="btn btn-danger btn-secondary" onclick="resetWholeProject()">⚠️ Очистить проект</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Верхняя панель -->
+    <div class="topbar">
+      <div class="action-group">
+        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+        <span class="divider"></span>
+        <button class="btn btn-secondary" onclick="triggerUndo()" title="Отменить (Ctrl+Z)">↩️</button>
+        <button class="btn btn-secondary" onclick="triggerRedo()" title="Повторить (Ctrl+Y)">↪️</button>
+        <span class="divider"></span>
+        <button class="btn btn-secondary" id="link-btn" onclick="toggleLinkMode()" title="Связать элементы">🔗 Связать</button>
+      </div>
+
+      <div class="action-group">
+        <button class="btn" style="background: #10b981;" onclick="compileToPseudocode()" title="Транслировать блок-схему в текстовый псевдокод">📄 Псевдокод</button>
+        <span class="divider"></span>
+        <button class="btn btn-secondary" onclick="exportActiveSheet()" title="Экспорт текущего листа в JSON">📤 Экспорт Листа</button>
+        <button class="btn btn-secondary" onclick="exportWholeBook()" title="Экспорт всей книги в JSON">📚 Экспорт Книги</button>
+        <button class="btn btn-secondary" onclick="triggerImport()" title="Импорт JSON">📥 Импортировать</button>
+        <span class="divider"></span>
+        <button class="btn btn-secondary" id="theme-toggle-btn" onclick="toggleTheme()" title="Переключить тему">🌙</button>
+      </div>
+    </div>
+
+    <!-- Нотификация режима связи -->
+    <div class="link-mode-indicator" id="link-indicator" style="display: none;">
+      🔗 Выберите блок назначения для связи
+    </div>
+
+    <!-- Бесконечный холст -->
+    <div class="canvas-container" id="canvas-container" tabindex="0">
+      <!-- Фон -->
+      <div class="grid-background" id="grid-bg"></div>
+      
+      <!-- Сцена, масштабируемая с помощью CSS-трансформации -->
+      <div class="scene-viewport" id="scene">
+        
+        <!-- Слой связей -->
+        <div class="connections-layer">
+          <svg class="connections-svg" id="svg-layer">
+            <defs>
+              <!-- Дефолтная стрелка (подстраивается под тему) -->
+              <marker id="arrow-default" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" class="arrow-path-default" />
+              </marker>
+              <!-- Стрелка для активного хода алгоритма -->
+              <marker id="arrow-flow-active" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#22c55e" />
+              </marker>
+              <!-- Стрелка для активного возврата -->
+              <marker id="arrow-return-active" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#3b82f6" />
+              </marker>
+            </defs>
+            <g id="connections-group"></g>
+          </svg>
+        </div>
+
+        <!-- Слой блоков -->
+        <div class="blocks-layer" id="blocks-container"></div>
+
+      </div>
+
+      <!-- Кнопки зума -->
+      <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomIn()" title="Увеличить">+</button>
+        <span class="zoom-text" id="zoom-value">100%</span>
+        <button class="zoom-btn" onclick="zoomOut()" title="Уменьшить">-</button>
+        <button class="zoom-btn" onclick="zoomReset()" title="Сбросить масштаб">🔄</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Панель листов (Sheets) снизу - вынесена как прямой потомок body -->
+  <div class="bottom-tabs-bar">
+    <div class="tabs-scroll-container" id="tabs-container"></div>
+    <button class="add-sheet-btn" onclick="createNewSheet()" title="Добавить лист">+</button>
+  </div>
+
+  <!-- Модальное Окно Подтверждения/Ввода (Кастомное) -->
+  <div class="modal-overlay" id="custom-modal">
+    <div class="modal-container">
+      <div class="modal-header" id="modal-title">Внимание</div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        <div id="modal-message">Вы уверены?</div>
+        <input type="text" class="prop-input" id="modal-input" style="display: none; width: 100%;">
+        <textarea class="prop-input" id="modal-textarea" style="display: none; width: 100%; height: 200px; font-family: monospace; font-size: 0.8rem; resize: vertical;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-btn-cancel" onclick="closeModal()">Отмена</button>
+        <button class="btn" id="modal-btn-confirm">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Скрытый инпут импорта файлов -->
+  <input type="file" id="file-input" accept=".json" onchange="handleFileImport(event)">
+
+  <script>
+    /* Global Application State */
+    const appState = {
+      sheets: {},
+      activeSheetId: 'sheet-1',
+      
+      history: {},
+      historyIndex: {},
+      
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+      
+      isPanning: false,
+      isDraggingBlock: false,
+      draggedBlockId: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      
+      selectedElementId: null, 
+      selectedElementType: null, 
+      linkMode: false,
+      linkSourceBlockId: null,
+      
+      theme: 'light',
+      sidebarOpen: true
+    };
+
+    const MIN_ZOOM = 0.2;
+    const MAX_ZOOM = 2.5;
+    const ZOOM_SPEED = 0.08;
+
+    // Ссылки на DOM-элементы
+    const dom = {
+      sidebar: document.getElementById('sidebar'),
+      canvasContainer: document.getElementById('canvas-container'),
+      gridBg: document.getElementById('grid-bg'),
+      scene: document.getElementById('scene'),
+      blocksContainer: document.getElementById('blocks-container'),
+      connectionsGroup: document.getElementById('connections-group'),
+      svgLayer: document.getElementById('svg-layer'),
+      tabsContainer: document.getElementById('tabs-container'),
+      zoomValue: document.getElementById('zoom-value'),
+      linkBtn: document.getElementById('link-btn'),
+      linkIndicator: document.getElementById('link-indicator'),
+      themeToggleBtn: document.getElementById('theme-toggle-btn'),
+      fileInput: document.getElementById('file-input'),
+      customModal: document.getElementById('custom-modal'),
+      modalTitle: document.getElementById('modal-title'),
+      modalMessage: document.getElementById('modal-message'),
+      modalInput: document.getElementById('modal-input'),
+      modalTextarea: document.getElementById('modal-textarea'),
+      modalConfirmBtn: document.getElementById('modal-btn-confirm'),
+      
+      // Переменные
+      variablesContainer: document.getElementById('variables-list-container'),
+      
+      // Панели параметров
+      noSelectionMsg: document.getElementById('no-selection-msg'),
+      blockPropsPanel: document.getElementById('block-props-panel'),
+      connectionPropsPanel: document.getElementById('connection-props-panel'),
+      
+      // Поля параметров блока
+      propBlockText: document.getElementById('prop-block-text'),
+      propBlockW: document.getElementById('prop-block-w'),
+      propBlockH: document.getElementById('prop-block-h'),
+      
+      // Специальные опции блоков
+      parallelogramOptions: document.getElementById('parallelogram-options'),
+      parallelogramVarsSelect: document.getElementById('parallelogram-vars-select'),
+      blockVariableHelpers: document.getElementById('block-variable-helpers'),
+      blockVarsHelperList: document.getElementById('block-vars-helper-list'),
+      
+      rectangleOptions: document.getElementById('rectangle-options'),
+      propRectTargetVar: document.getElementById('prop-rect-target-var'),
+      propRectOperator: document.getElementById('prop-rect-operator'),
+      propRectExpression: document.getElementById('prop-rect-expression'),
+      
+      rhombusOptions: document.getElementById('rhombus-options'),
+      propRhomLeft: document.getElementById('prop-rhom-left'),
+      propRhomOperator: document.getElementById('prop-rhom-operator'),
+      propRhomRight: document.getElementById('prop-rhom-right'),
+      
+      // Поля параметров связи
+      propConnType: document.getElementById('prop-conn-type'),
+      propConnLabel: document.getElementById('prop-conn-label'),
+      propConnActive: document.getElementById('prop-conn-active'),
+      
+      // Свойства листа
+      propSheetBg: document.getElementById('prop-sheet-bg')
+    };
+
+    /* Инициализация приложения */
+    window.onload = function() {
+      // Пытаемся восстановить сессию из localStorage (Autosave)
+      const savedBook = localStorage.getItem('gost_flowchart_book');
+      if (savedBook) {
+        try {
+          const parsed = JSON.parse(savedBook);
+          appState.sheets = parsed.sheets;
+          appState.activeSheetId = parsed.activeSheetId || Object.keys(parsed.sheets)[0];
+          appState.theme = parsed.theme || 'light';
+          
+          // Восстанавливаем массивы истории
+          const sheetIds = Object.keys(appState.sheets);
+          for (let i = 0; i < sheetIds.length; i++) {
+            const sId = sheetIds[i];
+            appState.history[sId] = [];
+            appState.historyIndex[sId] = -1;
+            if (!appState.sheets[sId].variables) {
+              appState.sheets[sId].variables = [];
+            }
+            saveHistoryState(sId);
+          }
+        } catch (err) {
+          setupDefaultProject();
+        }
+      } else {
+        setupDefaultProject();
+      }
+      
+      applyTheme(appState.theme);
+      renderSheetsBar();
+      loadSheet(appState.activeSheetId);
+      
+      setupCanvasListeners();
+      setupSidebarInputs();
+      setupKeyboardShortcuts();
+      setupDragAndDropPalette();
+    };
+
+    function setupDefaultProject() {
+      appState.sheets['sheet-1'] = createDefaultSheetData('Главный процесс');
+      appState.activeSheetId = 'sheet-1';
+      initHistoryForSheet('sheet-1');
+    }
+
+    /* Шаблон базовых данных для нового Листа */
+    function createDefaultSheetData(name) {
+      return {
+        id: 'sheet-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        name: name,
+        bgColor: '#f8fafc',
+        zoom: 1,
+        panX: 0,
+        panY: 0,
+        blocks: {},
+        connections: {},
+        variables: [] // Регистр переменных конкретного листа
+      };
+    }
+
+    function initHistoryForSheet(sheetId) {
+      appState.history[sheetId] = [];
+      appState.historyIndex[sheetId] = -1;
+      saveHistoryState(sheetId);
+    }
+
+    /* Сохранение в LocalStorage */
+    function saveToLocalStorage() {
+      const bookData = {
+        version: "1.0",
+        activeSheetId: appState.activeSheetId,
+        sheets: appState.sheets,
+        theme: appState.theme
+      };
+      localStorage.setItem('gost_flowchart_book', JSON.stringify(bookData));
+    }
+
+    /* Сброс всего проекта */
+    function resetWholeProject() {
+      showCustomModal('Очистить проект', 'Вы уверены, что хотите безвозвратно стереть все листы и переменные?', function() {
+        localStorage.removeItem('gost_flowchart_book');
+        appState.sheets = {};
+        setupDefaultProject();
+        applyTheme('light');
+        renderSheetsBar();
+        loadSheet(appState.activeSheetId);
+      });
+    }
+
+    /* Undo/Redo Engine */
+    function saveHistoryState(sheetId) {
+      if (!appState.history[sheetId]) return;
+      
+      const curIndex = appState.historyIndex[sheetId];
+      let historyArr = appState.history[sheetId];
+      if (curIndex < historyArr.length - 1) {
+        historyArr = historyArr.slice(0, curIndex + 1);
+      }
+      
+      const snapshot = JSON.stringify({
+        blocks: appState.sheets[sheetId].blocks,
+        connections: appState.sheets[sheetId].connections,
+        bgColor: appState.sheets[sheetId].bgColor,
+        variables: appState.sheets[sheetId].variables
+      });
+
+      historyArr.push(snapshot);
+      if (historyArr.length > 50) {
+        historyArr.shift();
+      }
+      appState.history[sheetId] = historyArr;
+      appState.historyIndex[sheetId] = historyArr.length - 1;
+      saveToLocalStorage();
+    }
+
+    function triggerUndo() {
+      const sId = appState.activeSheetId;
+      if (appState.historyIndex[sId] > 0) {
+        appState.historyIndex[sId]--;
+        restoreStateFromHistory(sId);
+      }
+    }
+
+    function triggerRedo() {
+      const sId = appState.activeSheetId;
+      const historyArr = appState.history[sId];
+      if (historyArr && appState.historyIndex[sId] < historyArr.length - 1) {
+        appState.historyIndex[sId]++;
+        restoreStateFromHistory(sId);
+      }
+    }
+
+    function restoreStateFromHistory(sheetId) {
+      const snapJson = appState.history[sheetId][appState.historyIndex[sheetId]];
+      if (!snapJson) return;
+      
+      const snap = JSON.parse(snapJson);
+      appState.sheets[sheetId].blocks = snap.blocks;
+      appState.sheets[sheetId].connections = snap.connections;
+      appState.sheets[sheetId].bgColor = snap.bgColor;
+      appState.sheets[sheetId].variables = snap.variables || [];
+      
+      appState.selectedElementId = null;
+      appState.selectedElementType = null;
+      
+      renderVariablesList();
+      updatePropertiesPanel();
+
+      dom.blocksContainer.innerHTML = '';
+      const blockIds = Object.keys(appState.sheets[sheetId].blocks);
+      for (let i = 0; i < blockIds.length; i++) {
+        createBlockDOM(appState.sheets[sheetId].blocks[blockIds[i]]);
+      }
+      
+      requestSceneUpdate();
+      saveToLocalStorage();
+    }
+
+    /* Модальные окна */
+    function showCustomModal(title, msg, onConfirm, hasInput = false, defaultInputValue = '', isTextarea = false) {
+      dom.modalTitle.innerText = title;
+      dom.modalMessage.innerText = msg;
+      
+      dom.modalInput.style.display = 'none';
+      dom.modalTextarea.style.display = 'none';
+
+      if (hasInput) {
+        if (isTextarea) {
+          dom.modalTextarea.style.display = 'block';
+          dom.modalTextarea.value = defaultInputValue;
+        } else {
+          dom.modalInput.style.display = 'block';
+          dom.modalInput.value = defaultInputValue;
+        }
+      }
+
+      dom.modalConfirmBtn.onclick = function() {
+        const value = hasInput ? (isTextarea ? dom.modalTextarea.value : dom.modalInput.value) : true;
+        closeModal();
+        if (onConfirm) onConfirm(value);
+      };
+
+      dom.customModal.classList.add('active');
+    }
+
+    function closeModal() {
+      dom.customModal.classList.remove('active');
+    }
+
+    /* Темизация */
+    function toggleTheme() {
+      const nextTheme = appState.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(nextTheme);
+      saveToLocalStorage();
+      requestSceneUpdate();
+    }
+
+    function applyTheme(theme) {
+      appState.theme = theme;
+      document.body.setAttribute('data-theme', theme);
+      if (theme === 'dark') {
+        dom.themeToggleBtn.innerText = '☀️';
+        dom.propSheetBg.value = '#090d16';
+      } else {
+        dom.themeToggleBtn.innerText = '🌙';
+        dom.propSheetBg.value = '#f8fafc';
+      }
+    }
+
+    /* Менеджер переменных с поддержкой редактируемых значений (Value) */
+    function renderVariablesList() {
+      dom.variablesContainer.innerHTML = '';
+      const sheet = appState.sheets[appState.activeSheetId];
+      if (!sheet.variables) sheet.variables = [];
+      const len = sheet.variables.length;
+      
+      if (len === 0) {
+        dom.variablesContainer.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted); text-align:center; padding: 0.5rem 0;">Нет созданных переменных</span>`;
+        return;
+      }
+
+      for (let i = 0; i < len; i++) {
+        const v = sheet.variables[i];
+        if (v.value === undefined) {
+          v.value = getDefaultForType(v.type);
+        }
+        
+        const row = document.createElement('div');
+        row.style.cssText = "display: flex; flex-direction: column; gap: 0.25rem; background: rgba(255,255,255,0.05); padding: 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);";
+        
+        // Первая строка: имя, тип, кнопки управления
+        const topRow = document.createElement('div');
+        topRow.style.cssText = "display: flex; gap: 0.25rem; align-items: center;";
+
+        const inputName = document.createElement('input');
+        inputName.type = "text";
+        inputName.className = "prop-input";
+        inputName.style.cssText = "flex: 1; padding: 2px 4px; font-size: 0.75rem; background: rgba(0,0,0,0.25); font-weight: bold;";
+        inputName.value = v.name;
+        inputName.oninput = function() {
+          v.name = inputName.value.trim().replace(/\s+/g, '');
+          onVariablesChanged();
+        };
+
+        const selectType = document.createElement('select');
+        selectType.className = "prop-select";
+        selectType.style.cssText = "padding: 2px; font-size: 0.75rem; width: 68px; background: rgba(0,0,0,0.25);";
+        const types = ['int', 'real', 'bool', 'char', 'string', 'array'];
+        for (let j = 0; j < types.length; j++) {
+          const opt = document.createElement('option');
+          opt.value = types[j];
+          opt.innerText = types[j];
+          if (v.type === types[j]) opt.selected = true;
+          selectType.appendChild(opt);
+        }
+        selectType.onchange = function() {
+          v.type = selectType.value;
+          v.value = getDefaultForType(v.type); // Сброс под новый тип
+          renderVariablesList();
+          onVariablesChanged();
+        };
+
+        const btnDup = document.createElement('button');
+        btnDup.className = "btn btn-secondary";
+        btnDup.style.cssText = "padding: 2px 6px; font-size: 0.75rem;";
+        btnDup.innerText = "👥";
+        btnDup.title = "Дублировать";
+        btnDup.onclick = function() {
+          duplicateVariable(v.id);
+        };
+
+        const btnDel = document.createElement('button');
+        btnDel.className = "btn btn-danger";
+        btnDel.style.cssText = "padding: 2px 6px; font-size: 0.75rem;";
+        btnDel.innerText = "🗑️";
+        btnDel.title = "Удалить";
+        btnDel.onclick = function() {
+          deleteVariable(v.id);
+        };
+
+        topRow.appendChild(inputName);
+        topRow.appendChild(selectType);
+        topRow.appendChild(btnDup);
+        topRow.appendChild(btnDel);
+
+        // Вторая строка: Поле значения переменной (Value)
+        const botRow = document.createElement('div');
+        botRow.style.cssText = "display: flex; gap: 0.25rem; align-items: center;";
+
+        const valLabel = document.createElement('span');
+        valLabel.innerText = "Значение:";
+        valLabel.style.cssText = "font-size: 0.7rem; color: var(--text-muted); width: 55px;";
+
+        let valInput;
+        if (v.type === 'bool') {
+          valInput = document.createElement('select');
+          valInput.className = "prop-select";
+          valInput.style.cssText = "flex: 1; padding: 1px 4px; font-size: 0.75rem; background: rgba(0,0,0,0.25);";
+          const optTrue = document.createElement('option');
+          optTrue.value = "true";
+          optTrue.innerText = "true";
+          const optFalse = document.createElement('option');
+          optFalse.value = "false";
+          optFalse.innerText = "false";
+          valInput.appendChild(optTrue);
+          valInput.appendChild(optFalse);
+          valInput.value = v.value === true || v.value === "true" ? "true" : "false";
+          valInput.onchange = function() {
+            v.value = valInput.value === "true";
+            saveToLocalStorage();
+          };
+        } else {
+          valInput = document.createElement('input');
+          valInput.type = (v.type === 'int' || v.type === 'real') ? 'number' : 'text';
+          valInput.className = "prop-input";
+          valInput.style.cssText = "flex: 1; padding: 2px 4px; font-size: 0.75rem; background: rgba(0,0,0,0.25);";
+          valInput.value = v.value;
+          valInput.placeholder = v.type === 'array' ? '1, 2, 3...' : '';
+          valInput.oninput = function() {
+            if (v.type === 'int') {
+              v.value = parseInt(valInput.value) || 0;
+            } else if (v.type === 'real') {
+              v.value = parseFloat(valInput.value) || 0.0;
+            } else {
+              v.value = valInput.value;
+            }
+            saveToLocalStorage();
+          };
+        }
+
+        botRow.appendChild(valLabel);
+        botRow.appendChild(valInput);
+
+        row.appendChild(topRow);
+        row.appendChild(botRow);
+        dom.variablesContainer.appendChild(row);
+      }
+    }
+
+    function getDefaultForType(type) {
+      if (type === 'int') return 0;
+      if (type === 'real') return 0.0;
+      if (type === 'bool') return false;
+      if (type === 'char') return 'a';
+      if (type === 'string') return '';
+      if (type === 'array') return '[]';
+      return '';
+    }
+
+    function addVariable() {
+      const sheet = appState.sheets[appState.activeSheetId];
+      saveHistoryState(appState.activeSheetId);
+      
+      const varId = 'var-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+      const varName = 'var_' + (sheet.variables.length + 1);
+      
+      sheet.variables.push({
+        id: varId,
+        name: varName,
+        type: 'int',
+        value: 0
+      });
+
+      renderVariablesList();
+      updatePropertiesPanel();
+      saveToLocalStorage();
+    }
+
+    function duplicateVariable(varId) {
+      const sheet = appState.sheets[appState.activeSheetId];
+      const origin = sheet.variables.find(item => item.id === varId);
+      if (!origin) return;
+
+      saveHistoryState(appState.activeSheetId);
+      const copyId = 'var-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+      
+      sheet.variables.push({
+        id: copyId,
+        name: origin.name + '_copy',
+        type: origin.type,
+        value: origin.value
+      });
+
+      renderVariablesList();
+      updatePropertiesPanel();
+      saveToLocalStorage();
+    }
+
+    function deleteVariable(varId) {
+      const sheet = appState.sheets[appState.activeSheetId];
+      saveHistoryState(appState.activeSheetId);
+      
+      sheet.variables = sheet.variables.filter(item => item.id !== varId);
+      
+      // Убираем привязки из блоков
+      const bKeys = Object.keys(sheet.blocks);
+      for (let i = 0; i < bKeys.length; i++) {
+        const b = sheet.blocks[bKeys[i]];
+        if (b.associatedVars) {
+          b.associatedVars = b.associatedVars.filter(id => id !== varId);
+          updateParallelogramBadge(b);
+        }
+        if (b.rectOperation && b.rectOperation.targetVarId === varId) {
+          b.rectOperation.targetVarId = '';
+        }
+      }
+
+      renderVariablesList();
+      updatePropertiesPanel();
+      saveToLocalStorage();
+      requestSceneUpdate();
+    }
+
+    function onVariablesChanged() {
+      const sheet = appState.sheets[appState.activeSheetId];
+      const bKeys = Object.keys(sheet.blocks);
+      for (let i = 0; i < bKeys.length; i++) {
+        const b = sheet.blocks[bKeys[i]];
+        if (b.type === 'parallelogram') {
+          updateParallelogramBadge(b);
+        }
+      }
+      renderVariablesHelpers();
+      populateTargetVariablesSelect();
+      saveToLocalStorage();
+      requestSceneUpdate();
+    }
+
+    /* Заполнение селектора переменных в прямоугольнике */
+    function populateTargetVariablesSelect() {
+      dom.propRectTargetVar.innerHTML = '<option value="">-- Выбрать переменную --</option>';
+      const sheet = appState.sheets[appState.activeSheetId];
+      const vars = sheet.variables || [];
+      for (let i = 0; i < vars.length; i++) {
+        const opt = document.createElement('option');
+        opt.value = vars[i].id;
+        opt.innerText = vars[i].name;
+        dom.propRectTargetVar.appendChild(opt);
+      }
+    }
+
+    /* Вспомогательный рендер бейджей быстрых переменных */
+    function renderVariablesHelpers() {
+      dom.blockVarsHelperList.innerHTML = '';
+      const sheet = appState.sheets[appState.activeSheetId];
+      const selectedId = appState.selectedElementId;
+      if (!selectedId || appState.selectedElementType !== 'block') return;
+
+      const block = sheet.blocks[selectedId];
+      if (block.type !== 'rectangle' && block.type !== 'rhombus' && block.type !== 'parallelogram') {
+        dom.blockVariableHelpers.style.display = 'none';
+        return;
+      }
+
+      const vars = sheet.variables || [];
+      if (vars.length === 0) {
+        dom.blockVarsHelperList.innerHTML = '<span style="font-size:11px; color:var(--text-muted);">Создайте переменные</span>';
+        dom.blockVariableHelpers.style.display = 'block';
+        return;
+      }
+
+      dom.blockVariableHelpers.style.display = 'block';
+      for (let i = 0; i < vars.length; i++) {
+        const v = vars[i];
+        const badge = document.createElement('span');
+        badge.className = 'var-badge';
+        badge.innerText = v.name;
+        badge.title = `Тип: ${v.type}`;
+        badge.onclick = function() {
+          // Определяем, какое поле в фокусе
+          let activeInput = document.activeElement;
+          if (activeInput !== dom.propBlockText && 
+              activeInput !== dom.propRectExpression && 
+              activeInput !== dom.propRhomLeft && 
+              activeInput !== dom.propRhomRight) {
+            // Дефолтное поле при отсутствии фокуса
+            activeInput = block.type === 'rectangle' ? dom.propRectExpression : 
+                         (block.type === 'rhombus' ? dom.propRhomLeft : dom.propBlockText);
+          }
+          const start = activeInput.selectionStart || 0;
+          const end = activeInput.selectionEnd || 0;
+          const text = activeInput.value || '';
+          activeInput.value = text.substring(0, start) + v.name + text.substring(end);
+          activeInput.focus();
+          activeInput.dispatchEvent(new Event('input'));
+        };
+        dom.blockVarsHelperList.appendChild(badge);
+      }
+    }
+
+    /* Панель Листов (Sheets) */
+    function renderSheetsBar() {
+      dom.tabsContainer.innerHTML = '';
+      const sheetIds = Object.keys(appState.sheets);
+      for (let i = 0; i < sheetIds.length; i++) {
+        const id = sheetIds[i];
+        const sheet = appState.sheets[id];
+        
+        const tab = document.createElement('div');
+        tab.className = `sheet-tab ${id === appState.activeSheetId ? 'active' : ''}`;
+        tab.dataset.id = id;
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.innerText = sheet.name;
+        nameSpan.ondblclick = function(e) {
+          e.stopPropagation();
+          showCustomModal('Переименовать лист', 'Введите новое имя листа:', function(newName) {
+            if (newName && newName.trim() !== '') {
+              sheet.name = newName.trim();
+              renderSheetsBar();
+              saveToLocalStorage();
+            }
+          }, true, sheet.name);
+        };
+        
+        tab.appendChild(nameSpan);
+
+        if (sheetIds.length > 1) {
+          const closeBtn = document.createElement('span');
+          closeBtn.className = 'sheet-tab-close';
+          closeBtn.innerText = '✕';
+          closeBtn.onclick = function(e) {
+            e.stopPropagation();
+            showCustomModal('Удалить лист', `Удалить лист "${sheet.name}"? Это действие необратимо!`, function() {
+              deleteSheet(id);
+            });
+          };
+          tab.appendChild(closeBtn);
+        }
+
+        tab.onclick = function() {
+          if (appState.activeSheetId !== id) {
+            const currentSheet = appState.sheets[appState.activeSheetId];
+            currentSheet.zoom = appState.zoom;
+            currentSheet.panX = appState.panX;
+            currentSheet.panY = appState.panY;
+            loadSheet(id);
+          }
+        };
+
+        dom.tabsContainer.appendChild(tab);
+      }
+    }
+
+    function createNewSheet() {
+      const sheetName = 'Лист ' + (Object.keys(appState.sheets).length + 1);
+      const newSheet = createDefaultSheetData(sheetName);
+      appState.sheets[newSheet.id] = newSheet;
+      initHistoryForSheet(newSheet.id);
+      loadSheet(newSheet.id);
+    }
+
+    function deleteSheet(sheetId) {
+      if (Object.keys(appState.sheets).length <= 1) return;
+      
+      delete appState.sheets[sheetId];
+      delete appState.history[sheetId];
+      delete appState.historyIndex[sheetId];
+      
+      if (appState.activeSheetId === sheetId) {
+        appState.activeSheetId = Object.keys(appState.sheets)[0];
+      }
+      
+      loadSheet(appState.activeSheetId);
+    }
+
+    function loadSheet(sheetId) {
+      appState.activeSheetId = sheetId;
+      const sheet = appState.sheets[sheetId];
+      
+      appState.zoom = sheet.zoom || 1;
+      appState.panX = sheet.panX || 0;
+      appState.panY = sheet.panY || 0;
+      
+      dom.blocksContainer.innerHTML = '';
+      
+      const blockIds = Object.keys(sheet.blocks);
+      for (let i = 0; i < blockIds.length; i++) {
+        createBlockDOM(sheet.blocks[blockIds[i]]);
+      }
+
+      appState.selectedElementId = null;
+      appState.selectedElementType = null;
+      
+      renderVariablesList();
+      populateTargetVariablesSelect();
+      updatePropertiesPanel();
+
+      dom.propSheetBg.value = sheet.bgColor;
+      dom.canvasContainer.style.backgroundColor = sheet.bgColor;
+
+      renderSheetsBar();
+      requestSceneUpdate();
+      saveToLocalStorage();
+    }
+
+    /* Создание DOM элемента блока */
+    function createBlockDOM(block) {
+      const div = document.createElement('div');
+      div.id = block.id;
+      div.className = `gost-block shape-${block.type}`;
+      div.style.width = block.width + 'px';
+      div.style.height = block.height + 'px';
+      
+      const content = document.createElement('div');
+      content.className = 'gost-block-content';
+      content.innerText = block.text;
+      div.appendChild(content);
+
+      if (block.type === 'parallelogram') {
+        const badge = document.createElement('div');
+        badge.className = 'gost-block-type-badge';
+        div.appendChild(badge);
+        updateParallelogramBadge(block);
+      }
+
+      div.onpointerdown = function(e) {
+        onBlockPointerDown(e, block.id);
+      };
+
+      dom.blocksContainer.appendChild(div);
+    }
+
+    /* Логика перемещения и выбора блоков */
+    function onBlockPointerDown(e, blockId) {
+      e.stopPropagation();
+      
+      try {
+        e.target.closest('.gost-block').setPointerCapture(e.pointerId);
+      } catch (err) {}
+
+      saveHistoryState(appState.activeSheetId);
+
+      if (appState.linkMode) {
+        completeLinking(blockId);
+        return;
+      }
+
+      appState.isDraggingBlock = true;
+      appState.draggedBlockId = blockId;
+      
+      const transformedCoords = screenToSceneCoords(e.clientX, e.clientY);
+      const block = appState.sheets[appState.activeSheetId].blocks[blockId];
+      
+      appState.dragStartX = transformedCoords.x - block.x;
+      appState.dragStartY = transformedCoords.y - block.y;
+
+      selectElement(blockId, 'block');
+      dom.canvasContainer.focus();
+    }
+
+    /* Панорамирование и события холста */
+    function setupCanvasListeners() {
+      dom.canvasContainer.onpointerdown = function(e) {
+        if (e.target === dom.canvasContainer || e.target === dom.gridBg) {
+          appState.isPanning = true;
+          appState.dragStartX = e.clientX - appState.panX;
+          appState.dragStartY = e.clientY - appState.panY;
+          
+          selectElement(null, null);
+        }
+      };
+
+      window.onpointermove = function(e) {
+        if (appState.isPanning) {
+          appState.panX = e.clientX - appState.dragStartX;
+          appState.panY = e.clientY - appState.dragStartY;
+          requestSceneUpdate();
+        } else if (appState.isDraggingBlock && appState.draggedBlockId) {
+          const coords = screenToSceneCoords(e.clientX, e.clientY);
+          const block = appState.sheets[appState.activeSheetId].blocks[appState.draggedBlockId];
+          
+          block.x = Math.round(coords.x - appState.dragStartX);
+          block.y = Math.round(coords.y - appState.dragStartY);
+
+          requestSceneUpdate();
+        }
+      };
+
+      window.onpointerup = function(e) {
+        if (appState.isDraggingBlock && appState.draggedBlockId) {
+          try {
+            const bDOM = document.getElementById(appState.draggedBlockId);
+            if (bDOM) bDOM.releasePointerCapture(e.pointerId);
+          } catch (err) {}
+          saveToLocalStorage();
+        }
+        appState.isPanning = false;
+        appState.isDraggingBlock = false;
+        appState.draggedBlockId = null;
+      };
+
+      dom.canvasContainer.onwheel = function(e) {
+        e.preventDefault();
+        const rect = dom.canvasContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const sceneX = (mouseX - appState.panX) / appState.zoom;
+        const sceneY = (mouseY - appState.panY) / appState.zoom;
+
+        const delta = -e.deltaY;
+        let nextZoom = appState.zoom + (delta > 0 ? ZOOM_SPEED : -ZOOM_SPEED) * appState.zoom;
+        nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+
+        appState.zoom = nextZoom;
+        appState.panX = mouseX - sceneX * appState.zoom;
+        appState.panY = mouseY - sceneY * appState.zoom;
+
+        requestSceneUpdate();
+      };
+    }
+
+    /* Преобразование координат экрана во вселенную сцены */
+    function screenToSceneCoords(clientX, clientY) {
+      const rect = dom.canvasContainer.getBoundingClientRect();
+      const x = (clientX - rect.left - appState.panX) / appState.zoom;
+      const y = (clientY - rect.top - appState.panY) / appState.zoom;
+      return { x, y };
+    }
+
+    /* Добавление блока по центру экрана */
+    function addBlockAtCenter(shape) {
+      const rect = dom.canvasContainer.getBoundingClientRect();
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      const coords = screenToSceneCoords(rect.left + centerX, rect.top + centerY);
+      
+      let width = 160;
+      let height = 80;
+      let text = 'Новый процесс';
+
+      if (shape === 'oval') {
+        text = 'Начало';
+        width = 140;
+        height = 60;
+      } else if (shape === 'rhombus') {
+        text = 'Решение';
+        width = 140;
+        height = 100;
+      } else if (shape === 'parallelogram') {
+        text = 'Ввод / Вывод';
+        width = 160;
+        height = 80;
+      } else if (shape === 'comment') {
+        text = 'Комментарий';
+        width = 160;
+        height = 60;
+      }
+
+      saveHistoryState(appState.activeSheetId);
+
+      const blockId = 'block-' + Date.now();
+      const newBlock = {
+        id: blockId,
+        type: shape,
+        x: Math.round(coords.x - width/2),
+        y: Math.round(coords.y - height/2),
+        width: width,
+        height: height,
+        text: text,
+        associatedVars: [],
+        rectOperation: { targetVarId: '', operator: '=', expression: '' }, // Для Прямоугольника
+        rhomCondition: { left: '', operator: '==', right: '' } // Для Ромба
+      };
+
+      appState.sheets[appState.activeSheetId].blocks[blockId] = newBlock;
+      createBlockDOM(newBlock);
+      selectElement(blockId, 'block');
+      saveToLocalStorage();
+    }
+
+    /* Рендер сцены (GPU RAF-цикл) */
+    let animationFrameRequested = false;
+    
+    function requestSceneUpdate() {
+      if (!animationFrameRequested) {
+        animationFrameRequested = true;
+        requestAnimationFrame(updateSceneDOM);
+      }
+    }
+
+    function updateSceneDOM() {
+      animationFrameRequested = false;
+      const currentSheet = appState.sheets[appState.activeSheetId];
+
+      const transformString = `translate3d(${appState.panX}px, ${appState.panY}px, 0) scale(${appState.zoom})`;
+      dom.scene.style.transform = transformString;
+
+      dom.gridBg.style.transform = `translate3d(${appState.panX}px, ${appState.panY}px, 0) scale(${appState.zoom})`;
+
+      const blockIds = Object.keys(currentSheet.blocks);
+      const len = blockIds.length;
+      for (let i = 0; i < len; i++) {
+        const id = blockIds[i];
+        const block = currentSheet.blocks[id];
+        const bDOM = document.getElementById(id);
+        if (bDOM) {
+          bDOM.style.transform = `translate3d(${block.x}px, ${block.y}px, 0)`;
+        }
+      }
+
+      renderAllConnections();
+      dom.zoomValue.innerText = Math.round(appState.zoom * 100) + '%';
+    }
+
+    /* Отрисовка всех связей */
+    function renderAllConnections() {
+      dom.connectionsGroup.innerHTML = '';
+      const currentSheet = appState.sheets[appState.activeSheetId];
+      const connIds = Object.keys(currentSheet.connections);
+      const len = connIds.length;
+
+      for (let i = 0; i < len; i++) {
+        const id = connIds[i];
+        const conn = currentSheet.connections[id];
+        const blockA = currentSheet.blocks[conn.from];
+        const blockB = currentSheet.blocks[conn.to];
+
+        if (!blockA || !blockB) continue;
+
+        const pathData = calculateConnectionPath(blockA, blockB, conn.type);
+
+        const hoverTarget = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        hoverTarget.setAttribute("d", pathData.d);
+        hoverTarget.setAttribute("class", "line-hover-target");
+        hoverTarget.onpointerdown = function(e) {
+          e.stopPropagation();
+          selectElement(id, 'connection');
+        };
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", pathData.d);
+        
+        let lineClass = `${conn.type}-line`;
+        if (conn.active) {
+          lineClass += ' active';
+        }
+        if (appState.selectedElementId === id && appState.selectedElementType === 'connection') {
+          lineClass += ' line-selected';
+        }
+        path.setAttribute("class", lineClass);
+
+        dom.connectionsGroup.appendChild(hoverTarget);
+        dom.connectionsGroup.appendChild(path);
+
+        if (conn.label && conn.label.trim() !== "") {
+          renderLineLabel(pathData.midX, pathData.midY, conn.label);
+        }
+      }
+    }
+
+    function renderLineLabel(x, y, text) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("class", "line-label-bg");
+      
+      const textNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      textNode.setAttribute("class", "line-label-text");
+      textNode.setAttribute("x", x);
+      textNode.setAttribute("y", y);
+      textNode.textContent = text;
+      
+      g.appendChild(rect);
+      g.appendChild(textNode);
+      dom.connectionsGroup.appendChild(g);
+
+      setTimeout(() => {
+        try {
+          const bbox = textNode.getBBox();
+          rect.setAttribute("x", bbox.x - 4);
+          rect.setAttribute("y", bbox.y - 2);
+          rect.setAttribute("width", bbox.width + 8);
+          rect.setAttribute("height", bbox.height + 4);
+        } catch(e) {}
+      }, 0);
+    }
+
+    /* O(1) Квадрантная Геометрия */
+    function calculateConnectionPath(a, b, connType) {
+      const cxA = a.x + a.width / 2;
+      const cyA = a.y + a.height / 2;
+      const cxB = b.x + b.width / 2;
+      const cyB = b.y + b.height / 2;
+
+      let startPort = 'bottom';
+      let endPort = 'top';
+
+      const dx = cxB - cxA;
+      const dy = cyB - cyA;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) {
+          startPort = 'right';
+          endPort = 'left';
+        } else {
+          startPort = 'left';
+          endPort = 'right';
+        }
+      } else {
+        if (dy > 0) {
+          startPort = 'bottom';
+          endPort = 'top';
+        } else {
+          startPort = 'top';
+          endPort = 'bottom';
+        }
+      }
+
+      if (connType === 'comment') {
+        if (a.type === 'comment') {
+          startPort = 'right';
+        }
+      }
+
+      const pA = getPortCoordinates(a, startPort);
+      const pB = getPortCoordinates(b, endPort);
+
+      let d = "";
+      let midX = (pA.x + pB.x) / 2;
+      let midY = (pA.y + pB.y) / 2;
+
+      if (connType === 'comment') {
+        d = `M ${pA.x} ${pA.y} L ${pB.x} ${pB.y}`;
+      } else {
+        if (startPort === 'bottom' || startPort === 'top') {
+          midY = (pA.y + pB.y) / 2;
+          d = `M ${pA.x} ${pA.y} L ${pA.x} ${midY} L ${pB.x} ${midY} L ${pB.x} ${pB.y}`;
+        } else {
+          midX = (pA.x + pB.x) / 2;
+          d = `M ${pA.x} ${pA.y} L ${midX} ${pA.y} L ${midX} ${pB.y} L ${pB.x} ${pB.y}`;
+        }
+      }
+
+      return { d, midX, midY };
+    }
+
+    function getPortCoordinates(block, port) {
+      switch (port) {
+        case 'top':
+          return { x: block.x + block.width / 2, y: block.y };
+        case 'bottom':
+          return { x: block.x + block.width / 2, y: block.y + block.height };
+        case 'left':
+          return { x: block.x, y: block.y + block.height / 2 };
+        case 'right':
+          return { x: block.x + block.width, y: block.y + block.height / 2 };
+      }
+    }
+
+    /* Выделение элементов */
+    function selectElement(id, type) {
+      const prevSelectedDOM = document.querySelector('.gost-block.selected');
+      if (prevSelectedDOM) prevSelectedDOM.classList.remove('selected');
+
+      appState.selectedElementId = id;
+      appState.selectedElementType = type;
+
+      if (id && type === 'block') {
+        const bDOM = document.getElementById(id);
+        if (bDOM) bDOM.classList.add('selected');
+      }
+
+      updatePropertiesPanel();
+      requestSceneUpdate();
+    }
+
+    /* Функция быстрой установки метки для связей */
+    function setConnectionLabel(labelVal) {
+      const cId = appState.selectedElementId;
+      if (cId && appState.selectedElementType === 'connection') {
+        saveHistoryState(appState.activeSheetId);
+        const conn = appState.sheets[appState.activeSheetId].connections[cId];
+        conn.label = labelVal;
+        dom.propConnLabel.value = labelVal;
+        saveToLocalStorage();
+        requestSceneUpdate();
+      }
+    }
+
+    /* Обновление панели свойств в сайдбаре */
+    function updatePropertiesPanel() {
+      const id = appState.selectedElementId;
+      const type = appState.selectedElementType;
+
+      dom.noSelectionMsg.style.display = 'none';
+      dom.blockPropsPanel.style.display = 'none';
+      dom.connectionPropsPanel.style.display = 'none';
+      dom.blockVariableHelpers.style.display = 'none';
+      dom.rectangleOptions.style.display = 'none';
+      dom.rhombusOptions.style.display = 'none';
+      dom.parallelogramOptions.style.display = 'none';
+
+      if (!id) {
+        dom.noSelectionMsg.style.display = 'block';
+        return;
+      }
+
+      const currentSheet = appState.sheets[appState.activeSheetId];
+
+      if (type === 'block') {
+        const block = currentSheet.blocks[id];
+        dom.blockPropsPanel.style.display = 'flex';
+        dom.propBlockText.value = block.text;
+        dom.propBlockW.value = block.width;
+        dom.propBlockH.value = block.height;
+
+        renderVariablesHelpers();
+
+        // Показ опций для Прямоугольника (Процесс)
+        if (block.type === 'rectangle') {
+          dom.rectangleOptions.style.display = 'block';
+          if (!block.rectOperation) {
+            block.rectOperation = { targetVarId: '', operator: '=', expression: '' };
+          }
+          dom.propRectTargetVar.value = block.rectOperation.targetVarId || '';
+          dom.propRectOperator.value = block.rectOperation.operator || '=';
+          dom.propRectExpression.value = block.rectOperation.expression || '';
+        }
+
+        // Показ опций для Ромба (Решение)
+        if (block.type === 'rhombus') {
+          dom.rhombusOptions.style.display = 'block';
+          if (!block.rhomCondition) {
+            block.rhomCondition = { left: '', operator: '==', right: '' };
+          }
+          dom.propRhomLeft.value = block.rhomCondition.left || '';
+          dom.propRhomOperator.value = block.rhomCondition.operator || '==';
+          dom.propRhomRight.value = block.rhomCondition.right || '';
+        }
+
+        // Показ опций для Параллелограмма (Ввод/Вывод)
+        if (block.type === 'parallelogram') {
+          dom.parallelogramOptions.style.display = 'block';
+          renderBlockVariablesCheckboxes(block);
+        }
+      } else if (type === 'connection') {
+        const conn = currentSheet.connections[id];
+        dom.connectionPropsPanel.style.display = 'flex';
+        dom.propConnType.value = conn.type;
+        dom.propConnLabel.value = conn.label || '';
+        dom.propConnActive.checked = !!conn.active;
+      }
+    }
+
+    /* Шаблоны операций для Процесса */
+    function applyRectOperationTemplate(type) {
+      const id = appState.selectedElementId;
+      if (!id || appState.selectedElementType !== 'block') return;
+      const block = appState.sheets[appState.activeSheetId].blocks[id];
+      const targetVarId = dom.propRectTargetVar.value;
+      if (!targetVarId) {
+        showCustomModal('Инфо', 'Выберите целевую переменную для применения шаблона.', null);
+        return;
+      }
+      
+      const sheet = appState.sheets[appState.activeSheetId];
+      const targetVar = sheet.variables.find(v => v.id === targetVarId);
+      if (!targetVar) return;
+
+      saveHistoryState(appState.activeSheetId);
+
+      if (type === 'increment') {
+        dom.propRectOperator.value = '=';
+        dom.propRectExpression.value = `${targetVar.name} + 1`;
+      } else if (type === 'decrement') {
+        dom.propRectOperator.value = '=';
+        dom.propRectExpression.value = `${targetVar.name} - 1`;
+      } else if (type === 'clear') {
+        dom.propRectOperator.value = '=';
+        dom.propRectExpression.value = `0`;
+      }
+
+      // Триггерим сохранения изменений
+      block.rectOperation.operator = dom.propRectOperator.value;
+      block.rectOperation.expression = dom.propRectExpression.value;
+      saveToLocalStorage();
+    }
+
+    /* Автосинхронизация текста Прямоугольника с его математической логикой */
+    function syncBlockTextWithOperation() {
+      const id = appState.selectedElementId;
+      if (!id || appState.selectedElementType !== 'block') return;
+      const block = appState.sheets[appState.activeSheetId].blocks[id];
+      const targetVarId = dom.propRectTargetVar.value;
+      if (!targetVarId) return;
+
+      const sheet = appState.sheets[appState.activeSheetId];
+      const targetVar = sheet.variables.find(v => v.id === targetVarId);
+      if (!targetVar) return;
+
+      saveHistoryState(appState.activeSheetId);
+
+      const expr = dom.propRectExpression.value.trim();
+      const op = dom.propRectOperator.value;
+      const autoText = `${targetVar.name} ${op} ${expr || '0'}`;
+
+      block.text = autoText;
+      dom.propBlockText.value = autoText;
+      
+      const bDOM = document.getElementById(id).querySelector('.gost-block-content');
+      if (bDOM) bDOM.innerText = autoText;
+      
+      saveToLocalStorage();
+      requestSceneUpdate();
+    }
+
+    /* Автосинхронизация текста Ромба с его логикой условий */
+    function syncBlockTextWithCondition() {
+      const id = appState.selectedElementId;
+      if (!id || appState.selectedElementType !== 'block') return;
+      const block = appState.sheets[appState.activeSheetId].blocks[id];
+
+      saveHistoryState(appState.activeSheetId);
+
+      const left = dom.propRhomLeft.value.trim();
+      const op = dom.propRhomOperator.value;
+      const right = dom.propRhomRight.value.trim();
+
+      const autoText = `${left || 'x'} ${op} ${right || '0'} ?`;
+
+      block.text = autoText;
+      dom.propBlockText.value = autoText;
+
+      const bDOM = document.getElementById(id).querySelector('.gost-block-content');
+      if (bDOM) bDOM.innerText = autoText;
+
+      saveToLocalStorage();
+      requestSceneUpdate();
+    }
+
+    /* Генерация чекбоксов для выбора переменных блока ввода-вывода */
+    function renderBlockVariablesCheckboxes(block) {
+      dom.parallelogramVarsSelect.innerHTML = '';
+      const sheet = appState.sheets[appState.activeSheetId];
+      const vars = sheet.variables || [];
+      
+      if (vars.length === 0) {
+        dom.parallelogramVarsSelect.innerHTML = `<span style="font-size:0.75rem; color:var(--text-muted);">Создайте переменные выше</span>`;
+        return;
+      }
+
+      if (!block.associatedVars) block.associatedVars = [];
+
+      for (let i = 0; i < vars.length; i++) {
+        const v = vars[i];
+        const isChecked = block.associatedVars.includes(v.id);
+
+        const label = document.createElement('label');
+        label.className = 'prop-checkbox-label';
+        
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = v.id;
+        cb.checked = isChecked;
+        cb.onchange = function() {
+          if (cb.checked) {
+            if (!block.associatedVars.includes(v.id)) {
+              block.associatedVars.push(v.id);
+            }
+          } else {
+            block.associatedVars = block.associatedVars.filter(id => id !== v.id);
+          }
+          updateParallelogramBadge(block);
+          saveToLocalStorage();
+        };
+
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(` ${v.name} (${v.type})`));
+        dom.parallelogramVarsSelect.appendChild(label);
+      }
+    }
+
+    /* Рендер баджа переменных прямо внутри параллелограмма по ГОСТу */
+    function updateParallelogramBadge(block) {
+      const bDOM = document.getElementById(block.id);
+      if (!bDOM) return;
+      const badge = bDOM.querySelector('.gost-block-type-badge');
+      if (!badge) return;
+
+      const sheet = appState.sheets[appState.activeSheetId];
+      if (!block.associatedVars) block.associatedVars = [];
+
+      const parts = [];
+      const len = block.associatedVars.length;
+      for (let i = 0; i < len; i++) {
+        const vId = block.associatedVars[i];
+        const vObj = sheet.variables.find(item => item.id === vId);
+        if (vObj) {
+          parts.push(`${vObj.name}:${vObj.type}`);
+        }
+      }
+
+      badge.innerText = parts.join(', ');
+    }
+
+    /* Слушатели изменений параметров в Сайдбаре */
+    function setupSidebarInputs() {
+      dom.propBlockText.oninput = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.text = dom.propBlockText.value;
+          
+          const bDOM = document.getElementById(bId).querySelector('.gost-block-content');
+          if (bDOM) bDOM.innerText = block.text;
+          saveToLocalStorage();
+          requestSceneUpdate();
+        }
+      };
+
+      dom.propBlockW.oninput = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.width = parseInt(dom.propBlockW.value) || 120;
+          
+          const bDOM = document.getElementById(bId);
+          if (bDOM) bDOM.style.width = block.width + 'px';
+          saveToLocalStorage();
+          requestSceneUpdate();
+        }
+      };
+
+      dom.propBlockH.oninput = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.height = parseInt(dom.propBlockH.value) || 60;
+          
+          const bDOM = document.getElementById(bId);
+          if (bDOM) bDOM.style.height = block.height + 'px';
+          saveToLocalStorage();
+          requestSceneUpdate();
+        }
+      };
+
+      // Прямоугольник: Логика связки присваивания
+      dom.propRectTargetVar.onchange = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.rectOperation.targetVarId = dom.propRectTargetVar.value;
+          saveToLocalStorage();
+        }
+      };
+
+      dom.propRectOperator.onchange = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.rectOperation.operator = dom.propRectOperator.value;
+          saveToLocalStorage();
+        }
+      };
+
+      dom.propRectExpression.oninput = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.rectOperation.expression = dom.propRectExpression.value;
+          saveToLocalStorage();
+        }
+      };
+
+      // Ромб: Логика связки условий
+      dom.propRhomLeft.oninput = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.rhomCondition.left = dom.propRhomLeft.value;
+          saveToLocalStorage();
+        }
+      };
+
+      dom.propRhomOperator.onchange = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.rhomCondition.operator = dom.propRhomOperator.value;
+          saveToLocalStorage();
+        }
+      };
+
+      dom.propRhomRight.oninput = function() {
+        const bId = appState.selectedElementId;
+        if (bId && appState.selectedElementType === 'block') {
+          const block = appState.sheets[appState.activeSheetId].blocks[bId];
+          block.rhomCondition.right = dom.propRhomRight.value;
+          saveToLocalStorage();
+        }
+      };
+
+      // Линии связи
+      dom.propConnType.onchange = function() {
+        const cId = appState.selectedElementId;
+        if (cId && appState.selectedElementType === 'connection') {
+          const conn = appState.sheets[appState.activeSheetId].connections[cId];
+          conn.type = dom.propConnType.value;
+          saveToLocalStorage();
+          requestSceneUpdate();
+        }
+      };
+
+      dom.propConnLabel.oninput = function() {
+        const cId = appState.selectedElementId;
+        if (cId && appState.selectedElementType === 'connection') {
+          const conn = appState.sheets[appState.activeSheetId].connections[cId];
+          conn.label = dom.propConnLabel.value;
+          saveToLocalStorage();
+          requestSceneUpdate();
+        }
+      };
+
+      dom.propConnActive.onchange = function() {
+        const cId = appState.selectedElementId;
+        if (cId && appState.selectedElementType === 'connection') {
+          const conn = appState.sheets[appState.activeSheetId].connections[cId];
+          conn.active = dom.propConnActive.checked;
+          saveToLocalStorage();
+          requestSceneUpdate();
+        }
+      };
+
+      dom.propSheetBg.oninput = function() {
+        const color = dom.propSheetBg.value;
+        appState.sheets[appState.activeSheetId].bgColor = color;
+        dom.canvasContainer.style.backgroundColor = color;
+        saveToLocalStorage();
+      };
+    }
+
+    /* Удаление выбранного элемента */
+    function deleteCurrentSelected() {
+      const id = appState.selectedElementId;
+      const type = appState.selectedElementType;
+      if (!id) return;
+
+      saveHistoryState(appState.activeSheetId);
+      const currentSheet = appState.sheets[appState.activeSheetId];
+
+      if (type === 'block') {
+        delete currentSheet.blocks[id];
+        const bDOM = document.getElementById(id);
+        if (bDOM) bDOM.remove();
+
+        const connIds = Object.keys(currentSheet.connections);
+        for (let i = 0; i < connIds.length; i++) {
+          const cId = connIds[i];
+          const conn = currentSheet.connections[cId];
+          if (conn.from === id || conn.to === id) {
+            delete currentSheet.connections[cId];
+          }
+        }
+      } else if (type === 'connection') {
+        delete currentSheet.connections[id];
+      }
+
+      appState.selectedElementId = null;
+      appState.selectedElementType = null;
+      updatePropertiesPanel();
+      saveToLocalStorage();
+      requestSceneUpdate();
+    }
+
+    /* Режим Связывания */
+    function toggleLinkMode() {
+      if (appState.linkMode) {
+        exitLinkMode();
+      } else {
+        const id = appState.selectedElementId;
+        if (!id || appState.selectedElementType !== 'block') {
+          showCustomModal('Инфо', 'Выберите начальный ГОСТ-блок для построения связи.', null);
+          return;
+        }
+        appState.linkMode = true;
+        appState.linkSourceBlockId = id;
+        dom.linkBtn.classList.add('btn-danger');
+        dom.linkBtn.innerText = '✕ Отмена';
+        dom.linkIndicator.style.display = 'flex';
+      }
+    }
+
+    function exitLinkMode() {
+      appState.linkMode = false;
+      appState.linkSourceBlockId = null;
+      dom.linkBtn.classList.remove('btn-danger');
+      dom.linkBtn.innerText = '🔗 Связать';
+      dom.linkIndicator.style.display = 'none';
+    }
+
+    function completeLinking(targetBlockId) {
+      const sourceId = appState.linkSourceBlockId;
+      if (sourceId === targetBlockId) {
+        exitLinkMode();
+        return;
+      }
+
+      saveHistoryState(appState.activeSheetId);
+      
+      const connId = 'conn-' + Date.now();
+      const currentSheet = appState.sheets[appState.activeSheetId];
+      const sourceBlock = currentSheet.blocks[sourceId];
+
+      const connType = (sourceBlock.type === 'comment' || currentSheet.blocks[targetBlockId].type === 'comment') ? 'comment' : 'flow';
+
+      // Если связь строится из Ромба, по умолчанию предложим пользователю выбрать метку
+      let defaultLabel = '';
+      if (sourceBlock.type === 'rhombus') {
+        const outConns = Object.values(currentSheet.connections).filter(c => c.from === sourceId);
+        // Если у ромба уже есть одна ветка выхода, сделаем вторую альтернативной
+        const hasYes = outConns.some(c => c.label.toLowerCase().includes('да'));
+        defaultLabel = hasYes ? 'Нет' : 'Да';
+      }
+
+      currentSheet.connections[connId] = {
+        id: connId,
+        from: sourceId,
+        to: targetBlockId,
+        type: connType,
+        label: defaultLabel,
+        active: false
+      };
+
+      exitLinkMode();
+      selectElement(connId, 'connection');
+      saveToLocalStorage();
+    }
+
+    /* Обработка Drag & Drop */
+    function setupDragAndDropPalette() {
+      const items = document.querySelectorAll('.palette-item');
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        item.ondragstart = function(e) {
+          e.dataTransfer.setData('gost-shape', e.currentTarget.dataset.shape);
+        };
+        item.onclick = function(e) {
+          const shape = e.currentTarget.dataset.shape;
+          addBlockAtCenter(shape);
+        };
+      }
+
+      dom.canvasContainer.ondragover = function(e) {
+        e.preventDefault();
+      };
+
+      dom.canvasContainer.ondrop = function(e) {
+        e.preventDefault();
+        const shape = e.dataTransfer.getData('gost-shape');
+        if (!shape) return;
+
+        const coords = screenToSceneCoords(e.clientX, e.clientY);
+        
+        let width = 160;
+        let height = 80;
+        let text = 'Новый процесс';
+
+        if (shape === 'oval') {
+          text = 'Начало';
+          width = 140;
+          height = 60;
+        } else if (shape === 'rhombus') {
+          text = 'Решение';
+          width = 140;
+          height = 100;
+        } else if (shape === 'parallelogram') {
+          text = 'Ввод / Вывод';
+          width = 160;
+          height = 80;
+        } else if (shape === 'comment') {
+          text = 'Комментарий';
+          width = 160;
+          height = 60;
+        }
+
+        saveHistoryState(appState.activeSheetId);
+
+        const blockId = 'block-' + Date.now();
+        const newBlock = {
+          id: blockId,
+          type: shape,
+          x: Math.round(coords.x - width/2),
+          y: Math.round(coords.y - height/2),
+          width: width,
+          height: height,
+          text: text,
+          associatedVars: [],
+          rectOperation: { targetVarId: '', operator: '=', expression: '' },
+          rhomCondition: { left: '', operator: '==', right: '' }
+        };
+
+        appState.sheets[appState.activeSheetId].blocks[blockId] = newBlock;
+        createBlockDOM(newBlock);
+        selectElement(blockId, 'block');
+        saveToLocalStorage();
+      };
+    }
+
+    /* Управление камерой */
+    function zoomIn() {
+      appState.zoom = Math.min(MAX_ZOOM, appState.zoom + 0.15);
+      requestSceneUpdate();
+    }
+
+    function zoomOut() {
+      appState.zoom = Math.max(MIN_ZOOM, appState.zoom - 0.15);
+      requestSceneUpdate();
+    }
+
+    function zoomReset() {
+      appState.zoom = 1;
+      appState.panX = 0;
+      appState.panY = 0;
+      requestSceneUpdate();
+    }
+
+    function toggleSidebar() {
+      appState.sidebarOpen = !appState.sidebarOpen;
+      dom.sidebar.classList.toggle('collapsed', !appState.sidebarOpen);
+    }
+
+    /* Горячие клавиши */
+    function setupKeyboardShortcuts() {
+      window.onkeydown = function(e) {
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') {
+          return;
+        }
+
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          triggerUndo();
+        }
+        if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          triggerRedo();
+        }
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          deleteCurrentSelected();
+        }
+      };
+    }
+
+    /* КОМПИЛЯТОР / ТРАНСЛЯТОР БЛОК-СХЕМЫ В ПСЕВДОКОД С C-ПОДОБНЫМИ КОММЕНТАРИЯМИ */
+    function compileToPseudocode() {
+      const sheet = appState.sheets[appState.activeSheetId];
+      const blocks = Object.values(sheet.blocks);
+      const connections = Object.values(sheet.connections);
+      
+      if (blocks.length === 0) {
+        showCustomModal('Псевдокод алгоритма', 'На листе нет ГОСТ-блоков для трансляции.', null);
+        return;
+      }
+
+      // 1. Находим точку входа (Начало)
+      let startBlock = blocks.find(b => b.type === 'oval' && (b.text.toLowerCase().includes('старт') || b.text.toLowerCase().includes('начало')));
+      if (!startBlock) {
+        startBlock = blocks.find(b => b.type === 'oval');
+      }
+
+      if (!startBlock) {
+        showCustomModal('Ошибка трансляции', 'Не найден начальный блок (фигура Овал с текстом "Начало"/"Старт"). Добавьте этот элемент, чтобы задать точку входа.', null);
+        return;
+      }
+
+      // 2. Инициализация переменных на листе
+      let code = `// =========================================================\n`;
+      code += `// АВТОМАТИЧЕСКИ СГЕНЕРИРОВАННЫЙ КЛИЕНТСКИЙ СЦЕНАРИЙ (ГОСТ)\n`;
+      code += `// Лист: ${sheet.name}\n`;
+      code += `// =========================================================\n\n`;
+
+      code += `// Объявление переменных и их начальных значений:\n`;
+      const sheetVars = sheet.variables || [];
+      if (sheetVars.length > 0) {
+        for (let i = 0; i < sheetVars.length; i++) {
+          const v = sheetVars[i];
+          let formattedValue = v.value;
+          if (v.type === 'string') formattedValue = `"${v.value}"`;
+          if (v.type === 'char') formattedValue = `'${v.value}'`;
+          code += `${v.name} = ${formattedValue}; // Тип: ${v.type}\n`;
+        }
+      } else {
+        code += `// Локальные переменные в проекте не созданы\n`;
+      }
+      code += `\n// Исполняемый процесс алгоритма:\n`;
+      
+      const visited = new Set();
+      
+      function getOutboundConnections(blockId) {
+        return connections.filter(c => c.from === blockId && c.type !== 'comment');
+      }
+
+      function translateBlock(block, indent = 0) {
+        if (!block) return '';
+        const ind = '  '.repeat(indent);
+        
+        // Предотвращаем вечный цикл при проходе петель (например, циклов)
+        if (visited.has(block.id)) {
+          return `${ind}// [Переход к циклическому блоку: "${block.text}"]\n`;
+        }
+        visited.add(block.id);
+
+        let blockText = '';
+        const outConns = getOutboundConnections(block.id);
+
+        if (block.type === 'oval') {
+          if (block.text.toLowerCase().includes('старт') || block.text.toLowerCase().includes('начало')) {
+            blockText += `${ind}Начало выполнения алгоритма\n`;
+          } else {
+            blockText += `${ind}Конец выполнения алгоритма\n`;
+            return blockText; // Финализация прохода ветви
+          }
+        } 
+        else if (block.type === 'rectangle') {
+          if (block.rectOperation && block.rectOperation.targetVarId) {
+            const targetVar = sheetVars.find(v => v.id === block.rectOperation.targetVarId);
+            if (targetVar) {
+              blockText += `${ind}${targetVar.name} ${block.rectOperation.operator} ${block.rectOperation.expression || '0'}; // Действие: ${block.text}\n`;
+            } else {
+              blockText += `${ind}${block.text}; \n`;
+            }
+          } else {
+            blockText += `${ind}${block.text}; \n`;
+          }
+        } 
+        else if (block.type === 'parallelogram') {
+          if (block.associatedVars && block.associatedVars.length > 0) {
+            const boundNames = block.associatedVars.map(vId => {
+              const vObj = sheetVars.find(item => item.id === vId);
+              return vObj ? vObj.name : '';
+            }).filter(n => n !== '');
+            const actionType = block.text.toLowerCase().includes('ввод') ? 'Ввод' : 'Вывод';
+            blockText += `${ind}${actionType}(${boundNames.join(', ')}); // ${block.text}\n`;
+          } else {
+            blockText += `${ind}${block.text}; \n`;
+          }
+        } 
+        else if (block.type === 'subroutine') {
+          blockText += `${ind}Вызов подпрограммы: ${block.text};\n`;
+        }
+        else if (block.type === 'rhombus') {
+          // Условие ветвления (Ромб)
+          let condStr = block.text;
+          if (block.rhomCondition && block.rhomCondition.left) {
+            condStr = `${block.rhomCondition.left} ${block.rhomCondition.operator} ${block.rhomCondition.right}`;
+          }
+
+          blockText += `${ind}если (${condStr}) {\n`;
+
+          // Маркировка исходящих связей «Да» и «Нет»
+          const yesKeywords = ['да', 'yes', '+', '1', 'true', 'истина'];
+          const noKeywords = ['нет', 'no', '-', '0', 'false', 'ложь'];
+
+          const yesConn = outConns.find(c => yesKeywords.includes(c.label.toLowerCase().trim()));
+          const noConn = outConns.find(c => noKeywords.includes(c.label.toLowerCase().trim()));
+
+          let branchesProcessed = false;
+          
+          if (yesConn || noConn) {
+            if (yesConn) {
+              const targetYesBlock = sheet.blocks[yesConn.to];
+              // Создаем копию визитов для изолированного прохода веток
+              const branchVisited = new Set(visited);
+              blockText += `${ind}  // Ветка ИСТИНА [Да]\n`;
+              blockText += translateBlock(targetYesBlock, indent + 1);
+            } else {
+              blockText += `${ind}  // Ветка ИСТИНА [Пусто]\n`;
+            }
+
+            blockText += `${ind}} иначе {\n`;
+
+            if (noConn) {
+              const targetNoBlock = sheet.blocks[noConn.to];
+              blockText += `${ind}  // Ветка ЛОЖЬ [Нет]\n`;
+              blockText += translateBlock(targetNoBlock, indent + 1);
+            } else {
+              blockText += `${ind}  // Ветка ЛОЖЬ [Пусто]\n`;
+            }
+            blockText += `${ind}}\n`;
+            branchesProcessed = true;
+          }
+
+          if (!branchesProcessed && outConns.length > 0) {
+            // Если ветви никак не размечены
+            blockText += `${ind}  // Предупреждение: Линии выхода не размечены метками "Да" / "Нет".\n`;
+            blockText += `${ind}  // Выводим линейное продолжение первой найденной ветки:\n`;
+            const target = sheet.blocks[outConns[0].to];
+            blockText += translateBlock(target, indent + 1);
+            blockText += `${ind}}\n`;
+          }
+          return blockText; // Ромб управляет своими потомками самостоятельно
+        }
+
+        // Стандартный линейный переход
+        if (block.type !== 'rhombus' && outConns.length > 0) {
+          const nextBlock = sheet.blocks[outConns[0].to];
+          blockText += translateBlock(nextBlock, indent);
+        }
+
+        return blockText;
+      }
+
+      code += translateBlock(startBlock, 0);
+
+      // Отображаем полученный псевдокод во встроенном модальном окне
+      showCustomModal('📄 Сгенерированный код алгоритма', 'Полученный псевдокод с С-подобными комментариями "//" можно скопировать в буфер обмена:', function() {
+        const textarea = dom.modalTextarea;
+        textarea.select();
+        try {
+          const successful = document.execCommand('copy');
+          if (successful) {
+            showCustomModal('Успешно', 'Код алгоритма скопирован в буфер обмена!', null);
+          }
+        } catch (err) {
+          showCustomModal('Инфо', 'Автокопирование заблокировано браузером. Пожалуйста, скопируйте текст из окна вручную (Ctrl+C).', null);
+        }
+      }, true, code, true);
+    }
+
+    /* ЭКСПОРТ/ИМПОРТ */
+    function exportActiveSheet() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState.sheets[appState.activeSheetId], null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `gost_sheet_${appState.sheets[appState.activeSheetId].name}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function exportWholeBook() {
+      const bookData = {
+        version: "1.0",
+        activeSheetId: appState.activeSheetId,
+        sheets: appState.sheets
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bookData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `gost_flowchart_book.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function triggerImport() {
+      dom.fileInput.click();
+    }
+
+    function handleFileImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          
+          if (parsed.sheets) {
+            appState.sheets = parsed.sheets;
+            appState.activeSheetId = parsed.activeSheetId || Object.keys(parsed.sheets)[0];
+          } else if (parsed.id && parsed.blocks) {
+            appState.sheets[parsed.id] = parsed;
+            appState.activeSheetId = parsed.id;
+          } else {
+            throw new Error("Неверный формат JSON файла");
+          }
+
+          const sIds = Object.keys(appState.sheets);
+          for (let i = 0; i < sIds.length; i++) {
+            initHistoryForSheet(sIds[i]);
+          }
+
+          loadSheet(appState.activeSheetId);
+          showCustomModal('Успешно', 'Импорт файла успешно завершен!', null);
+        } catch (err) {
+          showCustomModal('Ошибка', 'Не удалось импортировать файл: ' + err.message, null);
+        }
+      };
+      reader.readAsText(file);
+      dom.fileInput.value = '';
+    }
+  </script>
+</body>
+</html>

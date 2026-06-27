@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тактические Карты DnD - Pro</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --accent: #bb86fc;
+            --text: #e0e0e0;
+            --border: #333;
+            --danger: #cf6679;
+            --success: #03dac6;
+            --grid-size: 50px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Тулбар */
+        .toolbar {
+            background: var(--panel-bg);
+            padding: 10px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+
+        .tool-group { display: flex; gap: 8px; border-right: 1px solid var(--border); padding-right: 15px; align-items: center;}
+        .tool-group:last-child { border-right: none; }
+
+        button {
+            background: #333; color: white; border: none; padding: 8px 12px;
+            border-radius: 4px; cursor: pointer; transition: 0.2s;
+        }
+        button:hover { background: #444; }
+        .primary-btn { background: var(--accent); color: #000; font-weight: bold; }
+        .primary-btn:hover { background: #d3adff; }
+        .danger-btn { background: var(--danger); color: white; }
+        .danger-btn:hover { background: #b35866; }
+
+        /* Основная раскладка: Карта + Сайдбар */
+        .workspace {
+            display: flex;
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #viewport {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+            background-color: #1a1a1a;
+            transition: background-color 0.1s ease;
+        }
+        #viewport:active { cursor: grabbing; }
+
+        /* Сцена и её слои */
+        #scene {
+            position: absolute;
+            top: 0; left: 0;
+            width: 0; height: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+        }
+
+        #layer-bg { 
+            position: absolute; 
+            width: 10000px; 
+            height: 10000px; 
+            top: -5000px; 
+            left: -5000px; 
+            z-index: 1; 
+            pointer-events: none;
+        }
+        
+        /* Стилизация фоновых картинок */
+        .bg-img-element {
+            position: absolute;
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            cursor: move;
+            border: 2px dashed transparent;
+            pointer-events: auto;
+        }
+        .bg-img-element.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(187, 134, 252, 0.4);
+        }
+        
+        /* Ручка изменения размера фонового изображения */
+        .bg-resize-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border: 2px solid white;
+            border-radius: 50%;
+            bottom: -7px;
+            right: -7px;
+            cursor: se-resize;
+            z-index: 5;
+            display: none;
+        }
+        .bg-img-element.selected .bg-resize-handle {
+            display: block;
+        }
+
+        #layer-grid {
+            position: absolute; width: 10000px; height: 10000px; top: -5000px; left: -5000px;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            z-index: 2; display: none; pointer-events: none;
+        }
+        
+        #layer-svg { 
+            position: absolute; 
+            overflow: visible; 
+            z-index: 3; 
+            top: 0; left: 0; 
+            pointer-events: none; 
+            width: 1px; height: 1px; 
+        }
+        
+        /* Стилизация интерактивных связей */
+        #layer-svg line { 
+            stroke: var(--accent); 
+            stroke-width: 4; 
+            stroke-dasharray: 4; 
+            opacity: 0.8; 
+            pointer-events: visibleStroke; /* Позволяет ловить события мыши только на самой линии */
+            cursor: pointer;
+            transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s;
+        }
+        #layer-svg line:hover {
+            stroke: var(--danger) !important;
+            stroke-width: 8 !important;
+            opacity: 1 !important;
+            stroke-dasharray: none !important;
+        }
+        
+        #layer-tokens { position: absolute; z-index: 4; pointer-events: auto; }
+
+        /* Стилизация Фишек (Токенов) */
+        .token-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 10;
+        }
+        .token-avatar {
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            border: 3px solid var(--accent);
+            background-color: #444;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+            transition: transform 0.1s;
+        }
+        .token-container:hover .token-avatar {
+            transform: scale(1.05);
+            border-color: #fff;
+        }
+        .token-name {
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 4px;
+            font-weight: bold;
+            white-space: nowrap;
+            border: 1px solid #444;
+        }
+        .token-status-badge {
+            background: #ff9800;
+            color: #000;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-top: 2px;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+
+        /* Правая навигационная панель */
+        .sidebar-right {
+            width: 300px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 20px;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        .sidebar-section {
+            background: #252525;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+        .sidebar-section h4 { margin-bottom: 8px; border-bottom: 1px solid #444; padding-bottom: 4px; color: var(--accent); }
+        .list-container { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; margin-bottom: 10px; }
+        
+        .sidebar-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .sidebar-item:hover { background: #333; }
+        .sidebar-item.selected { border: 1px solid var(--accent); background: #2a2235; }
+
+        .sidebar-controls input {
+            width: 100%; padding: 6px; background: #1a1a1a; border: 1px solid #444; color: white; border-radius: 4px; margin-top: 5px; font-size: 12px;
+        }
+        .sidebar-controls label { font-size: 11px; color: #aaa; display: block; margin-top: 8px; }
+
+        /* Вкладки листов (Низ) */
+        .tabs-panel {
+            background: var(--panel-bg);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            z-index: 100;
+        }
+        #tabs-container { display: flex; gap: 6px; overflow-x: auto; }
+        .tab-wrapper { display: flex; align-items: center; background: #333; border-radius: 4px; overflow: hidden; }
+        .tab { padding: 8px 15px; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .tab-wrapper.active { background: var(--accent); }
+        .tab-wrapper.active .tab { color: #000; font-weight: bold; }
+        .btn-delete-tab { background: transparent; padding: 0 10px; color: #aaa; font-size: 16px; border: none; cursor: pointer; height: 100%; display: flex; align-items: center; }
+        .btn-delete-tab:hover { color: var(--danger); background: rgba(255,0,0,0.1); }
+
+        /* Модалка настроек */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal.hidden { display: none; }
+        .modal-content { background: var(--panel-bg); padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 12px; width: 320px; border: 1px solid #444; }
+        .modal-content input, .modal-content textarea { width: 100%; padding: 8px; background: #121212; color: white; border: 1px solid #444; border-radius: 4px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 5px; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- ВЕРХНИЙ ТУЛБАР -->
+    <header class="toolbar">
+        <!-- Группа Книги (Проекта) -->
+        <div class="tool-group">
+            <span style="font-size: 11px; color: #888; display: block; margin-right: 2px;">КНИГА:</span>
+            <button id="btn-export" title="Скачать всю книгу">⬇ Экспорт Книги</button>
+            <input type="file" id="input-import" accept=".json" hidden>
+            <button id="btn-import" onclick="document.getElementById('input-import').click()">⬆ Импорт Книги</button>
+        </div>
+
+        <!-- Группа отдельного Листа -->
+        <div class="tool-group">
+            <span style="font-size: 11px; color: #888; display: block; margin-right: 2px;">ЛИСТ:</span>
+            <button id="btn-export-sheet" title="Скачать только этот лист">⬇ Экспорт Листа</button>
+            <input type="file" id="input-import-sheet" accept=".json" hidden>
+            <button id="btn-import-sheet" onclick="document.getElementById('input-import-sheet').click()">⬆ Импорт Листа</button>
+        </div>
+        
+        <div class="tool-group">
+            <button id="btn-undo" title="Ctrl+Z">↩ Отмена</button>
+            <button id="btn-redo" title="Ctrl+Y">↪ Повтор</button>
+        </div>
+
+        <div class="tool-group">
+            <label style="font-size:12px;">Цвет стола: <input type="color" id="bg-color" value="#1a1a1a" style="vertical-align:middle; cursor:pointer;"></label>
+            <input type="file" id="bg-image-loader" accept="image/*" hidden multiple>
+            <button class="primary-btn" onclick="document.getElementById('bg-image-loader').click()">🖼 + Картинку Фона</button>
+        </div>
+
+        <div class="tool-group">
+            <label><input type="checkbox" id="check-lock"> 🔒 Фиксация карты</label>
+            <label><input type="checkbox" id="check-grid"> 🔲 Сетка</label>
+        </div>
+
+        <div class="tool-group">
+            <button id="btn-add-token" class="primary-btn">🧙‍♂️ + Фишку</button>
+            <button id="btn-add-link">🔗 Связать фишки</button>
+        </div>
+    </header>
+
+    <!-- РАБОЧАЯ ОБЛАСТЬ -->
+    <div class="workspace">
+        <!-- Холст карт -->
+        <main id="viewport">
+            <div id="scene">
+                <div id="layer-bg"></div>
+                <div id="layer-grid"></div>
+                <svg id="layer-svg"></svg>
+                <div id="layer-tokens"></div>
+            </div>
+        </main>
+
+        <!-- ПРАВЫЙ САЙДБАР (НАВИГАЦИЯ) -->
+        <aside class="sidebar-right">
+            <!-- Раздел Фишек -->
+            <div class="sidebar-section">
+                <h4>Фишки на карте</h4>
+                <div id="sidebar-tokens-list" class="list-container"></div>
+            </div>
+
+            <!-- Раздел Фонов -->
+            <div class="sidebar-section">
+                <h4>Слои Фона</h4>
+                <div id="sidebar-bg-list" class="list-container"></div>
+                
+                <!-- Контроллер параметров выбранного фона -->
+                <div id="bg-properties-controls" class="sidebar-controls hidden">
+                    <h5>Настройки фона</h5>
+                    <label>Ширина (px):
+                        <input type="number" id="prop-bg-w">
+                    </label>
+                    <label>Высота (px):
+                        <input type="number" id="prop-bg-h">
+                    </label>
+                    <button id="btn-delete-bg" class="danger-btn" style="width:100%; margin-top:12px;">Удалить этот фон</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- НИЖНЯЯ ПАНЕЛЬ ЛИСТОВ -->
+    <footer class="tabs-panel">
+        <div id="tabs-container"></div>
+        <button id="btn-add-sheet" class="primary-btn">+ Новый лист</button>
+    </footer>
+
+    <!-- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ФИШКИ -->
+    <div id="token-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Настройки фишки</h3>
+            <label>Имя персонажа/монстра</label>
+            <input type="text" id="modal-token-name" placeholder="Например: Арагорн">
+            
+            <label>Текущий статус (отображается на карте)</label>
+            <input type="text" id="modal-token-status" placeholder="Например: Отравлен, Оглушен">
+            
+            <label>Ссылка на картинку (URL) или аватар</label>
+            <input type="text" id="modal-token-img" placeholder="http://example.com/avatar.png">
+            
+            <div class="modal-actions">
+                <button id="modal-save" class="primary-btn">Сохранить</button>
+                <button id="modal-delete" class="danger-btn">Удалить фишку</button>
+                <button id="modal-close">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЛОГИКА ПРИЛОЖЕНИЯ -->
+    <script>
+        // Глобальное состояние
+        const GRID_SIZE = 50;
+        let appData = {
+            activeSheetId: null,
+            sheets: []
+        };
+
+        // Движок истории
+        let historyStack = [];
+        let historyIndex = -1;
+        let isLinkingMode = false;
+        let linkStartTokenId = null;
+
+        // Координаты камеры
+        let scale = 1, panX = 0, panY = 0;
+        let isPanning = false, startPanX = 0, startPanY = 0;
+
+        // Физика перетаскивания фишек на базе абсолютного смещения (фикс тряски)
+        let draggedToken = null;
+        let dragStartSceneX = 0, dragStartSceneY = 0;
+        let dragStartLeaderX = 0, dragStartLeaderY = 0;
+        let draggedConnectedTokens = []; // Массив ведомых связанных фишек
+
+        // Логика перетаскивания и изменения размеров фонов
+        let draggedBg = null;
+        let dragStartBgX = 0, dragStartBgY = 0;
+        let isResizingBg = false;
+        let bgResizeStartW = 0, bgResizeStartH = 0;
+        let selectedBgId = null;
+
+        // Элементы DOM
+        const viewport = document.getElementById('viewport');
+        const scene = document.getElementById('scene');
+        const layerBg = document.getElementById('layer-bg');
+        const layerGrid = document.getElementById('layer-grid');
+        const layerSvg = document.getElementById('layer-svg');
+        const layerTokens = document.getElementById('layer-tokens');
+        const tokenModal = document.getElementById('token-modal');
+
+        // Утилита уникальных ID
+        const uid = () => 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
+        function saveToStorage() {
+            localStorage.setItem('dnd-canvas-v3', JSON.stringify(appData));
+        }
+
+        function getActiveSheet() {
+            if (!appData.sheets || appData.sheets.length === 0) {
+                buildDefaultData();
+            }
+            let sheet = appData.sheets.find(s => s.id === appData.activeSheetId);
+            if (!sheet) {
+                sheet = appData.sheets[0];
+                appData.activeSheetId = sheet.id;
+            }
+            return sheet;
+        }
+
+        // ==========================================
+        // УПРАВЛЕНИЕ ИСТОРИЕЙ (UNDO / REDO)
+        // ==========================================
+        function pushHistory() {
+            const sheet = getActiveSheet();
+            historyStack = historyStack.slice(0, historyIndex + 1);
+            historyStack.push(JSON.stringify(sheet));
+            if (historyStack.length > 25) historyStack.shift();
+            historyIndex = historyStack.length - 1;
+            saveToStorage();
+            renderSidebar();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                restoreFromHistory();
+            }
+        }
+
+        function redo() {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                restoreFromHistory();
+            }
+        }
+
+        function restoreFromHistory() {
+            const currentSheetIndex = appData.sheets.findIndex(s => s.id === appData.activeSheetId);
+            if (currentSheetIndex !== -1) {
+                appData.sheets[currentSheetIndex] = JSON.parse(historyStack[historyIndex]);
+                saveToStorage();
+                syncRender(false);
+            }
+        }
+
+        // ==========================================
+        // УПРАВЛЕНИЕ ЛИСТАМИ (ИСПРАВЛЕНО И ЗАЩИЩЕНО)
+        // ==========================================
+        function createNewSheet(name) {
+            const newSheet = {
+                id: uid(),
+                name: name,
+                bg: '#1a1a1a',
+                bgImages: [],
+                tokens: [],
+                links: []
+            };
+            appData.sheets.push(newSheet);
+            appData.activeSheetId = newSheet.id;
+            saveToStorage();
+            renderTabs();
+            loadSheet(newSheet.id);
+        }
+
+        function deleteSheet(id, event) {
+            event.stopPropagation();
+            if (appData.sheets.length <= 1) {
+                alert("Нельзя удалить единственный лист!");
+                return;
+            }
+            if (confirm("Вы уверены, что хотите удалить этот лист со всеми фишками и фонами?")) {
+                appData.sheets = appData.sheets.filter(s => s.id !== id);
+                if (appData.activeSheetId === id) {
+                    appData.activeSheetId = appData.sheets[0].id;
+                }
+                saveToStorage();
+                renderTabs();
+                loadSheet(appData.activeSheetId);
+            }
+        }
+
+        function renderTabs() {
+            const container = document.getElementById('tabs-container');
+            container.innerHTML = '';
+            appData.sheets.forEach(sheet => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `tab-wrapper ${sheet.id === appData.activeSheetId ? 'active' : ''}`;
+                
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.textContent = sheet.name;
+                tab.onclick = () => {
+                    appData.activeSheetId = sheet.id;
+                    renderTabs();
+                    loadSheet(sheet.id);
+                };
+                tab.ondblclick = () => {
+                    const newName = prompt("Введите новое имя карты:", sheet.name);
+                    if (newName && newName.trim()) {
+                        sheet.name = newName.trim();
+                        saveToStorage();
+                        renderTabs();
+                    }
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn-delete-tab';
+                delBtn.innerHTML = '×';
+                delBtn.title = 'Удалить лист';
+                delBtn.onclick = (e) => deleteSheet(sheet.id, e);
+
+                wrapper.appendChild(tab);
+                wrapper.appendChild(delBtn);
+                container.appendChild(wrapper);
+            });
+        }
+
+        function loadSheet(id, resetHistory = true) {
+            selectedBgId = null;
+            document.getElementById('bg-properties-controls').classList.add('hidden');
+            
+            const sheet = getActiveSheet();
+            
+            // Фикс изменения цвета: красим и вьюпорт, и подложку фона
+            document.getElementById('bg-color').value = sheet.bg;
+            viewport.style.backgroundColor = sheet.bg;
+            viewport.style.background = sheet.bg;
+            layerBg.style.backgroundColor = sheet.bg;
+
+            // Центрируем камеру по умолчанию
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+
+            syncRender(resetHistory);
+        }
+
+        function syncRender(resetHistory = true) {
+            renderBackgrounds();
+            renderTokens();
+            renderLinks();
+            renderSidebar();
+
+            if (resetHistory) {
+                historyStack = [JSON.stringify(getActiveSheet())];
+                historyIndex = 0;
+            }
+        }
+
+        // ==========================================
+        // ЗУМ И ПАН КАНВАСА
+        // ==========================================
+        function updateTransform() {
+            scene.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSpeed = 0.08;
+            const direction = e.deltaY < 0 ? 1 : -1;
+
+            const rect = viewport.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const sceneMouseX = (mouseX - panX) / scale;
+            const sceneMouseY = (mouseY - panY) / scale;
+
+            scale += direction * zoomSpeed * scale;
+            scale = Math.min(Math.max(0.15, scale), 6);
+
+            panX = mouseX - sceneMouseX * scale;
+            panY = mouseY - sceneMouseY * scale;
+
+            updateTransform();
+        });
+
+        // Фиксация карты блокирует ТОЛЬКО панорамирование (камеру)
+        viewport.addEventListener('mousedown', (e) => {
+            if (document.getElementById('check-lock').checked) return;
+            // Игнорируем зажатия на интерактивных объектах и ручках изменения размера
+            if (e.target.closest('.token-container') || e.target.closest('.bg-img-element') || e.target.closest('.bg-resize-handle')) return;
+
+            isPanning = true;
+            startPanX = e.clientX - panX;
+            startPanY = e.clientY - panY;
+        });
+
+        // ==========================================
+        // ОТРИСОВКА И ОПЕРАЦИИ С ОБЪЕКТАМИ
+        // ==========================================
+        function renderBackgrounds() {
+            layerBg.innerHTML = '';
+            const sheet = getActiveSheet();
+            if (!sheet.bgImages) sheet.bgImages = [];
+
+            sheet.bgImages.forEach(bg => {
+                const el = document.createElement('div');
+                el.className = `bg-img-element ${bg.id === selectedBgId ? 'selected' : ''}`;
+                el.style.left = `${bg.x}px`;
+                el.style.top = `${bg.y}px`;
+                el.style.width = `${bg.w}px`;
+                el.style.height = `${bg.h}px`;
+                el.style.backgroundImage = `url(${bg.img})`;
+                
+                // Создаем ручку ресайза в углу
+                const handle = document.createElement('div');
+                handle.className = 'bg-resize-handle';
+                el.appendChild(handle);
+
+                // Зажатие мышки на самой картинке (для перетаскивания и масштабирования)
+                el.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    
+                    // ФИКС ФИКСАЦИИ КАРТЫ: Если карта заблокирована, запрещаем любые действия с фоном!
+                    if (document.getElementById('check-lock').checked) {
+                        return;
+                    }
+
+                    selectedBgId = bg.id;
+                    updateBackgroundControlsForm(bg);
+                    renderBackgrounds();
+                    renderSidebar();
+                    
+                    const rect = viewport.getBoundingClientRect();
+                    dragStartSceneX = (e.clientX - rect.left - panX) / scale;
+                    dragStartSceneY = (e.clientY - rect.top - panY) / scale;
+
+                    if (e.target.classList.contains('bg-resize-handle')) {
+                        // Переходим в режим изменения размера
+                        isResizingBg = true;
+                        draggedBg = bg;
+                        bgResizeStartW = bg.w;
+                        bgResizeStartH = bg.h;
+                    } else {
+                        // Режим обычного таскания картинки
+                        draggedBg = bg;
+                        dragStartBgX = bg.x;
+                        dragStartBgY = bg.y;
+                    }
+                });
+
+                layerBg.appendChild(el);
+            });
+        }
+
+        function renderTokens() {
+            layerTokens.innerHTML = '';
+            const sheet = getActiveSheet();
+
+            sheet.tokens.forEach(token => {
+                const container = document.createElement('div');
+                container.className = 'token-container';
+                container.style.left = `${token.x}px`;
+                container.style.top = `${token.y}px`;
+                container.dataset.id = token.id;
+
+                const avatar = document.createElement('div');
+                avatar.className = 'token-avatar';
+                if (token.img) avatar.style.backgroundImage = `url(${token.img})`;
+
+                const nameTag = document.createElement('div');
+                nameTag.className = 'token-name';
+                nameTag.textContent = token.name || "Фишка";
+
+                container.appendChild(avatar);
+                container.appendChild(nameTag);
+
+                // Если есть статус, рендерим его яркий бейдж
+                if (token.status && token.status.trim() !== "") {
+                    const statusTag = document.createElement('div');
+                    statusTag.className = 'token-status-badge';
+                    statusTag.textContent = token.status;
+                    container.appendChild(statusTag);
+                }
+
+                // Логика мыши для фишки
+                container.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    if (isLinkingMode) {
+                        processLinkingLogic(token.id);
+                        return;
+                    }
+                    
+                    // Инициализируем перетаскивание ведущей фишки (фишки двигаются ВСЕГДА, даже при фиксации карты)
+                    draggedToken = token;
+                    const rect = viewport.getBoundingClientRect();
+                    dragStartSceneX = (e.clientX - rect.left - panX) / scale;
+                    dragStartSceneY = (e.clientY - rect.top - panY) / scale;
+                    dragStartLeaderX = token.x;
+                    dragStartLeaderY = token.y;
+                    
+                    // ПОЛНЫЙ ФИКС ДРОЖАНИЯ СВЯЗАННЫХ ФИШЕК: Сохраняем стабильные стартовые координаты
+                    draggedConnectedTokens = [];
+                    const connectedIds = new Set();
+                    sheet.links.forEach(l => {
+                        if (l.from === token.id) connectedIds.add(l.to);
+                        if (l.to === token.id) connectedIds.add(l.from);
+                    });
+
+                    connectedIds.forEach(id => {
+                        const targetTok = sheet.tokens.find(t => t.id === id);
+                        if (targetTok) {
+                            draggedConnectedTokens.push({
+                                token: targetTok,
+                                startX: targetTok.x,
+                                startY: targetTok.y
+                            });
+                        }
+                    });
+                });
+
+                container.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    openTokenEditModal(token);
+                });
+
+                layerTokens.appendChild(container);
+            });
+        }
+
+        // ==========================================
+        // ИНТЕРАКТИВНОЕ УДАЛЕНИЕ СВЯЗЕЙ (НОВАЯ ФИЧА)
+        // ==========================================
+        function renderLinks() {
+            layerSvg.innerHTML = '';
+            const sheet = getActiveSheet();
+            sheet.links.forEach(link => {
+                const t1 = sheet.tokens.find(t => t.id === link.from);
+                const t2 = sheet.tokens.find(t => t.id === link.to);
+                if (t1 && t2) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', t1.x);
+                    line.setAttribute('y1', t1.y);
+                    line.setAttribute('x2', t2.x);
+                    line.setAttribute('y2', t2.y);
+                    
+                    // Всплывающая подсказка
+                    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                    title.textContent = "Кликните дважды или подтвердите удаление этой связи";
+                    line.appendChild(title);
+
+                    // Удаление связи по клику
+                    line.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Удалить связь между "${t1.name || 'Фишкой'}" and "${t2.name || 'Фишкой'}"?`)) {
+                            sheet.links = sheet.links.filter(l => l !== link);
+                            renderLinks();
+                            pushHistory();
+                        }
+                    });
+
+                    layerSvg.appendChild(line);
+                }
+            });
+        }
+
+        // ==========================================
+        // ЕДИНЫЙ ОБРАБОТЧИК ДВИЖЕНИЯ (С ГРУППОВЫМ ПЕРЕМЕЩЕНИЕМ И РЕСАЙЗОМ)
+        // ==========================================
+        function handleGlobalMouseMove(e) {
+            const isLocked = document.getElementById('check-lock').checked;
+
+            // ФИКС ЗАЛИПАНИЯ: Если кнопка мыши физически отжата, сбрасываем захват.
+            if (e.buttons === 0) {
+                if (draggedToken || draggedBg) {
+                    draggedToken = null;
+                    draggedBg = null;
+                    isResizingBg = false;
+                    draggedConnectedTokens = [];
+                    pushHistory();
+                }
+                isPanning = false;
+                return;
+            }
+
+            // Панорамирование камеры (блокируется при фиксации)
+            if (isPanning) {
+                if (isLocked) {
+                    isPanning = false;
+                    return;
+                }
+                panX = e.clientX - startPanX;
+                panY = e.clientY - startPanY;
+                updateTransform();
+                return;
+            }
+
+            const rect = viewport.getBoundingClientRect();
+            const sceneX = (e.clientX - rect.left - panX) / scale;
+            const sceneY = (e.clientY - rect.top - panY) / scale;
+
+            const snapToGrid = document.getElementById('check-grid').checked;
+
+            // 1. Плавное перемещение фишки + связанных фишек без микро-вибраций
+            if (draggedToken) {
+                let dx = sceneX - dragStartSceneX;
+                let dy = sceneY - dragStartSceneY;
+
+                let newLeaderX = dragStartLeaderX + dx;
+                let newLeaderY = dragStartLeaderY + dy;
+
+                if (snapToGrid) {
+                    newLeaderX = Math.round(newLeaderX / GRID_SIZE) * GRID_SIZE;
+                    newLeaderY = Math.round(newLeaderY / GRID_SIZE) * GRID_SIZE;
+                    // Рассчитываем точную дельту сдвига с учетом сетки
+                    dx = newLeaderX - dragStartLeaderX;
+                    dy = newLeaderY - dragStartLeaderY;
+                }
+
+                draggedToken.x = newLeaderX;
+                draggedToken.y = newLeaderY;
+
+                // Перемещаем связанные фишки по рассчитанной дельте
+                draggedConnectedTokens.forEach(conn => {
+                    conn.token.x = conn.startX + dx;
+                    conn.token.y = conn.startY + dy;
+
+                    const connDom = document.querySelector(`.token-container[data-id="${conn.token.id}"]`);
+                    if (connDom) {
+                        connDom.style.left = `${conn.token.x}px`;
+                        connDom.style.top = `${conn.token.y}px`;
+                    }
+                });
+
+                // Обновляем позицию вожака
+                const domLeader = document.querySelector(`.token-container[data-id="${draggedToken.id}"]`);
+                if (domLeader) {
+                    domLeader.style.left = `${draggedToken.x}px`;
+                    domLeader.style.top = `${draggedToken.y}px`;
+                }
+
+                renderLinks();
+            }
+
+            // 2. Движение фоновой картинки или изменение её размера (ФИКСИРУЕТСЯ при блокировке карты!)
+            if (draggedBg) {
+                if (isLocked) {
+                    draggedBg = null;
+                    isResizingBg = false;
+                    return;
+                }
+
+                const deltaX = sceneX - dragStartSceneX;
+                const deltaY = sceneY - dragStartSceneY;
+
+                if (isResizingBg) {
+                    // Изменение масштаба
+                    draggedBg.w = Math.max(50, bgResizeStartW + deltaX);
+                    draggedBg.h = Math.max(50, bgResizeStartH + deltaY);
+                    
+                    document.getElementById('prop-bg-w').value = Math.round(draggedBg.w);
+                    document.getElementById('prop-bg-h').value = Math.round(draggedBg.h);
+                } else {
+                    // Перетаскивание
+                    draggedBg.x = dragStartBgX + deltaX;
+                    draggedBg.y = dragStartBgY + deltaY;
+                }
+                renderBackgrounds();
+            }
+        }
+
+        function handleGlobalMouseUp() {
+            if (isPanning) isPanning = false;
+            if (draggedToken || draggedBg) {
+                draggedToken = null;
+                draggedBg = null;
+                isResizingBg = false;
+                draggedConnectedTokens = [];
+                pushHistory();
+            }
+        }
+
+        // ==========================================
+        // СИСТЕМА НАВИГАЦИИ (САЙДБАР)
+        // ==========================================
+        function renderSidebar() {
+            const tokensList = document.getElementById('sidebar-tokens-list');
+            const bgList = document.getElementById('sidebar-bg-list');
+            const sheet = getActiveSheet();
+
+            // Список фишек
+            tokensList.innerHTML = '';
+            sheet.tokens.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'sidebar-item';
+                item.innerHTML = `<span>🧙‍♂️ ${t.name || 'Фишка'} ${t.status ? `[${t.status}]` : ''}</span><button style="padding:2px 6px; font-size:10px;">⚙</button>`;
+                item.onclick = () => {
+                    const rect = viewport.getBoundingClientRect();
+                    panX = rect.width / 2 - t.x * scale;
+                    panY = rect.height / 2 - t.y * scale;
+                    updateTransform();
+                    openTokenEditModal(t);
+                };
+                tokensList.appendChild(item);
+            });
+
+            // Список фонов
+            bgList.innerHTML = '';
+            if(!sheet.bgImages) sheet.bgImages = [];
+            sheet.bgImages.forEach((bg, index) => {
+                const item = document.createElement('div');
+                item.className = `sidebar-item ${bg.id === selectedBgId ? 'selected' : ''}`;
+                item.innerHTML = `<span>🖼 Фон #${index + 1}</span>`;
+                item.onclick = () => {
+                    selectedBgId = bg.id;
+                    updateBackgroundControlsForm(bg);
+                    renderBackgrounds();
+                    renderSidebar();
+                    
+                    // Центрирование камеры на фоновую картинку
+                    const rect = viewport.getBoundingClientRect();
+                    panX = rect.width / 2 - (bg.x + bg.w/2) * scale;
+                    panY = rect.height / 2 - (bg.y + bg.h/2) * scale;
+                    updateTransform();
+                };
+                bgList.appendChild(item);
+            });
+        }
+
+        function updateBackgroundControlsForm(bg) {
+            const ctrlBlock = document.getElementById('bg-properties-controls');
+            if (!bg) {
+                ctrlBlock.classList.add('hidden');
+                return;
+            }
+            ctrlBlock.classList.remove('hidden');
+            document.getElementById('prop-bg-w').value = Math.round(bg.w);
+            document.getElementById('prop-bg-h').value = Math.round(bg.h);
+        }
+
+        // Ввод значений ресайза вручную из сайдбара
+        document.getElementById('prop-bg-w').addEventListener('input', (e) => {
+            if (selectedBgId) {
+                const bg = getActiveSheet().bgImages.find(b => b.id === selectedBgId);
+                if (bg) { bg.w = parseInt(e.target.value) || 100; renderBackgrounds(); }
+            }
+        });
+        document.getElementById('prop-bg-h').addEventListener('input', (e) => {
+            if (selectedBgId) {
+                const bg = getActiveSheet().bgImages.find(b => b.id === selectedBgId);
+                if (bg) { bg.h = parseInt(e.target.value) || 100; renderBackgrounds(); }
+            }
+        });
+        document.getElementById('btn-delete-bg').onclick = () => {
+            if (selectedBgId) {
+                const sheet = getActiveSheet();
+                sheet.bgImages = sheet.bgImages.filter(b => b.id !== selectedBgId);
+                selectedBgId = null;
+                document.getElementById('bg-properties-controls').classList.add('hidden');
+                renderBackgrounds();
+                pushHistory();
+            }
+        };
+
+        // ==========================================
+        // ЛОГИКА СВЯЗЕЙ (ИНСТРУМЕНТ СОЗДАНИЯ)
+        // ==========================================
+        document.getElementById('btn-add-link').onclick = () => {
+            isLinkingMode = !isLinkingMode;
+            linkStartTokenId = null;
+            document.getElementById('btn-add-link').style.background = isLinkingMode ? 'var(--danger)' : '#333';
+            if (isLinkingMode) alert("Режим связывания фишек активен. Кликните по ПЕРВОЙ фишке.");
+        };
+
+        function processLinkingLogic(tokenId) {
+            if (!linkStartTokenId) {
+                linkStartTokenId = tokenId;
+                alert("Связь начата. Кликните по ВТОРУЙ фишке, чтобы завершить соединение.");
+            } else {
+                if (linkStartTokenId === tokenId) {
+                    alert("Нельзя связать фишку с самой собой!");
+                    return;
+                }
+                const sheet = getActiveSheet();
+                const alreadyLinked = sheet.links.some(l => 
+                    (l.from === linkStartTokenId && l.to === tokenId) || 
+                    (l.to === linkStartTokenId && l.from === tokenId)
+                );
+
+                if (!alreadyLinked) {
+                    sheet.links.push({ from: linkStartTokenId, to: tokenId });
+                    renderLinks();
+                    pushHistory();
+                }
+                
+                isLinkingMode = false;
+                linkStartTokenId = null;
+                document.getElementById('btn-add-link').style.background = '#333';
+            }
+        }
+
+        // ==========================================
+        // ДОБАВЛЕНИЕ ФИШЕК И НАСТРОЙКИ
+        // ==========================================
+        let activeEditingToken = null;
+
+        document.getElementById('btn-add-token').onclick = () => {
+            const rect = viewport.getBoundingClientRect();
+            const spawnX = (rect.width / 2 - panX) / scale;
+            const spawnY = (rect.height / 2 - panY) / scale;
+
+            const sheet = getActiveSheet();
+            const newToken = {
+                id: uid(),
+                x: spawnX,
+                y: spawnY,
+                name: "Фишка " + (sheet.tokens.length + 1),
+                status: "",
+                img: ""
+            };
+            sheet.tokens.push(newToken);
+            renderTokens();
+            pushHistory();
+        };
+
+        function openTokenEditModal(token) {
+            activeEditingToken = token;
+            document.getElementById('modal-token-name').value = token.name || '';
+            document.getElementById('modal-token-status').value = token.status || '';
+            document.getElementById('modal-token-img').value = token.img || '';
+            tokenModal.classList.remove('hidden');
+        }
+
+        document.getElementById('modal-close').onclick = () => tokenModal.classList.add('hidden');
+        
+        document.getElementById('modal-save').onclick = () => {
+            if (activeEditingToken) {
+                activeEditingToken.name = document.getElementById('modal-token-name').value.trim();
+                activeEditingToken.status = document.getElementById('modal-token-status').value.trim();
+                activeEditingToken.img = document.getElementById('modal-token-img').value.trim();
+                tokenModal.classList.add('hidden');
+                renderTokens();
+                renderLinks();
+                pushHistory();
+            }
+        };
+
+        document.getElementById('modal-delete').onclick = () => {
+            if (activeEditingToken) {
+                const sheet = getActiveSheet();
+                sheet.tokens = sheet.tokens.filter(t => t.id !== activeEditingToken.id);
+                sheet.links = sheet.links.filter(l => l.from !== activeEditingToken.id && l.to !== activeEditingToken.id);
+                tokenModal.classList.add('hidden');
+                renderTokens();
+                renderLinks();
+                pushHistory();
+            }
+        };
+
+        // ==========================================
+        // УМНАЯ ЗАГРУЗКА КАРТИНОК (ПРОПОРЦИИ И АСПЕКТЫ)
+        // ==========================================
+        document.getElementById('bg-image-loader').addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            const rect = viewport.getBoundingClientRect();
+            const spawnCenterX = (rect.width / 2 - panX) / scale;
+            const spawnCenterY = (rect.height / 2 - panY) / scale;
+
+            let loadedCount = 0;
+
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const sheet = getActiveSheet();
+                        
+                        // Считываем оригинальные габариты изображения
+                        let w = img.naturalWidth || 800;
+                        let h = img.naturalHeight || 600;
+
+                        // Ограничиваем максимальный размер, сохраняя пропорции изображения
+                        const maxDim = 1200;
+                        if (w > maxDim || h > maxDim) {
+                            const ratio = Math.min(maxDim / w, maxDim / h);
+                            w = Math.round(w * ratio);
+                            h = Math.round(h * ratio);
+                        }
+
+                        // Умное ступенчатое смещение при массовой загрузке файлов (чтобы не слипались)
+                        const offset = (sheet.bgImages.length * 30) % 180;
+                        const x = spawnCenterX - w / 2 + offset;
+                        const y = spawnCenterY - h / 2 + offset;
+
+                        const newBg = {
+                            id: uid(),
+                            img: event.target.result,
+                            x: x,
+                            y: y,
+                            w: w,
+                            h: h
+                        };
+                        
+                        if(!sheet.bgImages) sheet.bgImages = [];
+                        sheet.bgImages.push(newBg);
+                        
+                        loadedCount++;
+                        if (loadedCount === files.length) {
+                            selectedBgId = newBg.id;
+                            updateBackgroundControlsForm(newBg);
+                            renderBackgrounds();
+                            pushHistory();
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        // Смена цвета стола из палитры
+        document.getElementById('bg-color').addEventListener('input', (e) => {
+            const sheet = getActiveSheet();
+            sheet.bg = e.target.value;
+            viewport.style.backgroundColor = sheet.bg;
+            viewport.style.background = sheet.bg;
+            layerBg.style.backgroundColor = sheet.bg;
+            saveToStorage();
+        });
+
+        // Сетка
+        document.getElementById('check-grid').addEventListener('change', (e) => {
+            layerGrid.style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        // Горячие клавиши
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+            if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+        });
+        document.getElementById('btn-undo').onclick = undo;
+        document.getElementById('btn-redo').onclick = redo;
+
+        // ==========================================
+        // ИМПОРТ И ЭКСПОРТ (4 КНОПКИ)
+        // ==========================================
+
+        // 1. ЭКСПОРТ ВСЕЙ КНИГИ (ВСЕХ ЛИСТОВ)
+        document.getElementById('btn-export').onclick = () => {
+            const blob = new Blob([JSON.stringify(appData, null, 2)], {type : 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dnd_full_campaign_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // 2. ИМПОРТ ВСЕЙ КНИГИ (ВСЕХ ЛИСТОВ)
+        document.getElementById('input-import').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const parsed = JSON.parse(ev.target.result);
+                        if (parsed.activeSheetId && Array.isArray(parsed.sheets)) {
+                            appData = parsed;
+                            saveToStorage();
+                            renderTabs();
+                            loadSheet(appData.activeSheetId);
+                            alert("Вся книга кампании успешно загружена!");
+                        } else { alert("Неверный формат книги. Должны присутствовать поля sheets и activeSheetId."); }
+                    } catch (err) { alert("Не удалось прочесть файл проекта."); }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // 3. ЭКСПОРТ ТОЛЬКО ТЕКУЩЕГО ЛИСТА
+        document.getElementById('btn-export-sheet').onclick = () => {
+            const sheet = getActiveSheet();
+            const blob = new Blob([JSON.stringify(sheet, null, 2)], {type : 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dnd_sheet_${sheet.name.replace(/\s+/g, '_')}_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // 4. ИМПОРТ ОДНОГО ЛИСТА (ДОБАВЛЕНИЕ В КНИГУ)
+        document.getElementById('btn-import-sheet').onclick = () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.json';
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const parsedSheet = JSON.parse(ev.target.result);
+                            // Валидируем структуру одиночного листа
+                            if (parsedSheet.id && parsedSheet.name && Array.isArray(parsedSheet.tokens)) {
+                                // Генерируем новый ID, чтобы избежать дублирования в книге
+                                parsedSheet.id = uid();
+                                parsedSheet.name = "[Импорт] " + parsedSheet.name;
+                                appData.sheets.push(parsedSheet);
+                                appData.activeSheetId = parsedSheet.id;
+                                saveToStorage();
+                                renderTabs();
+                                loadSheet(parsedSheet.id);
+                                alert("Лист успешно добавлен в текущую книгу!");
+                            } else {
+                                alert("Неверный формат листа. Файл должен содержать структуру одиночного листа.");
+                            }
+                        } catch(err) {
+                            alert("Ошибка разбора JSON файла листа.");
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            fileInput.click();
+        };
+
+        // ==========================================
+        // ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ (БЕЗ ДУБЛИРОВАНИЯ)
+        // ==========================================
+        function init() {
+            const saved = localStorage.getItem('dnd-canvas-v3');
+            if (saved) {
+                try {
+                    appData = JSON.parse(saved);
+                    if (!appData || !Array.isArray(appData.sheets) || appData.sheets.length === 0) {
+                        buildDefaultData();
+                    }
+                } catch(e) {
+                    buildDefaultData();
+                }
+            } else {
+                buildDefaultData();
+            }
+            renderTabs();
+            loadSheet(appData.activeSheetId);
+
+            // Обработчики глобального мува и отпускания мыши
+            window.addEventListener('mousemove', handleGlobalMouseMove);
+            window.addEventListener('mouseup', handleGlobalMouseUp);
+        }
+
+        function buildDefaultData() {
+            appData.sheets = [];
+            createNewSheet("Основная Карта");
+        }
+
+        // Привязка обработчика к кнопке «+ Новый лист»
+        document.getElementById('btn-add-sheet').onclick = () => {
+            createNewSheet("Лист " + (appData.sheets.length + 1));
+        };
+
+        // Единственная точка входа
+        init();
+    </script>
+</body>
+</html>
