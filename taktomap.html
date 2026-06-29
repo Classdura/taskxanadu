@@ -401,10 +401,15 @@
         let isPanning = false, startPanX = 0, startPanY = 0;
 
         // Физика перетаскивания фишек на базе абсолютного смещения (фикс тряски)
+        // Перетаскивание фишек
         let draggedToken = null;
         let dragStartSceneX = 0, dragStartSceneY = 0;
         let dragStartLeaderX = 0, dragStartLeaderY = 0;
-        let draggedConnectedTokens = []; // Массив ведомых связанных фишек
+        let draggedConnectedTokens = []; // { token, startX, startY }
+        
+        // Переменные для длинного зажатия на мобилках
+        let tokenLongPressTimer = null;
+        let isTokenActiveForTargetMove = false;
 
         // Логика перетаскивания и изменения размеров фонов
         let draggedBg = null;
@@ -412,6 +417,12 @@
         let isResizingBg = false;
         let bgResizeStartW = 0, bgResizeStartH = 0;
         let selectedBgId = null;
+
+        // Переменные для мобильного мультитача
+        let initialTouchDistance = 0;
+        let initialScale = 1;
+        let touchStartPanX = 0;
+        let touchStartPanY = 0;
 
         // Элементы DOM
         const viewport = document.getElementById('viewport');
@@ -587,6 +598,158 @@
             scene.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
         }
 
+        // ==========================================
+        // ОБРАБОТЧИКИ СОБЫТИЙ (ОПТИМИЗИРОВАННЫЕ)
+        // ==========================================
+
+        // Вспомогательная функция вычисления расстояния между двумя пальцами
+        function getTouchDistance(t1, t2) {
+            return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        }
+
+        // Обработка касаний на экране (Вьюпорте)
+        viewport.addEventListener('touchstart', (e) => {
+            // Если тач пришелся на фишку или фон — мобильную карту не трогаем, пусть работает стандартная логика браузера
+            if (e.target.closest('.token-container') || e.target.closest('.bg-img-element') || e.target.closest('.bg-resize-handle')) return;
+
+            const isLocked = document.getElementById('check-lock').checked;
+
+            if (e.touches.length === 1 && !isLocked) {
+                // Один палец на пустом месте — двигаем карту
+                isPanning = true;
+                startPanX = e.touches[0].clientX - panX;
+                startPanY = e.touches[0].clientY - panY;
+            } else if (e.touches.length === 2) {
+                // Два пальца на пустом месте — включаем мультитач зум
+                isPanning = false;
+                initialTouchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+                initialScale = scale;
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchmove', (e) => {
+            // ЕСЛИ ФИШКА ВЫБРАНА ДЛИТЕЛЬНЫМ ЗАЖАТИЕМ — ПЕРЕМЕЩАЕМ ЕЁ
+            if (isTokenActiveForTargetMove && draggedToken && e.touches.length === 1) {
+                e.preventDefault(); // Полностью блокируем скролл экрана смартфона и движение карты
+
+                const touch = e.touches[0];
+                const rect = viewport.getBoundingClientRect();
+                const sceneX = (touch.clientX - rect.left - panX) / scale;
+                const sceneY = (touch.clientY - rect.top - panY) / scale;
+                const snapToGrid = document.getElementById('check-grid').checked;
+
+                let dx = sceneX - dragStartSceneX;
+                let dy = sceneY - dragStartSceneY;
+
+                let newLeaderX = dragStartLeaderX + dx;
+                let newLeaderY = dragStartLeaderY + dy;
+
+                // Твоя оригинальная привязка к сетке
+                if (snapToGrid) {
+                    newLeaderX = Math.round(newLeaderX / GRID_SIZE) * GRID_SIZE;
+                    newLeaderY = Math.round(newLeaderY / GRID_SIZE) * GRID_SIZE;
+                    dx = newLeaderX - dragStartLeaderX;
+                    dy = newLeaderY - dragStartLeaderY;
+                }
+
+                draggedToken.x = newLeaderX;
+                draggedToken.y = newLeaderY;
+
+                // Перемещаем связанные фишки по твоей логике
+                draggedConnectedTokens.forEach(conn => {
+                    conn.token.x = conn.startX + dx;
+                    conn.token.y = conn.startY + dy;
+                    const connDom = document.querySelector(`.token-container[data-id="${conn.token.id}"]`);
+                    if (connDom) {
+                        connDom.style.left = `${conn.token.x}px`;
+                        connDom.style.top = `${conn.token.y}px`;
+                    }
+                });
+
+                // Обновляем позицию главной фишки на экране
+                const domLeader = document.querySelector(`.token-container[data-id="${draggedToken.id}"]`);
+                if (domLeader) {
+                    domLeader.style.left = `${draggedToken.x}px`;
+                    domLeader.style.top = `${draggedToken.y}px`;
+                }
+
+                renderLinks(); // Перерисовываем связи линий
+                return; // Выходим из функции, чтобы не двигался фон карты
+            }
+
+            if (e.target.closest('.token-container') || e.target.closest('.bg-img-element') || e.target.closest('.bg-resize-handle')) return;
+
+            const isLocked = document.getElementById('check-lock').checked;
+
+            if (e.touches.length === 1 && isPanning && !isLocked) {
+                // Перемещение карты пальцем
+                e.preventDefault(); // Отменяем стандартный скролл страницы браузером
+                panX = e.touches[0].clientX - startPanX;
+                panY = e.touches[0].clientY - startPanY;
+                updateTransform();
+            } else if (e.touches.length === 2) {
+                // Мультитач масштаб (Pinch-to-zoom) строго на экране
+                e.preventDefault(); // Отменяем системный зум телефона
+
+                const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+                if (initialTouchDistance === 0 || currentDistance === 0) return;
+
+                const rect = viewport.getBoundingClientRect();
+                // Находим центр между двумя пальцами на экране
+                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+
+                // Пересчитываем точку на сцене
+                const sceneTouchX = (midX - panX) / scale;
+                const sceneTouchY = (midY - panY) / scale;
+
+                // Считаем новый масштаб
+                const factor = currentDistance / initialTouchDistance;
+                let newScale = initialScale * factor;
+                
+                // Ограничиваем в твоих пределах (0.15 - 6)
+                newScale = Math.min(Math.max(0.15, newScale), 6);
+
+                scale = newScale;
+                panX = midX - sceneTouchX * scale;
+                panY = midY - sceneTouchY * scale;
+
+                updateTransform();
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchend', (e) => {
+            isPanning = false;
+
+            // Если двигали фишку и отпустили палец
+            if (isTokenActiveForTargetMove || draggedToken) {
+                // Возвращаем всем фишкам стандартную непрозрачность
+                document.querySelectorAll('.token-container').forEach(el => el.style.opacity = "1.1");
+                
+                draggedToken = null;
+                draggedConnectedTokens = [];
+                isTokenActiveForTargetMove = false;
+                
+                pushHistory(); // Сохраняем шаг перемещения в историю
+                saveToLocalStorage();
+                updateSidebarLists();
+            }
+
+            if (tokenLongPressTimer) {
+                clearTimeout(tokenLongPressTimer);
+                tokenLongPressTimer = null;
+            }
+            if (e.touches.length < 2) {
+                initialTouchDistance = 0;
+            }
+            // Если один палец убрали, а вторым продолжают водить по пустой карте
+            if (e.touches.length === 1 && !document.getElementById('check-lock').checked && !e.target.closest('.token-container')) {
+                isPanning = true;
+                startPanX = e.touches[0].clientX - panX;
+                startPanY = e.touches[0].clientY - panY;
+            }
+        });
+
         viewport.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomSpeed = 0.08;
@@ -608,7 +771,88 @@
             updateTransform();
         });
 
-        // Фиксация карты блокирует ТОЛЬКО панорамирование (камеру)
+        // Вспомогательная функция для расчета расстояния между двумя точками касания
+        function getTouchDistance(t1, t2) {
+            return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        }
+
+        // ОБРАБОТКА ТАЧ-СОБЫТИЙ ДЛЯ МОБИЛЬНЫХ (ЗУМ И ПАН)
+        viewport.addEventListener('touchstart', (e) => {
+            // Если тач внутри фишек или ресайза фонов — отдаем управление им
+            if (e.target.closest('.token-container') || e.target.closest('.bg-img-element') || e.target.closest('.bg-resize-handle')) return;
+
+            const isLocked = document.getElementById('check-lock').checked;
+
+            if (e.touches.length === 1 && !isLocked) {
+                // Одиночный тач — панорамирование (симуляция mousedown)
+                isPanning = true;
+                startPanX = e.touches[0].clientX - panX;
+                startPanY = e.touches[0].clientY - panY;
+            } else if (e.touches.length === 2) {
+                // Двойной тач — включаем pinch-to-zoom
+                isPanning = false; // Отключаем обычный пан, чтобы не дергало
+                initialTouchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+                initialScale = scale;
+                touchStartPanX = panX;
+                touchStartPanY = panY;
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (e.target.closest('.token-container') || e.target.closest('.bg-img-element') || e.target.closest('.bg-resize-handle')) return;
+            
+            const isLocked = document.getElementById('check-lock').checked;
+
+            if (e.touches.length === 1 && isPanning && !isLocked) {
+                e.preventDefault();
+                panX = e.touches[0].clientX - startPanX;
+                panY = e.touches[0].clientY - startPanY;
+                updateTransform();
+            } else if (e.touches.length === 2) {
+                e.preventDefault(); // Запрещаем системный зум браузера
+
+                const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+                if (initialTouchDistance === 0 || currentDistance === 0) return;
+
+                // Находим геометрический центр между двумя пальцами
+                const rect = viewport.getBoundingClientRect();
+                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+
+                // Точка на сцене до изменения зума
+                const sceneTouchX = (midX - panX) / scale;
+                const sceneTouchY = (midY - panY) / scale;
+
+                // Считаем новый масштаб на основе изменения расстояния
+                const factor = currentDistance / initialTouchDistance;
+                let newScale = initialScale * factor;
+                
+                // Ограничиваем зум в тех же пределах (0.15 - 6)
+                newScale = Math.min(Math.max(0.15, newScale), 6);
+
+                scale = newScale;
+                // Корректируем панорамирование, чтобы зум шел ровно в центр между пальцами
+                panX = midX - sceneTouchX * scale;
+                panY = midY - sceneTouchY * scale;
+
+                updateTransform();
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchend', (e) => {
+            isPanning = false;
+            if (e.touches.length < 2) {
+                initialTouchDistance = 0;
+            }
+            // Переинициализация для оставшегося пальца, если один убрали, а вторым ведут
+            if (e.touches.length === 1 && !document.getElementById('check-lock').checked) {
+                isPanning = true;
+                startPanX = e.touches[0].clientX - panX;
+                startPanY = e.touches[0].clientY - panY;
+            }
+        });
+
+        // Фиксация карты блокирует ТОЛЬКО панорамирование (камеру)	
         viewport.addEventListener('mousedown', (e) => {
             if (document.getElementById('check-lock').checked) return;
             // Игнорируем зажатия на интерактивных объектах и ручках изменения размера
@@ -706,7 +950,56 @@
                     statusTag.textContent = token.status;
                     container.appendChild(statusTag);
                 }
+				// ТАЧ-ЛОГИКА: ДЛИТЕЛЬНОЕ ЗАЖАТИЕ ФИШКИ (LONG PRESS)
+                container.addEventListener('touchstart', (e) => {
+                    e.stopPropagation(); // Не даем карте двигаться сразу
+                    if (isLinkingMode || e.touches.length !== 1) return;
 
+                    const touch = e.touches[0];
+                    isTokenActiveForTargetMove = false; // Сбрасываем флаг движения
+
+                    // Запускаем таймер удержания на 400 мс
+                    tokenLongPressTimer = setTimeout(() => {
+                        isTokenActiveForTargetMove = true; // Фишка выбрана!
+                        draggedToken = token;
+
+                        // Визуальный отклик: фишка становится полупрозрачной при успешном захвате
+                        container.style.opacity = "0.6";
+
+                        // Инициализируем координаты для движения (копируем твою мышиную логику)
+                        const rect = viewport.getBoundingClientRect();
+                        dragStartSceneX = (touch.clientX - rect.left - panX) / scale;
+                        dragStartSceneY = (touch.clientY - rect.top - panY) / scale;
+                        dragStartLeaderX = token.x;
+                        dragStartLeaderY = token.y;
+
+                        draggedConnectedTokens = [];
+                        const connectedIds = new Set();
+                        currentSheet.links.forEach(l => {
+                            if (l.from === token.id) connectedIds.add(l.to);
+                            if (l.to === token.id) connectedIds.add(l.from);
+                        });
+
+                        connectedIds.forEach(id => {
+                            const targetTok = currentSheet.tokens.find(t => t.id === id);
+                            if (targetTok) {
+                                draggedConnectedTokens.push({ token: targetTok, startX: targetTok.x, startY: targetTok.y });
+                            }
+                        });
+
+                        // Если девайс поддерживает, делаем легкую вибрацию корпуса
+                        if (navigator.vibrate) navigator.vibrate(40);
+                    }, 400); 
+                }, { passive: true });
+
+                container.addEventListener('touchend', (e) => {
+                    // Если палец подняли до истечения 400мс — отменяем выбор
+                    if (tokenLongPressTimer) {
+                        clearTimeout(tokenLongPressTimer);
+                        tokenLongPressTimer = null;
+                    }
+                    container.style.opacity = "1.1"; // Возвращаем исходную непрозрачность
+                }, { passive: true });
                 // Логика мыши для фишки
                 container.addEventListener('mousedown', (e) => {
                     e.stopPropagation();
