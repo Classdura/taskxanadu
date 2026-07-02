@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Clone Messenger</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Мессенджер</h3>
+                <button id="close-sidebar-btn" class="mobile-only">✕</button>
+            </div>
+            
+            <div class="section-title">Чаты <button id="add-room-btn">+</button></div>
+            <div class="rooms-list" id="rooms-list">
+                </div>
+
+            <div class="profile-panel" id="open-settings-btn">
+                <div class="avatar-wrapper" id="my-avatar-wrapper">
+                    <img id="my-avatar" src="https://via.placeholder.com/40" alt="Avatar">
+                </div>
+                <div class="profile-info">
+                    <span class="username" id="my-username">Загрузка...</span>
+                    <span class="status" id="my-status">🔧 Настройки</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="chat-area">
+            <header class="chat-header">
+                <button id="menu-btn" class="mobile-only">☰</button>
+                <h2 id="current-room-title">Выберите или создайте чат</h2>
+            </header>
+
+            <div class="messages-container" id="messages-container">
+                </div>
+
+            <footer class="chat-input-area">
+                <div class="input-wrapper">
+                    <button id="emoji-trigger">😀</button>
+                    <input type="text" id="message-input" placeholder="Напишите что-нибудь...">
+                    <label class="file-label">
+                        📎
+                        <input type="file" id="file-input" accept="image/*,image/gif" style="display:none;">
+                    </label>
+                    <button id="send-btn">Отправить</button>
+                </div>
+                <div class="emoji-picker hidden" id="emoji-picker">
+                    </div>
+            </footer>
+        </main>
+
+        <aside class="members-sidebar" id="members-sidebar">
+            <div class="section-title">В сети</div>
+            <div id="members-list"></div>
+        </aside>
+    </div>
+
+    <div class="modal hidden" id="room-modal">
+        <div class="modal-content">
+            <h3>Создать новый чат</h3>
+            <input type="text" id="new-room-name" placeholder="Название чата">
+            <select id="new-room-type">
+                <option value="group">Групповой чат</option>
+                <option value="channel">Канал (Только админ пишет)</option>
+            </select>
+            <div class="modal-buttons">
+                <button id="confirm-room-btn">Создать</button>
+                <button class="cancel-btn" id="close-room-modal">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal hidden" id="settings-modal">
+        <div class="modal-content">
+            <h3>Настройки профиля</h3>
+            
+            <label>Никнейм:</label>
+            <input type="text" id="settings-username">
+
+            <label>Аватар (Ссылка или файл):</label>
+            <input type="text" id="settings-avatar-url" placeholder="URL картинки">
+            
+            <label>Статус-смайлик:</label>
+            <select id="settings-emoji">
+                <option value="🐱">🐱 Кот</option>
+                <option value="🔥">🔥 Огонь</option>
+                <option value="💻">💻 Кодер</option>
+                <option value="👑">👑 Король</option>
+                <option value="✨">✨ Магия</option>
+            </select>
+
+            <div class="color-pickers">
+                <div>
+                    <label>Цвет ника:</label>
+                    <input type="color" id="settings-name-color" value="#ffffff">
+                </div>
+                <div>
+                    <label>Цвет рамки:</label>
+                    <input type="color" id="settings-border-color" value="#5865f2">
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button id="save-settings-btn">Сохранить</button>
+                <button class="cancel-btn" id="close-settings-modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
