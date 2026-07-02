@@ -1,4 +1,5 @@
-const socket = io();
+const SERVER_URL = "https://your-messenger-backend.onrender.com";
+const socket = io(window.location.hostname === 'localhost' ? 'http://localhost:3000' : SERVER_URL);
 
 // Глобальное состояние на клиенте
 let myId = null;
