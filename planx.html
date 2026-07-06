@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЛАН-X — Интерактивный планировщик местности</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Стилизация скроллбара под темную тему */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Фиксация холста */
+        #canvas-container {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Топ-бар управления -->
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap justify-between items-center gap-4 z-30 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="bg-brand-500 p-2 rounded-lg text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-wide">ПЛАН-X</h1>
+                <p class="text-xs text-slate-400">Интерактивный планировщик местности</p>
+            </div>
+        </div>
+
+        <!-- Кнопки глобального импорта/экспорта -->
+        <div class="flex items-center gap-2">
+            <button onclick="triggerImport()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all border border-slate-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                Импорт Книги (JSON)
+            </button>
+            <input type="file" id="import-file" class="hidden" accept=".json" onchange="importBook(event)">
+            
+            <div class="relative">
+                <button onclick="document.getElementById('export-dropdown').classList.toggle('hidden')" class="bg-brand-600 hover:bg-brand-500 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Экспорт
+                </button>
+                <div id="export-dropdown" class="absolute right-0 mt-1 hidden bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 w-40 z-50">
+                    <button onclick="exportJSON()" class="w-full text-left px-4 py-2 hover:bg-slate-700 text-xs text-slate-200">Вся книга (JSON)</button>
+                    <button onclick="exportSVG()" class="w-full text-left px-4 py-2 hover:bg-slate-700 text-xs text-slate-200">Текущий лист (SVG)</button>
+                    <button onclick="exportRaster('png')" class="w-full text-left px-4 py-2 hover:bg-slate-700 text-xs text-slate-200">Текущий лист (PNG)</button>
+                    <button onclick="exportRaster('jpeg')" class="w-full text-left px-4 py-2 hover:bg-slate-700 text-xs text-slate-200">Текущий лист (JPG)</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основной рабочий экран -->
+    <div class="h-[calc(100vh-65px)] flex overflow-hidden relative">
+
+        <aside id="sidebar" class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 transition-transform duration-300 z-20">
+            <!-- Книга & Листы -->
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <span class="text-xs uppercase font-bold tracking-wider text-slate-400">Листы (Слои Книги)</span>
+                <button onclick="createNewSheet()" class="text-brand-500 hover:text-brand-400 p-1" title="Создать новый лист">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                </button>
+            </div>
+            <div id="sheets-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Сюда рендерятся листы -->
+            </div>
+
+            <!-- Управление Слоями выбранного листа -->
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-between items-center gap-1">
+                <span class="text-xs uppercase font-bold tracking-wider text-slate-400">Слои</span>
+                <div class="flex gap-1">
+                    <button onclick="groupSelectedShapes()" class="text-brand-500 hover:text-brand-400 text-[10px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 transition-all">Групп.</button>
+                    <button onclick="ungroupSelectedShapes()" class="text-rose-500 hover:text-rose-400 text-[10px] bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 transition-all">Разгрупп.</button>
+                </div>
+            </div>
+            <div id="layers-list" class="flex-1 overflow-y-auto p-2 space-y-1 bg-slate-950/50 max-h-[35vh]">
+                <!-- Сюда рендерятся слои -->
+            </div>
+        </aside>
+
+        <!-- Рабочее пространство холста -->
+        <main class="flex-1 flex flex-col overflow-hidden relative bg-slate-950">
+            
+            <!-- Панель инструментов -->
+            <div class="bg-slate-900/80 backdrop-blur border-b border-slate-800 p-2 flex flex-wrap items-center justify-between gap-2 z-10">
+                <!-- Инструменты создания -->
+                <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button id="tool-select" onclick="setTool('select')" class="px-3 py-1.5 rounded bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all" title="Выбор и трансформация">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" /></svg>
+                        Выбор
+                    </button>
+                    <button id="tool-polygon" onclick="setTool('polygon')" class="px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all" title="Рисование полигона произвольной формы">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        Полигон
+                    </button>
+                    <button onclick="addRectangle()" class="px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all" title="Добавить готовый четырехугольник">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" /></svg>
+                        + Четырехугольник
+                    </button>
+                </div>
+
+                <!-- Режимы примагничивания -->
+                <div class="flex items-center gap-2 text-xs bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                    <span class="text-slate-400 font-medium">Сетка:</span>
+                    <select id="snap-mode" onchange="updateSnapMode()" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-slate-200">
+                        <option value="none">Свободно</option>
+                        <option value="strict">Строго к узлам</option>
+                        <option value="tolerance" selected>Примагничивание (с люфтом)</option>
+                    </select>
+                    <div id="tolerance-config" class="flex items-center gap-1">
+                        <span class="text-slate-500">Люфт:</span>
+                        <input type="range" id="snap-tolerance" min="5" max="30" value="15" oninput="updateTolerance(this.value)" class="w-16 accent-brand-500">
+                        <span id="tolerance-val" class="text-slate-400 w-4">15</span>
+                    </div>
+                </div>
+
+                <!-- История Undo/Redo и действия холста -->
+                <div class="flex items-center gap-1">
+                    <button onclick="undo()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded transition-all" title="Отменить действие (Ctrl+Z)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
+                    </button>
+                    <button onclick="redo()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded transition-all" title="Повторить действие (Ctrl+Y)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 005 8v8a1 1 0 001.6.8l5.334-4zM19.934 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.334-4z" /></svg>
+                    </button>
+                    <div class="h-6 w-[1px] bg-slate-800 mx-1"></div>
+                    <button onclick="deleteSelectedShape()" class="bg-rose-900/30 hover:bg-rose-900/60 border border-rose-800/40 text-rose-200 px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1" title="Удалить выбранную фигуру">
+                        Удалить
+                    </button>
+                    <button onclick="clearCurrentCanvas()" class="bg-slate-800 hover:bg-red-950/40 hover:text-red-300 border border-slate-700 hover:border-red-900 px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1" title="Очистить весь холст">
+                        Очистить всё
+                    </button>
+                </div>
+            </div>
+
+            <!-- Зона холста с возможностью прокрутки -->
+            <div id="canvas-container" class="flex-1 overflow-hidden relative bg-slate-950">
+                <canvas id="main-canvas" class="w-full h-full bg-slate-900 cursor-grab active:cursor-grabbing"></canvas>
+            </div>
+
+            <!-- Нижняя панель настройки размеров холста и сетки -->
+            <div class="bg-slate-900 border-t border-slate-800 p-2.5 flex flex-wrap items-center justify-between gap-4 text-xs z-10">
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-1">
+                        <span class="text-slate-400">Ширина холста:</span>
+                        <input type="number" id="canvas-width" value="1200" step="100" min="400" max="4000" onchange="resizeCanvasBounds()" class="w-16 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200">
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="text-slate-400">Высота:</span>
+                        <input type="number" id="canvas-height" value="800" step="100" min="400" max="4000" onchange="resizeCanvasBounds()" class="w-16 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200">
+                    </label>
+                    <label class="flex items-center gap-1">
+                        <span class="text-slate-400">Шаг сетки:</span>
+                        <input type="number" id="grid-size" value="40" step="5" min="10" max="100" onchange="updateGridSize(this.value)" class="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-slate-200">
+                    </label>
+                </div>
+                
+                <!-- Информация о текущем состоянии -->
+                <div id="status-bar" class="text-slate-400 flex items-center gap-4">
+                    <span>Выбрано: <strong id="selected-info" class="text-brand-500">Нет</strong></span>
+                    <span id="coord-info">X: 0, Y: 0</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Правый инспектор свойств выделенного объекта -->
+        <aside id="inspector" class="w-72 bg-slate-900 border-l border-slate-800 p-4 flex flex-col justify-between shrink-0 z-10">
+            <div class="space-y-4">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-2">Свойства фигуры</h3>
+                
+                <div id="inspector-empty" class="text-center text-slate-500 py-10 text-xs">
+                    Выберите фигуру на холсте, чтобы настроить её свойства
+                </div>
+
+                <div id="inspector-content" class="hidden space-y-4">
+                    <!-- Подпись (Имя) -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Название / Подпись</label>
+                        <input type="text" id="prop-label" oninput="updateProp('label', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+                    </div>
+
+                    <!-- Цвет заливки, обводки и прозрачность -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Заливка</label>
+                            <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-700 rounded p-1.5">
+                                <input type="color" id="prop-fill" oninput="updateProp('fillColor', this.value)" class="w-8 h-8 rounded border border-slate-800 cursor-pointer bg-transparent">
+                                <input type="text" id="prop-fill-text" oninput="updatePropText('fillColor', this.value)" class="w-full bg-transparent border-none text-xs text-slate-200 focus:outline-none uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Обводка</label>
+                            <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-700 rounded p-1.5">
+                                <input type="color" id="prop-stroke" oninput="updateProp('strokeColor', this.value)" class="w-8 h-8 rounded border border-slate-800 cursor-pointer bg-transparent">
+                                <input type="text" id="prop-stroke-text" oninput="updatePropText('strokeColor', this.value)" class="w-full bg-transparent border-none text-xs text-slate-200 focus:outline-none uppercase">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Регулировка Прозрачности заливки -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Прозрачность заливки</label>
+                        <div class="flex items-center gap-2">
+                            <input type="range" id="shapeOpacity" min="0" max="1" step="0.05" oninput="updateOpacity(this.value)" class="w-full accent-brand-500">
+                            <span id="shapeOpacityVal" class="text-xs text-slate-400 w-10 text-right">100%</span>
+                        </div>
+                    </div>
+
+                    <!-- Позиция центра -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Позиция X (px)</label>
+                            <input type="number" id="prop-x" oninput="updatePropNum('x', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1">Позиция Y (px)</label>
+                            <input type="number" id="prop-y" oninput="updatePropNum('y', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-sm text-slate-100">
+                        </div>
+                    </div>
+
+                    <!-- Поворот -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Поворот (градусы)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="range" id="prop-angle-slider" min="0" max="360" oninput="updateAngleSlider(this.value)" class="w-full accent-brand-500">
+                            <input type="number" id="prop-angle-input" min="0" max="360" oninput="updateAngleInput(this.value)" class="w-16 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 text-center text-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-[10px] text-slate-500 border-t border-slate-800 pt-3 text-center">
+                Удерживайте <kbd class="bg-slate-950 px-1 py-0.5 rounded text-slate-400">Shift</kbd> для свободного перемещения без примагничивания.
+            </div>
+        </aside>
+    </div>
+
+    <!-- Модальное окно для переименования листа -->
+    <div id="rename-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 w-80 shadow-2xl space-y-4">
+            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wide">Переименовать лист</h3>
+            <input type="text" id="rename-input" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500">
+            <div class="flex justify-end gap-2 text-xs font-semibold">
+                <button onclick="closeRenameModal()" class="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200">Отмена</button>
+                <button onclick="confirmRenameSheet()" class="px-4 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white">Применить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Глобальное Состояние Книги и Листов ---
+        let book = {
+            sheets: [
+                {
+                    id: "sheet-1",
+                    name: "Участок Альфа",
+                    shapes: [
+                        {
+                            id: "shape-initial-1",
+                            name: "Зона Дома",
+                            type: "rect",
+                            x: 200,
+                            y: 200,
+                            width: 160,
+                            height: 120,
+                            points: [
+                                {x: -80, y: -60},
+                                {x: 80, y: -60},
+                                {x: 80, y: 60},
+                                {x: -80, y: 60}
+                            ],
+                            angle: 0.15, // в радианах
+                            fillColor: "#0284c790",
+                            strokeColor: "#0ea5e9",
+                            label: "Дом"
+                        },
+                        {
+                            id: "shape-initial-2",
+                            name: "Пруд",
+                            type: "polygon",
+                            x: 480,
+                            y: 350,
+                            points: [
+                                {x: -60, y: -40},
+                                {x: 40, y: -80},
+                                {x: 100, y: 10},
+                                {x: 50, y: 70},
+                                {x: -80, y: 50}
+                            ],
+                            angle: 0,
+                            fillColor: "#10b98160",
+                            strokeColor: "#34d399",
+                            label: "Водоём"
+                        }
+                    ]
+                },
+                {
+                    id: "sheet-2",
+                    name: "Задний Двор",
+                    shapes: []
+                }
+            ],
+            activeSheetId: "sheet-1"
+        };
+
+        // --- Переменные среды Холста ---
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvas-container');
+
+        let gridWidth = 1200;
+        let gridHeight = 800;
+        let gridSize = 40;
+
+        // Режимы примагничивания: 'none', 'strict', 'tolerance'
+        let snapMode = 'tolerance';
+        let snapTolerance = 15;
+
+        // Панель инструментов: 'select', 'polygon'
+        let currentTool = 'select';
+
+        // Переменные для бесконечного холста / панорамирования и зума
+        let panX = 0;
+        let panY = 0;
+        let zoom = 1;
+        let isPanning = false;
+        let startPanX = 0;
+        let startPanY = 0;
+
+        // Рисование полигона в реальном времени
+        let polygonDrawingPoints = []; 
+
+        // Выбранный объект и маркеры
+        let activeShapeId = null;
+        let selectedHandleIndex = null; // Индекс перетаскиваемой вершины/маркера (-1 = тело, -2 = маркер вращения)
+        
+        // Перемещение
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        // Векторная математика для сохранения состояния до драга
+        let initialShapeState = null;
+
+        // Переименование листов
+        let sheetToRenameId = null;
+
+        // --- Системные стеки для Undo/Redo ---
+        let undoStack = [];
+        let redoStack = [];
+
+        // --- Инициализация ---
+        window.addEventListener('load', () => {
+            // Защита от сброса: проверяем локальное хранилище
+            const savedBook = localStorage.getItem('planx_book_data');
+            if (savedBook) {
+                try {
+                    const parsed = JSON.parse(savedBook);
+                    if (parsed && Array.isArray(parsed.sheets)) book = parsed;
+                } catch(e) { console.error("Ошибка автозагрузки сохранённых данных", e); }
+            }
+
+            resizeCanvasBounds();
+            renderSheetsUI();
+            
+            // Заполняем историю начальной точкой
+            undoStack.push(JSON.stringify(book.sheets));
+            
+            initUniversalPointerEvents();
+            draw();
+
+            // Глобальные горячие клавиши
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    undo();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                    e.preventDefault();
+                    redo();
+                } else if (e.key === 'Delete' || e.key === 'Backspace') {
+                    deleteSelectedShape();
+                }
+            });
+        });
+
+        // --- НОВАЯ СИСТЕМА ЖЕСТОВ И МУЛЬТИТАЧА (ПОИНТЕРЫ) ---
+        let activePointers = [];
+        let lastPinchDist = 0;
+
+        function initUniversalPointerEvents() {
+            // Запрещаем браузеру намертво скроллить страницу при таче на холст
+            canvas.style.touchAction = 'none';
+
+            // Умный зум колесиком мыши (центрируется по курсору)
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomFactor = 1.1;
+                const oldZoom = zoom;
+                
+                if (e.deltaY < 0) {
+                    zoom = Math.min(zoom * zoomFactor, 8);
+                } else {
+                    zoom = Math.max(zoom / zoomFactor, 0.2);
+                }
+
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                panX = mouseX - (mouseX - panX) * (zoom / oldZoom);
+                panY = mouseY - (mouseY - panY) * (zoom / oldZoom);
+
+                draw();
+            }, { passive: false });
+
+            // Касание экрана / Нажатие мыши
+            canvas.addEventListener('pointerdown', (e) => {
+                activePointers.push(e);
+                const rect = canvas.getBoundingClientRect();
+
+                if (activePointers.length === 1) {
+                    // Переводим экранные координаты в локальные координаты нашего холста
+                    const canvasX = (e.clientX - rect.left - panX) / zoom;
+                    const canvasY = (e.clientY - rect.top - panY) / zoom;
+
+                    // Логика полигона: если выбран инструмент полигона, добавляем точку
+                    if (currentTool === 'polygon') {
+                        const snapped = { x: snapCoordinate(canvasX, e.shiftKey), y: snapCoordinate(canvasY, e.shiftKey) };
+                        
+                        // Если в массиве уже есть точки, проверяем клик по первой точке для замыкания
+                        if (polygonDrawingPoints.length > 2) {
+                            const firstPt = polygonDrawingPoints[0];
+                            const dist = Math.hypot(canvasX - firstPt.x, canvasY - firstPt.y);
+                            // Радиус клика для замыкания (25 пикселей на экране для удобства тача)
+                            if (dist < 25 / zoom) {
+                                finishPolygonDrawing();
+                                return;
+                            }
+                        }
+                        
+                        polygonDrawingPoints.push(snapped);
+                        draw();
+                        return;
+                    }
+
+                    const sheet = getActiveSheet();
+                    let hitDetected = false;
+                    selectedHandleIndex = null;
+
+                    // 1. Проверяем попадание в вершины (точки) или маркер вращения уже выбранной активной фигуры
+                    if (activeShapeId) {
+                        const currentShape = sheet.shapes.find(s => s.id === activeShapeId);
+                        if (currentShape && currentShape.points) {
+                            // Увеличенный радиус попадания пальцем/мышкой (для мобильных — шире)
+                            const hitRadius = e.pointerType === 'touch' ? 24 / zoom : 10 / zoom;
+                            
+                            // А) Проверяем маркер вращения
+                            const rotHandleGlobal = getRotateHandleGlobalPos(currentShape);
+                            if (Math.hypot(canvasX - rotHandleGlobal.x, canvasY - rotHandleGlobal.y) < hitRadius) {
+                                selectedHandleIndex = -2; // Вращение
+                                isDragging = true;
+                                dragStartX = canvasX;
+                                dragStartY = canvasY;
+                                initialShapeState = JSON.parse(JSON.stringify(currentShape));
+                                
+                                // Для группового вращения сохраняем стартовое состояние всех членов группы
+                                if (currentShape.groupId) {
+                                    currentShape._groupInitialStates = sheet.shapes
+                                        .filter(s => s.groupId === currentShape.groupId)
+                                        .map(s => ({ id: s.id, x: s.x, y: s.y, angle: s.angle }));
+                                }
+                                hitDetected = true;
+                            }
+
+                            // Б) Проверяем точки вершин
+                            if (!hitDetected) {
+                                for (let i = 0; i < currentShape.points.length; i++) {
+                                    const pt = currentShape.points[i];
+                                    // Вычисляем мировые координаты точки
+                                    const cos = Math.cos(currentShape.angle || 0);
+                                    const sin = Math.sin(currentShape.angle || 0);
+                                    const worldX = currentShape.x + (pt.x * cos - pt.y * sin);
+                                    const worldY = currentShape.y + (pt.x * sin + pt.y * cos);
+                                    
+                                    if (Math.hypot(canvasX - worldX, canvasY - worldY) < hitRadius) {
+                                        selectedHandleIndex = i;
+                                        isDragging = true;
+                                        dragStartX = canvasX;
+                                        dragStartY = canvasY;
+                                        initialShapeState = JSON.parse(JSON.stringify(currentShape));
+                                        hitDetected = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Ищем клик по телам фигур, если по точкам не попали
+                    if (!hitDetected) {
+                        for (let i = sheet.shapes.length - 1; i >= 0; i--) {
+                            const shape = sheet.shapes[i];
+                            if (isPointInPolygon(canvasX, canvasY, shape)) {
+                                activeShapeId = shape.id;
+                                hitDetected = true;
+                                isDragging = true;
+                                dragStartX = canvasX;
+                                dragStartY = canvasY;
+                                
+                                // Сохраняем начальное состояние всех элементов группы
+                                const groupMembers = shape.groupId 
+                                    ? sheet.shapes.filter(s => s.groupId === shape.groupId) 
+                                    : [shape];
+                                    
+                                shape._groupOffsets = groupMembers.map(m => ({ 
+                                    id: m.id, 
+                                    startX: m.x, 
+                                    startY: m.y 
+                                }));
+                                break;
+                            }
+                        }
+                    }
+
+                    // 3. Если кликнули в пустоту холста
+                    if (!hitDetected && currentTool === 'select') {
+                        activeShapeId = null;
+                        isPanning = true;
+                        startPanX = e.clientX - panX;
+                        startPanY = e.clientY - panY;
+                    }
+
+                    renderLayersUI();
+                    updateInspector();
+                    draw();
+
+                } else if (activePointers.length === 2) {
+                    // Pinch-to-zoom (два пальца на экране!)
+                    isPanning = false; 
+                    isDragging = false;
+                    
+                    const p1 = activePointers[0];
+                    const p2 = activePointers[1];
+                    lastPinchDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+                }
+            });
+
+            // Движение пальцев / Мыши
+            canvas.addEventListener('pointermove', (e) => {
+                const index = activePointers.findIndex(p => p.pointerId === e.pointerId);
+                if (index === -1) return;
+                activePointers[index] = e; // Обновляем координаты указателя
+
+                const rect = canvas.getBoundingClientRect();
+
+                // 1. Движение одного указателя
+                if (activePointers.length === 1) {
+                    const canvasX = (e.clientX - rect.left - panX) / zoom;
+                    const canvasY = (e.clientY - rect.top - panY) / zoom;
+
+                    if (isPanning) {
+                        panX = e.clientX - startPanX;
+                        panY = e.clientY - startPanY;
+                        draw();
+                    } else if (isDragging && activeShapeId) {
+                        const sheet = getActiveSheet();
+                        const shape = sheet.shapes.find(s => s.id === activeShapeId);
+                        if (shape) {
+                            const dx = canvasX - dragStartX;
+                            const dy = canvasY - dragStartY;
+
+                            if (selectedHandleIndex !== null && selectedHandleIndex >= 0) {
+                                // Редактирование точки: вычисляем смещение от начала драга в локальных координатах
+                                const origPt = initialShapeState.points[selectedHandleIndex];
+                                
+                                const cos = Math.cos(-shape.angle || 0);
+                                const sin = Math.sin(-shape.angle || 0);
+                                const localDx = dx * cos - dy * sin;
+                                const localDy = dx * sin + dy * cos;
+                                
+                                shape.points[selectedHandleIndex].x = snapCoordinate(origPt.x + localDx, e.shiftKey);
+                                shape.points[selectedHandleIndex].y = snapCoordinate(origPt.y + localDy, e.shiftKey);
+                                
+                                if (shape.type === 'rect') {
+                                    adjustRectVertices(shape, selectedHandleIndex, shape.points[selectedHandleIndex].x, shape.points[selectedHandleIndex].y);
+                                }
+                                recalculateCentroidAndPoints(shape);
+                            } else if (selectedHandleIndex === -2) {
+                                // Вращение фигуры (и всей её группы, если она есть)
+                                const angleRad = Math.atan2(canvasY - shape.y, canvasX - shape.x);
+                                const deltaAngle = (angleRad + Math.PI / 2) - initialShapeState.angle;
+                                
+                                if (shape.groupId && shape._groupInitialStates) {
+                                    shape._groupInitialStates.forEach(state => {
+                                        const member = sheet.shapes.find(s => s.id === state.id);
+                                        if (member) {
+                                            member.angle = state.angle + deltaAngle;
+                                            // Вращаем центр фигуры относительно центра главной выбранной фигуры
+                                            if (member.id !== shape.id) {
+                                                const rx = state.x - initialShapeState.x;
+                                                const ry = state.y - initialShapeState.y;
+                                                const rotatedCenter = rotatePoint(rx, ry, deltaAngle);
+                                                member.x = initialShapeState.x + rotatedCenter.x;
+                                                member.y = initialShapeState.y + rotatedCenter.y;
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    shape.angle = initialShapeState.angle + deltaAngle;
+                                }
+                            } else if (shape._groupOffsets) {
+                                // Синхронное перемещение группы или одиночной фигуры
+                                shape._groupOffsets.forEach(offset => {
+                                    const member = sheet.shapes.find(s => s.id === offset.id);
+                                    if (member) {
+                                        member.x = snapCoordinate(offset.startX + dx, e.shiftKey);
+                                        member.y = snapCoordinate(offset.startY + dy, e.shiftKey);
+                                    }
+                                });
+                            }
+                            updateInspector();
+                            draw();
+                        }
+                    }
+
+                    // Обновляем статус-бар
+                    const coordInfo = document.getElementById('coord-info');
+                    if (coordInfo) {
+                        coordInfo.innerText = `X: ${Math.round(canvasX)}, Y: ${Math.round(canvasY)}`;
+                    }
+                } 
+                // 2. Движение двух пальцев (Pinch Zoom)
+                else if (activePointers.length === 2) {
+                    const p1 = activePointers[0];
+                    const p2 = activePointers[1];
+                    const currentDist = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+
+                    if (lastPinchDist > 0) {
+                        const oldZoom = zoom;
+                        const pinchFactor = currentDist / lastPinchDist;
+                        zoom = Math.min(Math.max(zoom * pinchFactor, 0.2), 8);
+
+                        // Центральная точка жеста на экране
+                        const currentCenter = {
+                            x: (p1.clientX + p2.clientX) / 2 - rect.left,
+                            y: (p1.clientY + p2.clientY) / 2 - rect.top
+                        };
+
+                        // Коррекция панорамирования
+                        panX = currentCenter.x - (currentCenter.x - panX) * (zoom / oldZoom);
+                        panY = currentCenter.y - (currentCenter.y - panY) * (zoom / oldZoom);
+                        draw();
+                    }
+                    lastPinchDist = currentDist;
+                }
+            });
+
+            // Очистка при отпускании пальца / мыши
+            const handlePointerUp = (e) => {
+                activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
+                if (activePointers.length < 2) {
+                    lastPinchDist = 0;
+                }
+                if (activePointers.length === 0) {
+                    if (isDragging || isPanning) saveHistoryState();
+                    isPanning = false;
+                    isDragging = false;
+                    selectedHandleIndex = null;
+                }
+            };
+
+            canvas.addEventListener('pointerup', handlePointerUp);
+            canvas.addEventListener('pointercancel', handlePointerUp);
+            canvas.addEventListener('pointerleave', handlePointerUp);
+        }
+
+        // --- Управление Историей (Undo/Redo) ---
+        function saveHistoryState() {
+            const stateSnapshot = JSON.stringify(book.sheets);
+            undoStack.push(stateSnapshot);
+            redoStack = []; 
+            localStorage.setItem('planx_book_data', JSON.stringify(book));
+        }
+
+        function undo() {
+            if (undoStack.length <= 1) return;
+            const currentState = undoStack.pop();
+            redoStack.push(currentState);
+            
+            const prevState = undoStack[undoStack.length - 1];
+            book.sheets = JSON.parse(prevState);
+            
+            if (activeShapeId) {
+                const sheet = getActiveSheet();
+                const found = sheet.shapes.find(s => s.id === activeShapeId);
+                if (!found) activeShapeId = null;
+            }
+            
+            draw();
+            renderLayersUI();
+            updateInspector();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            const nextState = redoStack.pop();
+            undoStack.push(nextState);
+            book.sheets = JSON.parse(nextState);
+            
+            draw();
+            renderLayersUI();
+            updateInspector();
+        }
+
+        // --- Работа со структурой листов ---
+        function getActiveSheet() {
+            return book.sheets.find(s => s.id === book.activeSheetId) || book.sheets[0];
+        }
+
+        function renderSheetsUI() {
+            const container = document.getElementById('sheets-list');
+            container.innerHTML = '';
+
+            book.sheets.forEach(sheet => {
+                const isActive = sheet.id === book.activeSheetId;
+                const activeClasses = isActive 
+                    ? 'bg-brand-900/40 border-brand-500/80 text-slate-100 font-semibold' 
+                    : 'bg-slate-900 border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/60';
+
+                const sheetEl = document.createElement('div');
+                sheetEl.className = `group flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-all ${activeClasses}`;
+                sheetEl.onclick = () => selectSheet(sheet.id);
+
+                sheetEl.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <span class="truncate block">${sheet.name}</span>
+                    </div>
+                    <div class="hidden group-hover:flex items-center gap-1 ml-2 shrink-0">
+                        <button onclick="event.stopPropagation(); openRenameModal('${sheet.id}')" class="hover:text-amber-400 p-0.5" title="Переименовать">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button onclick="event.stopPropagation(); copySheet('${sheet.id}')" class="hover:text-brand-400 p-0.5" title="Создать копию">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                        </button>
+                        <button onclick="event.stopPropagation(); deleteSheet('${sheet.id}')" class="hover:text-rose-400 p-0.5" title="Удалить">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(sheetEl);
+            });
+
+            renderLayersUI();
+        }
+
+        function selectSheet(id) {
+            book.activeSheetId = id;
+            activeShapeId = null;
+            polygonDrawingPoints = [];
+            currentTool = 'select';
+            document.getElementById('tool-select').className = "px-3 py-1.5 rounded bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all";
+            document.getElementById('tool-polygon').className = "px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all";
+            renderSheetsUI();
+            updateInspector();
+            draw();
+        }
+
+        function createNewSheet() {
+            const index = book.sheets.length + 1;
+            const newId = `sheet-${Date.now()}`;
+            book.sheets.push({
+                id: newId,
+                name: `Лист ${index}`,
+                shapes: []
+            });
+            saveHistoryState();
+            selectSheet(newId);
+        }
+
+        function copySheet(id) {
+            const target = book.sheets.find(s => s.id === id);
+            if (!target) return;
+            const newId = `sheet-${Date.now()}`;
+            book.sheets.push({
+                id: newId,
+                name: `${target.name} (Копия)`,
+                shapes: JSON.parse(JSON.stringify(target.shapes))
+            });
+            saveHistoryState();
+            selectSheet(newId);
+        }
+
+        function deleteSheet(id) {
+            if (book.sheets.length <= 1) {
+                alertModal("Вы не можете удалить единственный оставшийся лист!");
+                return;
+            }
+            book.sheets = book.sheets.filter(s => s.id !== id);
+            if (book.activeSheetId === id) {
+                book.activeSheetId = book.sheets[0].id;
+            }
+            saveHistoryState();
+            selectSheet(book.activeSheetId);
+        }
+
+        function openRenameModal(id) {
+            sheetToRenameId = id;
+            const target = book.sheets.find(s => s.id === id);
+            document.getElementById('rename-input').value = target.name;
+            document.getElementById('rename-modal').classList.remove('hidden');
+        }
+
+        function closeRenameModal() {
+            document.getElementById('rename-modal').classList.add('hidden');
+        }
+
+        function confirmRenameSheet() {
+            const val = document.getElementById('rename-input').value.trim();
+            if (val && sheetToRenameId) {
+                const target = book.sheets.find(s => s.id === sheetToRenameId);
+                if (target) {
+                    target.name = val;
+                    saveHistoryState();
+                    renderSheetsUI();
+                }
+            }
+            closeRenameModal();
+        }
+
+        // Множественный выбор для группировки
+        let selectedLayerIds = new Set();
+
+        function toggleLayerSelection(id, event) {
+            event.stopPropagation();
+            if (selectedLayerIds.has(id)) {
+                selectedLayerIds.delete(id);
+            } else {
+                selectedLayerIds.add(id);
+            }
+            renderLayersUI();
+        }
+
+        function groupSelectedShapes() {
+            if (selectedLayerIds.size < 2) {
+                alertModal("Выберите хотя бы 2 элемента в слоях (используя чекбоксы), чтобы сгруппировать их!");
+                return;
+            }
+            const sheet = getActiveSheet();
+            const groupName = prompt("Введите имя для группы:", "Новая группа");
+            if (!groupName) return;
+
+            const groupId = `group-${Date.now()}`;
+            sheet.shapes.forEach(shape => {
+                if (selectedLayerIds.has(shape.id)) {
+                    shape.groupId = groupId;
+                    shape.groupName = groupName;
+                }
+            });
+
+            selectedLayerIds.clear();
+            saveHistoryState();
+            renderLayersUI();
+            draw();
+        }
+
+        function ungroupSelectedShapes() {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            const activeShape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (activeShape && activeShape.groupId) {
+                const targetGroupId = activeShape.groupId;
+                sheet.shapes.forEach(s => {
+                    if (s.groupId === targetGroupId) {
+                        delete s.groupId;
+                        delete s.groupName; // Убираем полностью из отображения
+                    }
+                });
+                saveHistoryState();
+                renderLayersUI();
+                draw();
+            }
+        }
+
+        // --- Интерактивный Менеджер Слоев ---
+        function renderLayersUI() {
+            const container = document.getElementById('layers-list');
+            container.innerHTML = '';
+            const sheet = getActiveSheet();
+
+            if (!sheet.shapes || sheet.shapes.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-600 text-[10px] py-4">Слоёв пока нет</div>`;
+                return;
+            }
+
+            [...sheet.shapes].reverse().forEach(shape => {
+                const isActive = shape.id === activeShapeId;
+                const isChecked = selectedLayerIds.has(shape.id);
+                const groupBadge = shape.groupName ? `<span class="bg-brand-900/60 text-brand-400 text-[9px] px-1 rounded truncate max-w-[50px]">📦 ${shape.groupName}</span>` : '';
+                const activeClasses = isActive 
+                    ? 'bg-slate-800 border-slate-700 text-slate-100 font-bold' 
+                    : 'bg-slate-900/40 border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40';
+
+                const el = document.createElement('div');
+                el.className = `flex items-center justify-between p-1.5 rounded text-[11px] border cursor-pointer gap-2 ${activeClasses}`;
+                el.onclick = () => {
+                    activeShapeId = shape.id;
+                    updateInspector();
+                    draw();
+                };
+                el.innerHTML = `
+                    <div class="flex items-center gap-1.5 overflow-hidden flex-1">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="toggleLayerSelection('${shape.id}', event)" class="rounded bg-slate-950 border-slate-700 accent-brand-500 cursor-pointer">
+                        <span class="w-2.5 h-2.5 rounded-sm shrink-0 border border-slate-700" style="background-color: ${shape.fillColor}"></span>
+                        <span class="truncate block flex-1">${shape.label || shape.name}</span>
+                        ${groupBadge}
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button onclick="event.stopPropagation(); changeLayerDepth('${shape.id}', 'up')" class="hover:text-slate-100 p-0.5" title="Поднять слой выше"> ▲ </button>
+                        <button onclick="event.stopPropagation(); changeLayerDepth('${shape.id}', 'down')" class="hover:text-slate-100 p-0.5" title="Опустить слой ниже"> ▼ </button>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function changeLayerDepth(shapeId, direction) {
+            const sheet = getActiveSheet();
+            const index = sheet.shapes.findIndex(s => s.id === shapeId);
+            if (index === -1) return;
+
+            if (direction === 'up' && index < sheet.shapes.length - 1) {
+                const temp = sheet.shapes[index];
+                sheet.shapes[index] = sheet.shapes[index + 1];
+                sheet.shapes[index + 1] = temp;
+                saveHistoryState();
+            } else if (direction === 'down' && index > 0) {
+                const temp = sheet.shapes[index];
+                sheet.shapes[index] = sheet.shapes[index - 1];
+                sheet.shapes[index - 1] = temp;
+                saveHistoryState();
+            }
+
+            renderLayersUI();
+            draw();
+        }
+
+        // --- Настройка Размеров Холста ---
+        function resizeCanvasBounds() {
+            const rect = canvasContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            gridWidth = parseInt(document.getElementById('canvas-width').value) || 1200;
+            gridHeight = parseInt(document.getElementById('canvas-height').value) || 800;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvasBounds);
+
+        function updateGridSize(val) {
+            gridSize = Math.max(10, parseInt(val) || 40);
+            draw();
+        }
+
+        function updateSnapMode() {
+            snapMode = document.getElementById('snap-mode').value;
+            const container = document.getElementById('tolerance-config');
+            if (snapMode === 'tolerance') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function updateTolerance(val) {
+            snapTolerance = parseInt(val) || 15;
+            document.getElementById('tolerance-val').innerText = snapTolerance;
+        }
+
+        // --- Математика позиционирования и коллизий ---
+        
+        function snapCoordinate(value, bypass = false) {
+            if (bypass || snapMode === 'none') return value;
+            
+            const nearest = Math.round(value / gridSize) * gridSize;
+            if (snapMode === 'strict') {
+                return nearest;
+            } else if (snapMode === 'tolerance') {
+                if (Math.abs(value - nearest) <= snapTolerance) {
+                    return nearest;
+                }
+            }
+            return value;
+        }
+
+        function rotatePoint(px, py, angle) {
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            return {
+                x: px * cos - py * sin,
+                y: px * sin + py * cos
+            };
+        }
+
+        function computeCentroid(points) {
+            let xSum = 0, ySum = 0;
+            points.forEach(p => {
+                xSum += p.x;
+                ySum += p.y;
+            });
+            return {
+                x: xSum / points.length,
+                y: ySum / points.length
+            };
+        }
+
+        function isPointInPolygon(px, py, shape) {
+            const dx = px - shape.x;
+            const dy = py - shape.y;
+            
+            const revPoint = rotatePoint(dx, dy, -shape.angle);
+            const lx = revPoint.x;
+            const ly = revPoint.y;
+
+            let inside = false;
+            const pts = shape.points;
+            for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+                const xi = pts[i].x, yi = pts[i].y;
+                const xj = pts[j].x, yj = pts[j].y;
+                
+                const intersect = ((yi > ly) !== (yj > ly))
+                    && (lx < (xj - xi) * (ly - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            polygonDrawingPoints = [];
+            
+            const btnSel = document.getElementById('tool-select');
+            const btnPoly = document.getElementById('tool-polygon');
+
+            if (tool === 'select') {
+                btnSel.className = "px-3 py-1.5 rounded bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all";
+                btnPoly.className = "px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all";
+                canvas.style.cursor = "default";
+            } else if (tool === 'polygon') {
+                btnPoly.className = "px-3 py-1.5 rounded bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all";
+                btnSel.className = "px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all";
+                canvas.style.cursor = "crosshair";
+            }
+            draw();
+        }
+
+        function addRectangle() {
+            const sheet = getActiveSheet();
+            const rectId = `shape-rect-${Date.now()}`;
+            const w = 120, h = 80;
+            
+            const newRect = {
+                id: rectId,
+                name: `Четырехугольник ${sheet.shapes.length + 1}`,
+                type: "rect",
+                x: gridWidth / 2,
+                y: gridHeight / 2,
+                width: w,
+                height: h,
+                points: [
+                    {x: -w/2, y: -h/2},
+                    {x: w/2, y: -h/2},
+                    {x: w/2, y: h/2},
+                    {x: -w/2, y: h/2}
+                ],
+                angle: 0,
+                fillColor: "#0ea5e950",
+                strokeColor: "#0ea5e9",
+                label: `Зона ${sheet.shapes.length + 1}`
+            };
+
+            sheet.shapes.push(newRect);
+            saveHistoryState();
+            activeShapeId = rectId;
+            setTool('select');
+            updateInspector();
+            renderLayersUI();
+            draw();
+        }
+
+        function adjustRectVertices(shape, index, localX, localY) {
+            // Вершины: 0 - TL, 1 - TR, 2 - BR, 3 - BL
+            if (index === 0) { 
+                shape.points[1].y = localY; 
+                shape.points[3].x = localX; 
+            } else if (index === 1) { 
+                shape.points[0].y = localY; 
+                shape.points[2].x = localX; 
+            } else if (index === 2) { 
+                shape.points[3].y = localY; 
+                shape.points[1].x = localX; 
+            } else if (index === 3) { 
+                shape.points[2].y = localY; 
+                shape.points[0].x = localX; 
+            }
+        }
+
+        function recalculateCentroidAndPoints(shape) {
+            const centroid = computeCentroid(shape.points);
+            const rotatedShift = rotatePoint(centroid.x, centroid.y, shape.angle);
+            shape.x += rotatedShift.x;
+            shape.y += rotatedShift.y;
+
+            shape.points = shape.points.map(p => ({
+                x: p.x - centroid.x,
+                y: p.y - centroid.y
+            }));
+        }
+
+        function finishPolygonDrawing() {
+            if (polygonDrawingPoints.length < 3) return;
+
+            const centroid = computeCentroid(polygonDrawingPoints);
+            const localPoints = polygonDrawingPoints.map(p => ({
+                x: p.x - centroid.x,
+                y: p.y - centroid.y
+            }));
+
+            const sheet = getActiveSheet();
+            const polyId = `shape-poly-${Date.now()}`;
+            const newPoly = {
+                id: polyId,
+                name: `Полигон ${sheet.shapes.length + 1}`,
+                type: "polygon",
+                x: centroid.x,
+                y: centroid.y,
+                points: localPoints,
+                angle: 0,
+                fillColor: "#10b98150",
+                strokeColor: "#10b981",
+                label: `Участок ${sheet.shapes.length + 1}`
+            };
+
+            sheet.shapes.push(newPoly);
+            saveHistoryState();
+            activeShapeId = polyId;
+            setTool('select');
+            updateInspector();
+            renderLayersUI();
+            
+            polygonDrawingPoints = [];
+            draw();
+        }
+
+        function getGlobalVertexPos(shape, index) {
+            const pt = shape.points[index];
+            const rotated = rotatePoint(pt.x, pt.y, shape.angle);
+            return {
+                x: shape.x + rotated.x,
+                y: shape.y + rotated.y
+            };
+        }
+
+        function getRotateHandleGlobalPos(shape) {
+            let minY = 0;
+            shape.points.forEach(p => { if (p.y < minY) minY = p.y; });
+            const handleLocY = minY - 30;
+            const rotated = rotatePoint(0, handleLocY, shape.angle);
+            return {
+                x: shape.x + rotated.x,
+                y: shape.y + rotated.y
+            };
+        }
+
+        // --- Инспектор Свойств (Правая панель) ---
+        function updateInspector() {
+            const emptyEl = document.getElementById('inspector-empty');
+            const contentEl = document.getElementById('inspector-content');
+
+            if (!activeShapeId) {
+                emptyEl.classList.remove('hidden');
+                contentEl.classList.add('hidden');
+                document.getElementById('selected-info').innerText = "Нет";
+                return;
+            }
+
+            const sheet = getActiveSheet();
+            const shape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (!shape) return;
+
+            emptyEl.classList.add('hidden');
+            contentEl.classList.remove('hidden');
+
+            document.getElementById('selected-info').innerText = shape.label || shape.name;
+            document.getElementById('prop-label').value = shape.label || '';
+            
+            // Вычисляем текущую прозрачность из fillColor фигуры
+            let currentAlpha = 1;
+            if (shape.fillColor.length === 9) {
+                currentAlpha = parseInt(shape.fillColor.slice(7, 9), 16) / 255;
+            }
+            document.getElementById('shapeOpacity').value = currentAlpha;
+            document.getElementById('shapeOpacityVal').innerText = `${Math.round(currentAlpha * 100)}%`;
+
+            // Цвета
+            const fillHex = shape.fillColor.slice(0, 7);
+            document.getElementById('prop-fill').value = fillHex;
+            document.getElementById('prop-fill-text').value = shape.fillColor;
+
+            const strokeHex = shape.strokeColor.slice(0, 7);
+            document.getElementById('prop-stroke').value = strokeHex;
+            document.getElementById('prop-stroke-text').value = shape.strokeColor;
+
+            // Координаты
+            document.getElementById('prop-x').value = Math.round(shape.x);
+            document.getElementById('prop-y').value = Math.round(shape.y);
+
+            // Поворот в градусах
+            const deg = Math.round(shape.angle * (180 / Math.PI)) % 360;
+            const normalizedDeg = deg < 0 ? deg + 360 : deg;
+            document.getElementById('prop-angle-slider').value = normalizedDeg;
+            document.getElementById('prop-angle-input').value = normalizedDeg;
+        }
+
+        function updateProp(propName, val) {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            const shape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (shape) {
+                if (propName === 'fillColor') {
+                    const currentAlphaHex = shape.fillColor.length === 9 ? shape.fillColor.slice(7, 9) : 'ff';
+                    shape[propName] = val.slice(0, 7) + currentAlphaHex;
+                } else {
+                    shape[propName] = val;
+                }
+                draw();
+            }
+        }
+
+        function updatePropText(propName, val) {
+            if (!activeShapeId) return;
+            if (val.length === 7 && val.startsWith('#')) {
+                const sheet = getActiveSheet();
+                const shape = sheet.shapes.find(s => s.id === activeShapeId);
+                if (shape) {
+                    if (propName === 'fillColor') {
+                        const currentAlphaHex = shape.fillColor.length === 9 ? shape.fillColor.slice(7, 9) : 'ff';
+                        shape[propName] = val + currentAlphaHex;
+                        document.getElementById('prop-fill').value = val;
+                    } else {
+                        shape[propName] = val;
+                        if (propName === 'strokeColor') document.getElementById('prop-stroke').value = val.slice(0,7);
+                    }
+                    draw();
+                }
+            }
+        }
+
+        function updateOpacity(val) {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            const shape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (shape) {
+                const alpha = parseFloat(val);
+                const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+                const baseColor = shape.fillColor.slice(0, 7);
+                shape.fillColor = baseColor + alphaHex;
+                
+                document.getElementById('shapeOpacityVal').innerText = `${Math.round(alpha * 100)}%`;
+                document.getElementById('prop-fill-text').value = shape.fillColor;
+                draw();
+                renderLayersUI();
+            }
+        }
+
+        function updatePropNum(propName, val) {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            const shape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (shape) {
+                shape[propName] = parseFloat(val) || 0;
+                draw();
+            }
+        }
+
+        function updateAngleSlider(val) {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            const shape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (shape) {
+                shape.angle = parseFloat(val) * (Math.PI / 180);
+                document.getElementById('prop-angle-input').value = val;
+                draw();
+            }
+        }
+
+        function updateAngleInput(val) {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            const shape = sheet.shapes.find(s => s.id === activeShapeId);
+            if (shape) {
+                shape.angle = (parseFloat(val) || 0) * (Math.PI / 180);
+                document.getElementById('prop-angle-slider').value = val;
+                draw();
+            }
+        }
+
+        function deleteSelectedShape() {
+            if (!activeShapeId) return;
+            const sheet = getActiveSheet();
+            sheet.shapes = sheet.shapes.filter(s => s.id !== activeShapeId);
+            saveHistoryState();
+            activeShapeId = null;
+            updateInspector();
+            renderLayersUI();
+            draw();
+        }
+
+        function clearCurrentCanvas() {
+            const sheet = getActiveSheet();
+            if (sheet.shapes.length === 0) return;
+            
+            sheet.shapes = [];
+            saveHistoryState();
+            activeShapeId = null;
+            updateInspector();
+            renderLayersUI();
+            draw();
+        }
+
+        // --- Главная функция Отрисовки (Бесконечная сетка) ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.translate(panX, panY);
+            ctx.scale(zoom, zoom);
+
+            // 1. Отрисовка Бесконечной координатной сетки
+            ctx.strokeStyle = '#1e293b'; 
+            ctx.lineWidth = 1;
+
+            // Вычисляем видимые границы экрана в мировых координатах
+            const startX = -panX / zoom;
+            const endX = (canvas.width - panX) / zoom;
+            const startY = -panY / zoom;
+            const endY = (canvas.height - panY) / zoom;
+
+            const firstX = Math.floor(startX / gridSize) * gridSize;
+            const firstY = Math.floor(startY / gridSize) * gridSize;
+
+            for (let x = firstX; x <= endX; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, startY);
+                ctx.lineTo(x, endY);
+                ctx.stroke();
+            }
+
+            for (let y = firstY; y <= endY; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(startX, y);
+                ctx.lineTo(endX, y);
+                ctx.stroke();
+            }
+
+            // 2. Отрисовываем фигуры
+            const sheet = getActiveSheet();
+            sheet.shapes.forEach(shape => {
+                ctx.save();
+                ctx.translate(shape.x, shape.y);
+                ctx.rotate(shape.angle);
+
+                ctx.beginPath();
+                ctx.moveTo(shape.points[0].x, shape.points[0].y);
+                for (let i = 1; i < shape.points.length; i++) {
+                    ctx.lineTo(shape.points[i].x, shape.points[i].y);
+                }
+                ctx.closePath();
+
+                ctx.fillStyle = shape.fillColor;
+                ctx.fill();
+                ctx.strokeStyle = shape.strokeColor;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Подписи горизонтально
+                if (shape.label) {
+                    ctx.save();
+                    ctx.translate(shape.x, shape.y);
+                    
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    ctx.shadowColor = '#000000';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(shape.label, 0, 0);
+                    
+                    ctx.restore();
+                }
+            });
+
+            // 3. Рисование строящегося полигона
+            if (currentTool === 'polygon' && polygonDrawingPoints.length > 0) {
+                ctx.save();
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.fillStyle = '#f59e0b20';
+
+                ctx.beginPath();
+                ctx.moveTo(polygonDrawingPoints[0].x, polygonDrawingPoints[0].y);
+                for (let i = 1; i < polygonDrawingPoints.length; i++) {
+                    ctx.lineTo(polygonDrawingPoints[i].x, polygonDrawingPoints[i].y);
+                }
+                ctx.stroke();
+
+                polygonDrawingPoints.forEach((pt, index) => {
+                    ctx.fillStyle = index === 0 ? '#ef4444' : '#f59e0b';
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            }
+
+            // 4. Интерактивные маркеры выделенной фигуры
+            if (activeShapeId && currentTool === 'select') {
+                const shape = sheet.shapes.find(s => s.id === activeShapeId);
+                if (shape) {
+                    ctx.save();
+                    
+                    // Линия вращения
+                    const rotGlob = getRotateHandleGlobalPos(shape);
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(shape.x, shape.y);
+                    ctx.lineTo(rotGlob.x, rotGlob.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Круг вращения
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(rotGlob.x, rotGlob.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Вершины
+                    shape.points.forEach((pt, index) => {
+                        const globalPt = getGlobalVertexPos(shape, index);
+                        ctx.fillStyle = '#0ea5e9';
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(globalPt.x, globalPt.y, 7, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.stroke();
+                    });
+
+                    ctx.restore();
+                }
+            }
+            
+            ctx.restore();
+        }
+
+        // --- Функции Импорта и Экспорта ---
+        function triggerImport() {
+            document.getElementById('import-file').click();
+        }
+
+        function importBook(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed && Array.isArray(parsed.sheets) && parsed.activeSheetId) {
+                        book = parsed;
+                        saveHistoryState();
+                        selectSheet(book.activeSheetId);
+                    } else {
+                        alertModal("Невалидная структура файла Книги!");
+                    }
+                } catch (err) {
+                    alertModal("Ошибка чтения JSON файла!");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(book, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `planner_book_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportSVG() {
+            const sheet = getActiveSheet();
+            let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${gridWidth}" height="${gridHeight}" viewBox="0 0 ${gridWidth} ${gridHeight}">`;
+            svgContent += `<rect width="100%" height="100%" fill="#0f172a"/>`;
+
+            sheet.shapes.forEach(shape => {
+                const globPts = shape.points.map(p => {
+                    const rotated = rotatePoint(p.x, p.y, shape.angle);
+                    return `${shape.x + rotated.x},${shape.y + rotated.y}`;
+                }).join(' ');
+
+                svgContent += `<polygon points="${globPts}" fill="${shape.fillColor}" stroke="${shape.strokeColor}" stroke-width="3" />`;
+                
+                if (shape.label) {
+                    svgContent += `<text x="${shape.x}" y="${shape.y}" fill="#ffffff" font-family="sans-serif" font-weight="bold" font-size="12" text-anchor="middle" dominant-baseline="central">${shape.label}</text>`;
+                }
+            });
+
+            svgContent += `</svg>`;
+
+            const dataStr = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgContent);
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `${sheet.name}_export.svg`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportRaster(format) {
+            const prevActiveId = activeShapeId;
+            activeShapeId = null;
+            draw();
+
+            setTimeout(() => {
+                const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+                const ext = format === 'jpeg' ? 'jpg' : 'png';
+                const imgData = canvas.toDataURL(mime, 1.0);
+                
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.href = imgData;
+                downloadAnchor.download = `${getActiveSheet().name}_export.${ext}`;
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                document.body.remove();
+
+                activeShapeId = prevActiveId;
+                draw();
+            }, 50);
+        }
+
+        function alertModal(message) {
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50";
+            modal.innerHTML = `
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 w-80 shadow-2xl text-center space-y-4">
+                    <div class="text-amber-500 text-3xl">⚠️</div>
+                    <p class="text-sm text-slate-200">${message}</p>
+                    <button onclick="this.parentElement.parentElement.remove()" class="px-6 py-2 rounded bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold">OK</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+    </script>
+</body>
+</html>
