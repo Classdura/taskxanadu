@@ -329,8 +329,15 @@
 <br>
 <label>Изображение фона:<br> <input type="file" onchange="setMapBgImage(this)"></label>
     <hr>
-    <button class="btn" onclick="exportData()">💾 Экспорт</button>
-    <button class="btn" onclick="document.getElementById('import-input').click()">📂 Импорт</button>
+    <div style="margin-bottom: 10px; font-weight: bold; font-size: 12px; color: #333;">Текущая карта:</div>
+    <button class="btn" onclick="exportMapOnly()">📄 Экспорт карты</button>
+    <button class="btn" onclick="document.getElementById('import-map-input').click()">📥 Импорт карты</button>
+    <input type="file" id="import-map-input" style="display:none" accept=".json" onchange="importMapOnly(this)">
+    
+    <hr>
+    <div style="margin-bottom: 10px; font-weight: bold; font-size: 12px; color: #333;">Все данные (бэкап):</div>
+    <button class="btn" onclick="exportData()">💾 Экспорт всего</button>
+    <button class="btn" onclick="document.getElementById('import-input').click()">📂 Импорт всего</button>
     <input type="file" id="import-input" style="display:none" onchange="importData(this)">
 </div>
 
@@ -1166,6 +1173,53 @@ function applyZoom(delta, px, py) {
                 save();
                 alert("Данные успешно импортированы!");
             } catch(e) { alert("Ошибка файла!"); }
+        };
+        reader.readAsText(input.files[0]);
+    }
+	function exportMapOnly() {
+        const activeMapId = state.activeMap;
+        const mapData = state.maps[activeMapId];
+        
+        // Превращаем конкретную карту в строку JSON
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(mapData));
+        const a = document.createElement('a');
+        a.setAttribute("href", dataStr);
+        // Даем файлу понятное имя на основе названия карты, заменяя пробелы
+        a.setAttribute("download", `map_${mapData.name.replace(/\s+/g, '_')}.json`);
+        a.click();
+    }
+
+    function importMapOnly(input) {
+        if (!input.files || !input.files[0]) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const mapData = JSON.parse(e.target.result);
+                
+                // Базовая защита от дурака: проверяем структуру
+                if (!mapData.nodes || !mapData.links) {
+                    alert("Это не похоже на корректный файл карты!");
+                    return;
+                }
+                
+                // Генерируем новый ID для избежания конфликтов
+                const newId = "map_" + Date.now();
+                mapData.id = newId;
+                mapData.name = mapData.name + " (Импорт)";
+                
+                // Добавляем импортированную карту в стейт
+                state.maps[newId] = mapData;
+                
+                // Переключаемся на новую карту (функция switchMap сама вызовет renderAll и save)
+                switchMap(newId);
+                alert("Карта успешно добавлена!");
+                
+                // Очищаем инпут, чтобы браузер позволил загрузить этот же файл еще раз при необходимости
+                input.value = '';
+            } catch(error) { 
+                alert("Ошибка чтения файла карты! Возможно, файл поврежден."); 
+            }
         };
         reader.readAsText(input.files[0]);
     }
