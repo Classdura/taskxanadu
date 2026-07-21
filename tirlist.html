@@ -528,9 +528,11 @@
 
         let sortableInstances = [];
         function initSortable() {
+            // Очищаем старые инстансы
             sortableInstances.forEach(inst => inst.destroy());
             sortableInstances = [];
 
+            // 1. Сортировка карточек внутри рядов (твой исходный код)
             document.querySelectorAll('.sortable-list').forEach(listEl => {
                 const inst = new Sortable(listEl, {
                     group: 'shared', animation: 180, delay: 60, delayOnTouchOnly: true, fallbackTolerance: 3,
@@ -538,6 +540,27 @@
                 });
                 sortableInstances.push(inst);
             });
+
+            // 2. Сортировка самих рядов (нововведение)
+            const rowsInst = new Sortable(tierRowsContainer, {
+                animation: 200,
+                handle: '.row-header', // Разрешаем тянуть ряд только за его заголовок
+                onEnd: function () {
+                    const currentSheet = getActiveSheet();
+                    
+                    // Собираем новый порядок ID рядов прямо из измененного DOM
+                    const newOrderIds = Array.from(tierRowsContainer.children).map(rowEl => 
+                        rowEl.querySelector('.row-header').getAttribute('data-row-id')
+                    );
+                    
+                    // Сортируем массив рядов в стейте, чтобы он совпадал с новым порядком в DOM
+                    currentSheet.rows.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+                    
+                    saveState(); // Сохраняем в localStorage
+                    generateTableData(); // Обновляем данные скрытой таблицы для экспорта
+                }
+            });
+            sortableInstances.push(rowsInst);
         }
 
         function updateStateFromDOM() {
