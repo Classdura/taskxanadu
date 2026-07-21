@@ -418,7 +418,7 @@
                 theme: 'light',
                 maps: [],
                 currentMapId: null,
-                activeTaskId: null 
+                focusedTaskIds: [] 
             },
             history: [],
             historyIndex: -1,
@@ -573,7 +573,19 @@
                 });
             },
 			focusTask(id) {
-                this.state.activeTaskId = (this.state.activeTaskId === id) ? null : id;
+                // Инициализируем массив, если загрузили старое сохранение
+                if (!this.state.focusedTaskIds) this.state.focusedTaskIds = [];
+                
+                const index = this.state.focusedTaskIds.indexOf(id);
+                if (index > -1) {
+                    // Если задача уже в фокусе — убираем её из очереди
+                    this.state.focusedTaskIds.splice(index, 1);
+                } else {
+                    // Иначе добавляем в очередь
+                    this.state.focusedTaskIds.push(id);
+                }
+                
+                this.saveState();
                 this.render();
             },
             updateMapTitle(newTitle) {
@@ -679,18 +691,27 @@
                 
                 setCompleteDeep(info.node, newVal);
 
-                if (newVal && this.state.activeTaskId === id) {
-                    const flatList = this.flattenTasks(map.tasks);
-                    const currentIndex = flatList.findIndex(t => t.id === id);
+                if (!this.state.focusedTaskIds) this.state.focusedTaskIds = [];
+
+                // Если задача выполнена и она была в списке сфокусированных
+                if (newVal && this.state.focusedTaskIds.includes(id)) {
+                    const idx = this.state.focusedTaskIds.indexOf(id);
                     
-                    let nextTask = null;
-                    for (let i = currentIndex + 1; i < flatList.length; i++) {
-                        if (!flatList[i].completed) {
-                            nextTask = flatList[i];
-                            break;
-                        }
+                    // Удаляем её из списка фокуса
+                    this.state.focusedTaskIds.splice(idx, 1);
+                    
+                    // Если в очереди ещё остались задачи для фокуса
+                    if (this.state.focusedTaskIds.length > 0) {
+                        // Берем следующую по очереди (или первую, если завершили последнюю)
+                        const nextIndex = idx < this.state.focusedTaskIds.length ? idx : 0;
+                        const nextId = this.state.focusedTaskIds[nextIndex];
+                        
+                        // Делаем плавный скролл к следующей задаче с небольшой задержкой (чтобы DOM успел обновиться)
+                        setTimeout(() => {
+                            const el = document.getElementById('task-' + nextId);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 50);
                     }
-                    this.state.activeTaskId = nextTask ? nextTask.id : null;
                 }
 
                 this.saveState(); this.render();
@@ -824,7 +845,7 @@
                     const inlineStyle = task.color ? `--node-custom-color: ${task.color};` : '';
 
                     li.innerHTML = `
-                        <div class="task-content ${task.completed ? 'completed' : ''} ${task.id === app.state.activeTaskId ? 'focused' : ''}" style="${inlineStyle}">
+                        <div id="task-${task.id}" class="task-content ${task.completed ? 'completed' : ''} ${(app.state.focusedTaskIds || []).includes(task.id) ? 'focused' : ''}" style="${inlineStyle}">
                             ${toggleBtn}
                             <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="app.toggleComplete('${task.id}')">
                             <input type="text" class="task-text" value="${task.text.replace(/"/g, '&quot;')}" onblur="app.updateTaskText('${task.id}', this.value)">
