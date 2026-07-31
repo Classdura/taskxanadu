@@ -1,0 +1,1935 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Сюжетный Архитектор</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    :root {
+      /* Переменные для тем, будут меняться через JS */
+      --bg: #f4ebd0;
+      --text: #4a3b32;
+      --card-bg: #faebd7;
+      --card-border: #d2b48c;
+      --btn-bg: #8b5a2b;
+      --btn-text: #ffffff;
+      --input-bg: #ffffff;
+      --input-border: #d2b48c;
+      --input-focus: #8b5a2b;
+      --font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-family);
+      transition: background-color 0.3s, color 0.3s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Компонентные классы */
+    .theme-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      border-radius: 0.5rem;
+    }
+    
+    .theme-btn {
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+      transition: opacity 0.2s;
+    }
+    .theme-btn:active { opacity: 0.8; transform: scale(0.98); }
+    
+    .theme-input {
+      background-color: var(--input-bg);
+      border: 1px solid var(--input-border);
+      color: var(--text);
+    }
+    .theme-input:focus { outline: none; box-shadow: 0 0 0 2px var(--input-focus); }
+
+    /* Утилиты */
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .pb-safe { padding-bottom: max(5rem, env(safe-area-inset-bottom)); }
+    
+    /* Специфичные стили для матрицы */
+    .matrix-table th, .matrix-table td { border: 1px solid var(--card-border); }
+    .matrix-header { background-color: var(--card-bg); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Шапка -->
+  <header class="theme-card !rounded-none !border-x-0 !border-t-0 shadow-md sticky top-0 z-30 p-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <button onclick="ui.toggleSidebar(true)" class="p-1"><i data-lucide="menu"></i></button>
+      <h1 id="header-title" class="font-bold text-lg truncate max-w-[180px]">Загрузка...</h1>
+    </div>
+    <select id="theme-selector" onchange="app.changeTheme(this.value)" class="text-xs p-1 rounded theme-input max-w-[120px]"></select>
+  </header>
+
+  <!-- Сайдбар -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden backdrop-blur-sm" onclick="ui.toggleSidebar(false)"></div>
+  <div id="sidebar" class="fixed top-0 left-0 h-full w-80 max-w-[85vw] theme-card !rounded-none !border-y-0 !border-l-0 border-r z-50 transform -translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="p-4 flex justify-between items-center border-b border-[var(--card-border)]">
+      <h2 class="text-xl font-bold">Мои Книги</h2>
+      <button onclick="ui.toggleSidebar(false)"><i data-lucide="x"></i></button>
+    </div>
+    <div id="sidebar-books" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+    <div class="p-4 border-t border-[var(--card-border)] space-y-2">
+      <p class="text-sm font-bold mb-2">Резервное копирование</p>
+      <button onclick="app.exportData()" class="theme-btn w-full p-2 rounded text-sm flex justify-center gap-2 items-center"><i data-lucide="download" class="w-4 h-4"></i> Экспорт (JSON)</button>
+      <button onclick="document.getElementById('import-file').click()" class="theme-btn w-full p-2 rounded text-sm flex justify-center gap-2 items-center"><i data-lucide="upload" class="w-4 h-4"></i> Импорт (Заменит всё)</button>
+      <input type="file" id="import-file" class="hidden" accept=".json" onchange="app.importData(event)">
+    </div>
+  </div>
+
+  <!-- Главный контейнер -->
+  <main id="main-content" class="w-full max-w-2xl mx-auto flex-1"></main>
+
+  <!-- Оверлей редактора диалогов -->
+  <div id="dialogue-editor-container" class="fixed inset-0 z-50 overflow-y-auto hidden flex-col bg-[var(--bg)]"></div>
+
+  <!-- Нижняя навигация -->
+  <nav class="theme-card !rounded-none !border-x-0 !border-b-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] fixed bottom-0 left-0 w-full flex justify-around p-2 z-30 pb-safe">
+    <button onclick="app.setTab('story')" id="nav-story" class="flex flex-col items-center p-2 transition-transform opacity-60"><i data-lucide="book" class="mb-1"></i><span class="text-[10px]">Сюжет</span></button>
+    <button onclick="app.setTab('world')" id="nav-world" class="flex flex-col items-center p-2 transition-transform opacity-60"><i data-lucide="users" class="mb-1"></i><span class="text-[10px]">Мир</span></button>
+    <button onclick="app.setTab('relations')" id="nav-relations" class="flex flex-col items-center p-2 transition-transform opacity-60"><i data-lucide="heart" class="mb-1"></i><span class="text-[10px]">Связи</span></button>
+    <button onclick="app.setTab('stats')" id="nav-stats" class="flex flex-col items-center p-2 transition-transform opacity-60"><i data-lucide="bar-chart-2" class="mb-1"></i><span class="text-[10px]">Анализ</span></button>
+  </nav>
+
+  <!-- Модальные окна (Замена alert и confirm) -->
+  <div id="modal-container" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="theme-card w-full max-w-sm p-6 flex flex-col items-center text-center shadow-2xl relative">
+      <h3 id="modal-title" class="font-bold text-lg mb-2">Сообщение</h3>
+      <p id="modal-msg" class="mb-6 opacity-90"></p>
+      <div id="modal-buttons" class="flex gap-3 w-full"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- ТЕМЫ ОФОРМЛЕНИЯ ---
+    const THEMES = {
+      'cozy': { name: 'Кофейный уют', css: { '--bg': '#f4ebd0', '--text': '#4a3b32', '--card-bg': '#faebd7', '--card-border': '#d2b48c', '--btn-bg': '#8b5a2b', '--btn-text': '#ffffff', '--input-bg': '#ffffff', '--input-border': '#d2b48c', '--input-focus': '#8b5a2b', '--font-family': 'serif' } },
+      'blood': { name: 'Кровавый хоррор', css: { '--bg': '#1a0505', '--text': '#e0b0b0', '--card-bg': '#2a0808', '--card-border': '#8b0000', '--btn-bg': '#8b0000', '--btn-text': '#ffffff', '--input-bg': '#3a0a0a', '--input-border': '#8b0000', '--input-focus': '#ff0000', '--font-family': 'sans-serif' } },
+      'gothic': { name: 'Готика', css: { '--bg': '#1c1c24', '--text': '#d4d4d4', '--card-bg': '#252530', '--card-border': '#4a4a5a', '--btn-bg': '#3b3b4f', '--btn-text': '#d4d4d4', '--input-bg': '#1c1c24', '--input-border': '#4a4a5a', '--input-focus': '#6a6a8a', '--font-family': 'serif' } },
+      'frutiger': { name: 'Frutiger Aero', css: { '--bg': '#e0f7fa', '--text': '#006064', '--card-bg': 'rgba(255,255,255,0.7)', '--card-border': '#80deea', '--btn-bg': '#26c6da', '--btn-text': '#ffffff', '--input-bg': 'rgba(255,255,255,0.8)', '--input-border': '#80deea', '--input-focus': '#00bcd4', '--font-family': 'sans-serif' } },
+      'console': { name: 'Консольный', css: { '--bg': '#000000', '--text': '#00ff00', '--card-bg': '#000000', '--card-border': '#00ff00', '--btn-bg': 'transparent', '--btn-text': '#00ff00', '--input-bg': '#000000', '--input-border': '#00ff00', '--input-focus': '#00ff00', '--font-family': 'monospace' } },
+      'fantasy': { name: 'Фэнтези', css: { '--bg': '#0f172a', '--text': '#e2e8f0', '--card-bg': '#1e293b', '--card-border': '#3b82f6', '--btn-bg': '#6366f1', '--btn-text': '#ffffff', '--input-bg': '#0f172a', '--input-border': '#4f46e5', '--input-focus': '#8b5cf6', '--font-family': 'serif' } },
+      'military': { name: 'Милитари', css: { '--bg': '#4b5320', '--text': '#eaddcf', '--card-bg': '#353823', '--card-border': '#222222', '--btn-bg': '#555d28', '--btn-text': '#eaddcf', '--input-bg': '#4b5320', '--input-border': '#222222', '--input-focus': '#eaddcf', '--font-family': 'sans-serif' } },
+      'gold': { name: 'Золотой', css: { '--bg': '#111111', '--text': '#ffd700', '--card-bg': '#222222', '--card-border': '#b8860b', '--btn-bg': '#b8860b', '--btn-text': '#111111', '--input-bg': '#333333', '--input-border': '#b8860b', '--input-focus': '#ffd700', '--font-family': 'serif' } },
+      'snow': { name: 'Снежный', css: { '--bg': '#f0f8ff', '--text': '#2f4f4f', '--card-bg': '#ffffff', '--card-border': '#add8e6', '--btn-bg': '#b0e0e6', '--btn-text': '#2f4f4f', '--input-bg': '#ffffff', '--input-border': '#add8e6', '--input-focus': '#87ceeb', '--font-family': 'sans-serif' } },
+      'desert': { name: 'Пустынный', css: { '--bg': '#f4a460', '--text': '#8b4513', '--card-bg': '#deb887', '--card-border': '#d2691e', '--btn-bg': '#cd853f', '--btn-text': '#ffffff', '--input-bg': '#ffdead', '--input-border': '#d2691e', '--input-focus': '#a0522d', '--font-family': 'sans-serif' } },
+      'eastern': { name: 'Восточный', css: { '--bg': '#f9f6f0', '--text': '#3a1f1d', '--card-bg': '#fffaf0', '--card-border': '#b22222', '--btn-bg': '#b22222', '--btn-text': '#ffffff', '--input-bg': '#ffffff', '--input-border': '#d2b48c', '--input-focus': '#8b0000', '--font-family': 'serif' } },
+      'ocean': { name: 'Океан', css: { '--bg': '#001f3f', '--text': '#7fdbff', '--card-bg': '#002b5e', '--card-border': '#0074d9', '--btn-bg': '#0074d9', '--btn-text': '#ffffff', '--input-bg': '#001f3f', '--input-border': '#39cccc', '--input-focus': '#7fdbff', '--font-family': 'sans-serif' } },
+      'wackypomo': { name: 'Wacky Pomo', css: { '--bg': '#ff00ff', '--text': '#000000', '--card-bg': '#00ffff', '--card-border': '#ffff00', '--btn-bg': '#ffff00', '--btn-text': '#000000', '--input-bg': '#ffffff', '--input-border': '#ff00ff', '--input-focus': '#00ffff', '--font-family': 'comic sans ms, sans-serif' } },
+      'cyberpunk': { name: 'Киберпанк', css: { '--bg': '#0d0221', '--text': '#0ff', '--card-bg': '#11052c', '--card-border': '#f0f', '--btn-bg': '#f0f', '--btn-text': '#0ff', '--input-bg': '#0d0221', '--input-border': '#0ff', '--input-focus': '#f0f', '--font-family': 'monospace' } },
+      'antique': { name: 'Античный', css: { '--bg': '#e0e0e0', '--text': '#2c2c2c', '--card-bg': '#f5f5f5', '--card-border': '#b0b0b0', '--btn-bg': '#8b0000', '--btn-text': '#ffffff', '--input-bg': '#ffffff', '--input-border': '#a0a0a0', '--input-focus': '#8b0000', '--font-family': 'serif' } },
+      'forest': { name: 'Лесной', css: { '--bg': '#2d4c1e', '--text': '#e1ebd8', '--card-bg': '#3a5f27', '--card-border': '#8fbc8f', '--btn-bg': '#556b2f', '--btn-text': '#ffffff', '--input-bg': '#2d4c1e', '--input-border': '#8fbc8f', '--input-focus': '#98fb98', '--font-family': 'sans-serif' } }
+    };
+
+    // --- СОСТОЯНИЕ ПРИЛОЖЕНИЯ ---
+    const state = {
+      books: [],
+      activeBookId: null,
+      activeTab: 'story',
+      theme: 'cozy',
+      activeChapterId: null,
+      
+      // Локальные состояния UI
+      worldSubTab: 'chars', // chars, factions, locations, items
+      worldFactionEditingId: null,
+      worldCharEditingId: null,
+      worldItemEditingId: null,
+      relationsViewMode: 'matrix', // matrix, list
+      storyNewItemType: 'action', // action, description, dialogue
+      storyEditingId: null, // ID редактируемого события в сюжете
+      activePlotLineFilter: 'all', // Фильтр сюжетных веток
+      showPlotLineEditor: false, // Отображение редактора веток
+      dialogue: { activeId: null, currentNodeId: null }
+    };
+
+    // --- УТИЛИТЫ UI И МОДАЛКИ (Замена alert/confirm) ---
+    const ui = {
+      toggleSidebar: (show) => {
+        const sb = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (show) {
+          sb.classList.remove('-translate-x-full');
+          overlay.classList.remove('hidden');
+        } else {
+          sb.classList.add('-translate-x-full');
+          overlay.classList.add('hidden');
+        }
+      },
+      alert: (msg) => {
+        return new Promise(resolve => {
+          document.getElementById('modal-container').classList.remove('hidden');
+          document.getElementById('modal-container').classList.add('flex');
+          document.getElementById('modal-title').innerText = 'Внимание';
+          document.getElementById('modal-msg').innerText = msg;
+          document.getElementById('modal-buttons').innerHTML = `
+            <button class="theme-btn w-full p-2 rounded font-bold" id="modal-btn-ok">Понятно</button>
+          `;
+          document.getElementById('modal-btn-ok').onclick = () => {
+            document.getElementById('modal-container').classList.add('hidden');
+            document.getElementById('modal-container').classList.remove('flex');
+            resolve();
+          };
+        });
+      },
+      confirm: (msg) => {
+        return new Promise(resolve => {
+          document.getElementById('modal-container').classList.remove('hidden');
+          document.getElementById('modal-container').classList.add('flex');
+          document.getElementById('modal-title').innerText = 'Подтверждение';
+          document.getElementById('modal-msg').innerText = msg;
+          document.getElementById('modal-buttons').innerHTML = `
+            <button class="w-1/2 p-2 rounded border border-[var(--card-border)] opacity-70 hover:opacity-100" id="modal-btn-no">Отмена</button>
+            <button class="theme-btn w-1/2 p-2 rounded font-bold bg-red-600 !text-white border-none" id="modal-btn-yes">Да</button>
+          `;
+          document.getElementById('modal-btn-no').onclick = () => {
+            document.getElementById('modal-container').classList.add('hidden');
+            document.getElementById('modal-container').classList.remove('flex');
+            resolve(false);
+          };
+          document.getElementById('modal-btn-yes').onclick = () => {
+            document.getElementById('modal-container').classList.add('hidden');
+            document.getElementById('modal-container').classList.remove('flex');
+            resolve(true);
+          };
+        });
+      },
+      prompt: (msg, defaultVal = '') => {
+        return new Promise(resolve => {
+          document.getElementById('modal-container').classList.remove('hidden');
+          document.getElementById('modal-container').classList.add('flex');
+          document.getElementById('modal-title').innerText = msg;
+          document.getElementById('modal-msg').innerHTML = `<input type="text" id="modal-prompt-input" class="w-full p-2 rounded theme-input" value="${defaultVal}">`;
+          document.getElementById('modal-buttons').innerHTML = `
+            <button class="w-1/2 p-2 rounded border border-[var(--card-border)] opacity-70 hover:opacity-100" id="modal-btn-no">Отмена</button>
+            <button class="theme-btn w-1/2 p-2 rounded font-bold" id="modal-btn-yes">ОК</button>
+          `;
+          setTimeout(() => document.getElementById('modal-prompt-input').focus(), 50);
+          
+          document.getElementById('modal-btn-no').onclick = () => {
+            document.getElementById('modal-container').classList.add('hidden');
+            document.getElementById('modal-container').classList.remove('flex');
+            resolve(null);
+          };
+          document.getElementById('modal-btn-yes').onclick = () => {
+            const val = document.getElementById('modal-prompt-input').value;
+            document.getElementById('modal-container').classList.add('hidden');
+            document.getElementById('modal-container').classList.remove('flex');
+            resolve(val);
+          };
+        });
+      }
+    };
+
+    // --- STREAMING_CHUNK: Логика работы с данными ---
+    const dataObj = {
+      createNewBook: (title) => ({
+        id: Date.now().toString(),
+        title: title || 'Новый сюжет',
+        factions: [], characters: [], locations: [], relationships: [], items: [], factionRelations: [],
+        plotLines: [
+          { id: 'pl_main', title: 'Основной квест', color: '#3b82f6' },
+          { id: 'pl_love', title: 'Любовная линия', color: '#ec4899' },
+          { id: 'pl_past', title: 'Тайны прошлого', color: '#8b5cf6' }
+        ],
+        chapters: [{ id: 'ch1', title: 'Глава 1', items: [] }]
+      }),
+      getActiveBook: () => state.books.find(b => b.id === state.activeBookId) || state.books[0],
+      getActiveChapter: () => {
+        const book = dataObj.getActiveBook();
+        if(!book) return null;
+        return book.chapters.find(c => c.id === state.activeChapterId) || book.chapters[0];
+      },
+      updateActiveBook: (updater) => {
+        const index = state.books.findIndex(b => b.id === state.activeBookId);
+        if (index > -1) {
+          state.books[index] = updater(state.books[index]);
+          app.save();
+          app.render();
+        }
+      },
+      getCharName: (id) => dataObj.getActiveBook()?.characters.find(c => c.id === id)?.name || 'Неизвестный',
+      getLocName: (id) => dataObj.getActiveBook()?.locations.find(l => l.id === id)?.name || 'Неизвестно'
+    };
+
+    const app = {
+      init: () => {
+        const saved = localStorage.getItem('sa_data_v2');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            state.books = parsed.books || [];
+            state.activeBookId = parsed.activeBookId;
+            state.theme = parsed.theme || 'cozy';
+            if (state.activeBookId && state.books) {
+              const b = state.books.find(x => x.id === state.activeBookId);
+              if (b && b.chapters.length > 0) state.activeChapterId = b.chapters[0].id;
+            }
+            // Миграция данных (обновление старых сохранений)
+            state.books.forEach(b => {
+              if (!b.items) b.items = [];
+              if (!b.factionRelations) b.factionRelations = [];
+              if (!b.plotLines) {
+                b.plotLines = [
+                  { id: 'pl_main', title: 'Основной квест', color: '#3b82f6' },
+                  { id: 'pl_love', title: 'Любовная линия', color: '#ec4899' },
+                  { id: 'pl_past', title: 'Тайны прошлого', color: '#8b5cf6' }
+                ];
+              }
+              b.characters.forEach(c => {
+                if (!c.factions) c.factions = c.factionId ? [c.factionId] : [];
+              });
+            });
+          } catch(e) { console.error(e); }
+        }
+        
+        if (state.books.length === 0) {
+          const initBook = dataObj.createNewBook('Моя первая книга');
+          state.books = [initBook];
+          state.activeBookId = initBook.id;
+          state.activeChapterId = initBook.chapters[0].id;
+        }
+
+        // Заполнение селектора тем
+        const themeSel = document.getElementById('theme-selector');
+        themeSel.innerHTML = Object.entries(THEMES).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('');
+        themeSel.value = state.theme;
+        app.changeTheme(state.theme);
+
+        app.render();
+      },
+      
+      save: () => {
+        localStorage.setItem('sa_data_v2', JSON.stringify({
+          books: state.books, activeBookId: state.activeBookId, theme: state.theme
+        }));
+      },
+
+      changeTheme: (themeKey) => {
+        state.theme = themeKey;
+        const root = document.documentElement;
+        const themeCss = THEMES[themeKey].css;
+        for (const [key, value] of Object.entries(themeCss)) {
+          root.style.setProperty(key, value);
+        }
+        app.save();
+      },
+
+      setTab: (tab) => {
+        state.activeTab = tab;
+        // Обновляем UI кнопок
+        ['story', 'world', 'relations', 'stats'].forEach(t => {
+          const btn = document.getElementById(`nav-${t}`);
+          if(t === tab) {
+            btn.classList.remove('opacity-60');
+            btn.classList.add('scale-110', 'font-bold');
+          } else {
+            btn.classList.add('opacity-60');
+            btn.classList.remove('scale-110', 'font-bold');
+          }
+        });
+        app.render();
+      },
+
+      // --- КНИГИ (Сайдбар) ---
+      addBook: () => {
+        const nb = dataObj.createNewBook(`Новый сюжет ${state.books.length + 1}`);
+        state.books.push(nb);
+        state.activeBookId = nb.id;
+        state.activeChapterId = nb.chapters[0].id;
+        app.save(); ui.toggleSidebar(false); app.render();
+      },
+      deleteBook: async (id) => {
+        if(state.books.length === 1) return ui.alert('Нельзя удалить последнюю книгу!');
+        const yes = await ui.confirm('Точно удалить книгу?');
+        if (yes) {
+          state.books = state.books.filter(b => b.id !== id);
+          if (state.activeBookId === id) {
+            state.activeBookId = state.books[0].id;
+            state.activeChapterId = state.books[0].chapters[0].id;
+          }
+          app.save(); app.render();
+        }
+      },
+      duplicateBook: (id) => {
+        const origin = state.books.find(b => b.id === id);
+        const nb = JSON.parse(JSON.stringify(origin));
+        nb.id = Date.now().toString();
+        nb.title = nb.title + ' (Копия)';
+        state.books.push(nb);
+        app.save(); app.render();
+      },
+      renameBook: async (id) => {
+        const origin = state.books.find(b => b.id === id);
+        const newTitle = await ui.prompt('Новое название:', origin.title);
+        if (newTitle) {
+          origin.title = newTitle;
+          app.save(); app.render();
+        }
+      },
+      
+      exportData: () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ books: state.books, activeBookId: state.activeBookId, theme: state.theme }));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", "story_architect_backup.json");
+        document.body.appendChild(dl); dl.click(); dl.remove();
+      },
+      exportSingleBook: (bookId) => {
+        const book = state.books.find(b => b.id === bookId);
+        if (!book) return;
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ singleBook: book, version: 'sa_v2' }));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", `book_${book.title.replace(/[^a-z0-9а-я]/gi, '_')}.json`);
+        document.body.appendChild(dl); dl.click(); dl.remove();
+      },
+      importData: (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            if (parsed.books) {
+              state.books = parsed.books;
+              state.activeBookId = parsed.activeBookId || parsed.books[0].id;
+              app.changeTheme(parsed.theme || 'cozy');
+              app.save(); app.render(); ui.toggleSidebar(false);
+              await ui.alert('Данные успешно импортированы!');
+            }
+          } catch(err) { ui.alert('Ошибка чтения файла!'); }
+        };
+        reader.readAsText(file);
+      },
+      importSingleBook: (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            const importedBook = parsed.singleBook || (parsed.chapters ? parsed : null);
+            if (importedBook && importedBook.title) {
+              importedBook.id = Date.now().toString(); // Новый ID для избежания конфликтов
+              if (!importedBook.plotLines) {
+                importedBook.plotLines = [
+                  { id: 'pl_main', title: 'Основной квест', color: '#3b82f6' },
+                  { id: 'pl_love', title: 'Любовная линия', color: '#ec4899' }
+                ];
+              }
+              state.books.push(importedBook);
+              state.activeBookId = importedBook.id;
+              if (importedBook.chapters?.[0]) state.activeChapterId = importedBook.chapters[0].id;
+              app.save(); app.render(); ui.toggleSidebar(false);
+              await ui.alert(`Книга "${importedBook.title}" успешно добавлена!`);
+            } else {
+              ui.alert('Некорректный файл книги!');
+            }
+          } catch(err) { ui.alert('Ошибка импорта книги!'); }
+        };
+        reader.readAsText(file);
+      },
+
+      // --- STREAMING_CHUNK: Главный Рендер ---
+      render: () => {
+        const book = dataObj.getActiveBook();
+        document.getElementById('header-title').innerText = book ? book.title : 'Сюжетный Архитектор';
+        
+        // Рендер Сайдбара
+        const sbHtml = state.books.map(b => `
+          <div class="p-3 border rounded cursor-pointer mb-2 ${state.activeBookId === b.id ? 'theme-btn' : 'opacity-60 border-[var(--card-border)] hover:opacity-100'}" 
+               onclick="state.activeBookId='${b.id}'; state.activeChapterId='${b.chapters[0]?.id}'; app.save(); ui.toggleSidebar(false); app.render();">
+            <div class="font-bold mb-2">${b.title}</div>
+            <div class="flex justify-between items-center opacity-80 text-xs">
+              <span>${b.chapters.length} глав</span>
+              <div class="flex gap-2">
+                <button onclick="event.stopPropagation(); app.exportSingleBook('${b.id}')" title="Экспорт только этой книги"><i data-lucide="share" class="w-4 h-4"></i></button>
+                <button onclick="event.stopPropagation(); app.duplicateBook('${b.id}')"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                <button onclick="event.stopPropagation(); app.renameBook('${b.id}')"><i data-lucide="file-text" class="w-4 h-4"></i></button>
+                <button onclick="event.stopPropagation(); app.deleteBook('${b.id}')" class="text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+        document.getElementById('sidebar-books').innerHTML = sbHtml + `
+          <button onclick="app.addBook()" class="theme-btn w-full mt-2 p-2 rounded flex justify-center items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Создать книгу</button>
+          <button onclick="document.getElementById('import-single-file').click()" class="w-full mt-2 p-2 rounded border border-[var(--card-border)] text-xs font-bold flex justify-center items-center gap-2 opacity-80 hover:opacity-100"><i data-lucide="file-plus" class="w-4 h-4"></i> Импортировать 1 книгу</button>
+          <input type="file" id="import-single-file" class="hidden" accept=".json" onchange="app.importSingleBook(event)">
+        `;
+
+        // Рендер контента в зависимости от вкладки
+        const mc = document.getElementById('main-content');
+        if (state.activeTab === 'story') renderers.story(mc);
+        else if (state.activeTab === 'world') renderers.world(mc);
+        else if (state.activeTab === 'relations') renderers.relations(mc);
+        else if (state.activeTab === 'stats') renderers.stats(mc);
+
+        // Рендер Редактора Диалогов
+        const deContainer = document.getElementById('dialogue-editor-container');
+        if (state.dialogue.activeId) {
+          deContainer.classList.remove('hidden');
+          deContainer.classList.add('flex');
+          renderers.dialogueEditor(deContainer);
+        } else {
+          deContainer.classList.add('hidden');
+          deContainer.classList.remove('flex');
+        }
+
+        // Обновление иконок
+        lucide.createIcons();
+      }
+    };
+
+    // --- STREAMING_CHUNK: Модули отрисовки контента ---
+    const renderers = {
+      
+      // Вкладка "СЮЖЕТ"
+      story: (container) => {
+        const book = dataObj.getActiveBook();
+        const chapter = dataObj.getActiveChapter();
+        if (!chapter) {
+          container.innerHTML = `<div class="p-4 opacity-50 text-center mt-10">Создайте главу.</div>`;
+          return;
+        }
+
+        const availableActors = book.characters.filter(c => c.status !== 'dead');
+        
+        let html = `<div class="pb-24">`;
+        
+        // Полоса глав
+        html += `<div class="flex gap-2 overflow-x-auto p-4 hide-scrollbar snap-x">`;
+        book.chapters.forEach(ch => {
+          const activeClass = state.activeChapterId === ch.id ? 'theme-btn' : 'theme-card';
+          html += `<div class="snap-center shrink-0 p-3 rounded-lg flex items-center gap-2 cursor-pointer border border-[var(--card-border)] ${activeClass}" onclick="state.activeChapterId='${ch.id}'; app.render();"><span class="whitespace-nowrap font-bold">${ch.title}</span></div>`;
+        });
+        html += `<button class="theme-btn shrink-0 p-3 rounded-lg flex items-center justify-center" onclick="actions.story.addChapter()"><i data-lucide="plus" class="w-5 h-5"></i></button>`;
+        html += `</div>`;
+
+        // Полоса фильтров и управления сюжетными линиями (ветками)
+        const plotLines = book.plotLines || [];
+        html += `<div class="px-4 mb-3">
+          <div class="flex items-center justify-between gap-2 pb-1 text-xs">
+            <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar flex-1">
+              <span class="opacity-50 text-[10px] uppercase font-bold shrink-0 mr-1"><i data-lucide="filter" class="w-3 h-3 inline"></i> Ветка:</span>
+              <button onclick="state.activePlotLineFilter='all'; app.render();" class="px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all ${state.activePlotLineFilter==='all' ? 'theme-btn shadow-sm' : 'bg-black/5 opacity-70 hover:opacity-100'}">Все</button>
+              ${plotLines.map(pl => {
+                const isActive = state.activePlotLineFilter === pl.id;
+                return `<button onclick="state.activePlotLineFilter='${pl.id}'; app.render();" class="px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 transition-all flex items-center gap-1.5 ${isActive ? 'ring-2 ring-offset-1 ring-current shadow-sm' : 'opacity-70 hover:opacity-100'}" style="background-color: ${pl.color}20; color: ${pl.color}; border: 1px solid ${pl.color}50">
+                  <span class="w-2 h-2 rounded-full" style="background-color: ${pl.color}"></span>${pl.title}
+                </button>`;
+              }).join('')}
+            </div>
+            
+            <div class="flex items-center gap-1 shrink-0">
+              <button onclick="state.showPlotLineEditor = !state.showPlotLineEditor; app.render();" class="p-1.5 rounded theme-card opacity-80 hover:opacity-100" title="Настройка сюжетных веток">
+                <i data-lucide="settings-2" class="w-4 h-4"></i>
+              </button>
+              <button onclick="app.exportSingleBook('${book.id}')" class="p-1.5 rounded theme-btn" title="Экспортировать этот лист (книгу)">
+                <i data-lucide="download" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>`;
+
+        // Разворачиваемый блок редактирования сюжетных веток
+        if (state.showPlotLineEditor) {
+          html += `
+            <div class="theme-card p-3 my-2 border-2 border-[var(--input-focus)] shadow-md space-y-3">
+              <div class="flex justify-between items-center border-b border-[var(--card-border)] pb-1.5">
+                <span class="font-bold text-xs uppercase opacity-70 flex items-center gap-1"><i data-lucide="git-branch" class="w-4 h-4"></i> Редактор сюжетных веток</span>
+                <button onclick="state.showPlotLineEditor=false; app.render();" class="opacity-50 hover:opacity-100 text-xs">&times; Закрыть</button>
+              </div>
+
+              <!-- Добавление новой ветки -->
+              <div class="flex gap-2 items-center">
+                <input type="color" id="new-plotline-color" class="p-1 h-9 w-10 rounded cursor-pointer border border-[var(--card-border)] bg-[var(--input-bg)] shrink-0" value="#8b5cf6" title="Цвет ветки">
+                <input type="text" id="new-plotline-title" class="theme-input p-2 rounded w-full text-xs" placeholder="Название новой ветки (напр: Линия детектива)">
+                <button onclick="actions.plotLines.add()" class="theme-btn px-3 py-2 rounded text-xs font-bold shrink-0 flex items-center gap-1">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> Добавить
+                </button>
+              </div>
+
+              <!-- Список существующих веток -->
+              <div class="space-y-1.5 pt-1">
+                ${plotLines.length === 0 ? '<div class="text-xs opacity-50 italic text-center py-2">Сюжетных веток нет. Создайте свою выше!</div>' : ''}
+                ${plotLines.map(pl => `
+                  <div class="flex justify-between items-center bg-black/5 p-2 rounded text-xs">
+                    <div class="flex items-center gap-2">
+                      <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${pl.color}"></span>
+                      <span class="font-bold">${pl.title}</span>
+                    </div>
+                    <button onclick="actions.plotLines.del('${pl.id}')" class="text-red-500 opacity-70 hover:opacity-100 p-1" title="Удалить ветку">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+
+        // Заголовок главы
+        html += `
+          <div class="px-4">
+            <div class="flex justify-between items-center mb-4">
+              <div class="flex items-center gap-1 w-2/3">
+                <button onclick="actions.story.moveChapter(-1)" class="p-2 opacity-70 hover:opacity-100"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                <input type="text" class="text-xl font-bold w-full p-2 theme-input rounded bg-transparent text-center" value="${chapter.title}" onblur="actions.story.renameChapter(this.value)">
+                <button onclick="actions.story.moveChapter(1)" class="p-2 opacity-70 hover:opacity-100"><i data-lucide="arrow-right" class="w-5 h-5"></i></button>
+              </div>
+              <button onclick="actions.story.deleteChapter()" class="text-red-500 p-2"><i data-lucide="trash-2"></i></button>
+            </div>
+            
+            <div class="space-y-3 mb-6">
+        `;
+
+        // Хронология событий (с фильтрацией по ветке)
+        const visibleItems = chapter.items.filter(item => {
+          if (state.activePlotLineFilter === 'all') return true;
+          return item.plotLineId === state.activePlotLineFilter;
+        });
+
+        if(visibleItems.length === 0) {
+           html += `<div class="text-center opacity-50 py-8">Нет событий в этой сюжетной линии...</div>`;
+        }
+        visibleItems.forEach((item, idx) => {
+          const itemPlotLine = plotLines.find(pl => pl.id === item.plotLineId);
+          if (state.storyEditingId === item.id) {
+            // Форма редактирования события
+            html += `<div class="theme-card p-4 mb-3 border-2 border-[var(--input-focus)] shadow-lg relative">`;
+            html += `<h4 class="font-bold mb-3 text-sm opacity-70">Редактирование</h4>`;
+            
+            const plotTags = ['', 'Завязка', 'Развитие', 'Переломный момент', 'Кульминация', 'Развязка'];
+            const tagOptions = (selectedTag) => plotTags.map(t => `<option value="${t}" ${t===selectedTag?'selected':''}>${t || 'Без метки'}</option>`).join('');
+            const bookItems = book.items || [];
+
+            html += `<input type="text" id="edit-item-time" class="theme-input p-2 rounded w-full mb-2 text-xs" placeholder="Временная метка (например: День 1, Ночь, 3 года спустя)" value="${(item.timeMark || '').replace(/"/g, '&quot;')}">`;
+
+            if (item.type === 'action') {
+              html += `
+                <div class="space-y-2">
+                  <div class="flex gap-2">
+                    <select id="edit-act-actor" class="theme-input p-2 rounded w-1/2">
+                      <option value="">Кто действует?</option>
+                      ${availableActors.map(c => `<option value="${c.id}" ${c.id===item.actorId?'selected':''}>${c.name}</option>`).join('')}
+                    </select>
+                    <select id="edit-act-target" class="theme-input p-2 rounded w-1/2">
+                      <option value="">Без цели</option>
+                      ${book.characters.map(c => `<option value="${c.id}" ${c.id===item.targetId?'selected':''}>${c.name}</option>`).join('')}
+                    </select>
+                  </div>
+                  <input type="text" id="edit-act-text" class="theme-input p-2 rounded w-full" value="${item.text.replace(/"/g, '&quot;')}">
+                  <div class="flex gap-2">
+                    <select id="edit-act-item" class="theme-input p-2 rounded w-1/2">
+                      <option value="">Без предмета</option>
+                      ${bookItems.map(i => `<option value="${i.id}" ${i.id===item.itemId?'selected':''}>📦 ${i.name}</option>`).join('')}
+                    </select>
+                    <select id="edit-act-loc" class="theme-input p-2 rounded w-1/2">
+                      <option value="">Без локации</option>
+                      ${book.locations.map(l => `<option value="${l.id}" ${l.id===item.locationId?'selected':''}>${l.name}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="flex gap-2">
+                    <select id="edit-item-tag" class="theme-input p-2 rounded w-1/2">
+                      ${tagOptions(item.tag)}
+                    </select>
+                    <select id="edit-item-plotline" class="theme-input p-2 rounded w-1/2">
+                      <option value="">Без сюжетной ветки</option>
+                      ${plotLines.map(pl => `<option value="${pl.id}" ${pl.id===item.plotLineId?'selected':''}>📌 ${pl.title}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>`;
+            } else if (item.type === 'description') {
+              html += `
+                <div class="space-y-2">
+                  <textarea id="edit-desc-text" class="theme-input p-2 rounded w-full min-h-[100px]">${item.text}</textarea>
+                  <select id="edit-item-tag" class="theme-input p-2 rounded w-full">${tagOptions(item.tag)}</select>
+                </div>`;
+            } else if (item.type === 'dialogue') {
+              html += `
+                <div class="space-y-2">
+                  <input type="text" id="edit-dial-title" class="theme-input p-2 rounded w-full" value="${item.title.replace(/"/g, '&quot;')}">
+                  <select id="edit-item-tag" class="theme-input p-2 rounded w-full">${tagOptions(item.tag)}</select>
+                </div>`;
+            }
+            
+            html += `
+              <div class="flex gap-2 mt-3">
+                <button class="flex-1 p-2 rounded border border-[var(--card-border)] hover:bg-black/5" onclick="state.storyEditingId=null; app.render()">Отмена</button>
+                <button class="flex-1 theme-btn p-2 rounded font-bold" onclick="actions.story.saveEdit('${item.id}', '${item.type}')">Сохранить</button>
+              </div>
+            </div>`;
+          } else {
+            // Обычное отображение события
+            let innerHtml = '';
+            const usedItem = (book.items || []).find(i => i.id === item.itemId);
+
+            if (item.type === 'action') {
+              innerHtml = `
+                <div>
+                  <span class="font-bold text-lg">${dataObj.getCharName(item.actorId)}</span>
+                  <span class="mx-2 italic">${item.text}</span>
+                  ${item.targetId ? `<span class="font-bold text-lg">(${dataObj.getCharName(item.targetId)})</span>` : ''}
+                  <div class="flex flex-wrap gap-3 text-xs mt-2 opacity-80">
+                    ${usedItem ? `<span class="flex items-center gap-1 font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><i data-lucide="package" class="w-3 h-3"></i> ${usedItem.name}</span>` : ''}
+                    ${item.locationId ? `<span class="flex items-center gap-1"><i data-lucide="map" class="w-3 h-3"></i> ${dataObj.getLocName(item.locationId)}</span>` : ''}
+                  </div>
+                </div>`;
+            } else if (item.type === 'description') {
+              innerHtml = `<div class="italic opacity-90 border-l-4 pl-2" style="border-color: currentColor">${item.text}</div>`;
+            } else if (item.type === 'dialogue') {
+              innerHtml = `
+                <div>
+                  <div class="flex items-center gap-2 font-bold text-base mb-1"><i data-lucide="message-square" class="w-4 h-4 text-blue-500"></i> ${item.title}</div>
+                  <p class="opacity-70 text-xs mb-3">Сообщений в узлах: ${item.nodes ? item.nodes.length : 0}</p>
+                  <button onclick="actions.dialogue.open('${item.id}')" class="theme-btn w-full p-2 rounded text-sm flex justify-center items-center gap-2"><i data-lucide="git-branch" class="w-4 h-4"></i> Редактировать ветки</button>
+                </div>`;
+            }
+
+            const tagBadge = item.tag ? `<span class="inline-block bg-[var(--btn-bg)] text-[var(--btn-text)] px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">${item.tag}</span>` : '';
+            const timeBadge = item.timeMark ? `<span class="inline-flex items-center gap-1 bg-black/10 px-2 py-0.5 rounded text-[10px] font-bold opacity-80"><i data-lucide="clock" class="w-3 h-3"></i> ${item.timeMark}</span>` : '';
+            const lineBadge = itemPlotLine ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold" style="background-color: ${itemPlotLine.color}20; color: ${itemPlotLine.color}; border: 1px solid ${itemPlotLine.color}40"><span class="w-1.5 h-1.5 rounded-full" style="background-color: ${itemPlotLine.color}"></span>${itemPlotLine.title}</span>` : '';
+
+            html += `
+              <div class="theme-card p-3 flex flex-col gap-2 ${item.type === 'dialogue' ? '!border-l-4 !border-l-blue-500' : ''}" ${itemPlotLine ? `style="border-left: 4px solid ${itemPlotLine.color}"` : ''}>
+                <div class="flex items-center gap-2 flex-wrap mb-1">
+                  ${lineBadge}
+                  ${timeBadge}
+                  ${tagBadge}
+                </div>
+                ${innerHtml}
+                <div class="flex gap-4 justify-end items-center opacity-60 mt-1 pt-2 border-t border-[var(--card-border)]">
+                  <button onclick="actions.story.moveItem(${idx}, -1)" ${idx===0?'disabled class="opacity-20"':''}><i data-lucide="arrow-up" class="w-4 h-4"></i></button>
+                  <button onclick="actions.story.moveItem(${idx}, 1)" ${idx===chapter.items.length-1?'disabled class="opacity-20"':''}><i data-lucide="arrow-down" class="w-4 h-4"></i></button>
+                  <button onclick="actions.story.dupItem('${item.id}')"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                  <button onclick="state.storyEditingId='${item.id}'; app.render();"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                  <button onclick="actions.story.delItem('${item.id}')" class="text-red-500 hover:opacity-100"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+              </div>
+            `;
+          }
+        });
+        
+        html += `</div>`; // End хронология
+
+        // Форма добавления события в сюжет
+        html += `
+          <div class="theme-card p-4">
+            <div class="flex gap-1 mb-3 bg-black/10 p-1 rounded">
+              <button class="flex-1 p-2 text-xs font-bold rounded transition-colors ${state.storyNewItemType==='action'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.storyNewItemType='action'; app.render()">Действие</button>
+              <button class="flex-1 p-2 text-xs font-bold rounded transition-colors ${state.storyNewItemType==='description'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.storyNewItemType='description'; app.render()">Среда</button>
+              <button class="flex-1 p-2 text-xs font-bold rounded transition-colors ${state.storyNewItemType==='dialogue'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.storyNewItemType='dialogue'; app.render()">Диалог</button>
+            </div>
+        `;
+        
+        const defaultTags = ['', 'Завязка', 'Развитие', 'Переломный момент', 'Кульминация', 'Развязка'];
+        const bookItems = book.items || [];
+        const newTagSelectHtml = `
+          <div class="flex gap-2">
+            <select id="new-item-tag" class="theme-input p-2 rounded w-1/2 text-xs font-bold">
+              ${defaultTags.map(t => `<option value="${t}">${t || 'Метка / Сюжетный бит'}</option>`).join('')}
+            </select>
+            <select id="new-item-plotline" class="theme-input p-2 rounded w-1/2 text-xs font-bold">
+              <option value="">Сюжетная ветка...</option>
+              ${plotLines.map(pl => `<option value="${pl.id}">📌 ${pl.title}</option>`).join('')}
+            </select>
+          </div>
+        `;
+        const newTimeInputHtml = `<input type="text" id="new-item-time" class="theme-input p-2 rounded w-full text-xs" placeholder="Таймлайн (например: День 1, Спустя 2 года...)">`;
+
+        if (state.storyNewItemType === 'action') {
+          html += `
+            <div class="space-y-2">
+              ${newTimeInputHtml}
+              <div class="flex gap-2">
+                <select id="new-action-actor" class="theme-input p-2 rounded w-1/2">
+                  <option value="">Кто действует?</option>
+                  ${availableActors.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                </select>
+                <select id="new-action-target" class="theme-input p-2 rounded w-1/2">
+                  <option value="">На кого? (опц.)</option>
+                  ${book.characters.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                </select>
+              </div>
+              <input type="text" id="new-action-text" class="theme-input p-2 rounded w-full" placeholder="Что делает? (например: передает амулет)">
+              <div class="flex gap-2">
+                <select id="new-action-item" class="theme-input p-2 rounded w-1/2">
+                  <option value="">Предмет (опц.)</option>
+                  ${bookItems.map(i => `<option value="${i.id}">📦 ${i.name}</option>`).join('')}
+                </select>
+                <select id="new-action-loc" class="theme-input p-2 rounded w-1/2">
+                  <option value="">Где? (опц.)</option>
+                  ${book.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+                </select>
+              </div>
+              ${newTagSelectHtml}
+            </div>
+          `;
+        } else if (state.storyNewItemType === 'description') {
+          html += `
+            <div class="space-y-2">
+              ${newTimeInputHtml}
+              <textarea id="new-desc-text" class="theme-input p-2 rounded w-full min-h-[100px]" placeholder="Опишите, что происходит вокруг..."></textarea>
+              ${newTagSelectHtml}
+            </div>
+          `;
+        } else if (state.storyNewItemType === 'dialogue') {
+          html += `
+            <div class="space-y-2">
+              ${newTimeInputHtml}
+              <input type="text" id="new-dial-title" class="theme-input p-2 rounded w-full" placeholder="Название диалога">
+              ${newTagSelectHtml}
+              <p class="text-xs opacity-70 italic text-center">Вы сможете написать сам диалог и настроить развилки после добавления.</p>
+            </div>
+          `;
+        }
+        
+        html += `
+            <button onclick="actions.story.addItem()" class="theme-btn w-full mt-3 p-2 rounded">Добавить в сюжет</button>
+          </div>
+        </div>`; // end story container
+        container.innerHTML = html;
+      },
+
+      // Вкладка "МИР"
+      world: (container) => {
+        const book = dataObj.getActiveBook();
+        let html = `<div class="p-4 pb-24">
+          <div class="flex rounded overflow-hidden border border-[var(--card-border)] mb-4 text-xs font-bold">
+            <button class="flex-1 p-2 transition-colors ${state.worldSubTab==='chars'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.worldSubTab='chars'; app.render()">Герои</button>
+            <button class="flex-1 p-2 border-l border-[var(--card-border)] transition-colors ${state.worldSubTab==='factions'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.worldSubTab='factions'; app.render()">Фракции</button>
+            <button class="flex-1 p-2 border-l border-[var(--card-border)] transition-colors ${state.worldSubTab==='locations'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.worldSubTab='locations'; app.render()">Локации</button>
+            <button class="flex-1 p-2 border-l border-[var(--card-border)] transition-colors ${state.worldSubTab==='items'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.worldSubTab='items'; app.render()">Предметы</button>
+          </div>
+          
+          <div class="theme-card p-4">
+            <h3 class="font-bold mb-2">Добавить новое</h3>
+            <div class="flex gap-2 mb-2">
+        `;
+        
+        if (state.worldSubTab === 'factions') {
+           html += `<input type="color" id="world-new-color" class="p-1 h-10 w-12 rounded cursor-pointer border border-[var(--card-border)] bg-[var(--input-bg)] shrink-0" value="#3b82f6" title="Цвет фракции">`;
+        }
+        
+        html += `<input type="text" id="world-new-name" class="theme-input w-full p-2 rounded" placeholder="Название / Имя">
+            </div>
+        `;
+        
+        if(state.worldSubTab === 'chars') {
+          html += `
+            <div class="flex gap-2 mb-2">
+              <select id="world-new-faction" class="theme-input w-1/2 p-2 rounded text-sm">
+                <option value="">Начальная роль</option>
+                ${book.factions.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+              </select>
+              <select id="world-new-status" class="theme-input w-1/2 p-2 rounded text-sm">
+                <option value="alive">Жив</option>
+                <option value="dead">Мертв (правило)</option>
+                <option value="hidden">Скрыт</option>
+              </select>
+            </div>
+          `;
+        } else if (state.worldSubTab === 'items') {
+          html += `
+            <div class="mb-2">
+              <select id="world-new-item-owner" class="theme-input w-full p-2 rounded text-sm">
+                <option value="">Без владельца (утерян/в мире)</option>
+                ${book.characters.map(c => `<option value="${c.id}">Владелец: ${c.name}</option>`).join('')}
+              </select>
+            </div>
+          `;
+        }
+        
+        html += `<button onclick="actions.world.add()" class="theme-btn w-full p-2 rounded">Добавить</button></div><div class="space-y-2 mt-4">`;
+
+        const list = state.worldSubTab === 'chars' ? book.characters : 
+                    (state.worldSubTab === 'factions' ? book.factions : 
+                    (state.worldSubTab === 'locations' ? book.locations : (book.items || [])));
+        
+        list.forEach(item => {
+          // Форма редактирования ФРАКЦИИ
+          if (state.worldSubTab === 'factions' && state.worldFactionEditingId === item.id) {
+            html += `
+               <div class="theme-card p-3 flex flex-col mb-2 border-2 border-[var(--input-focus)] shadow-lg">
+                 <h4 class="font-bold mb-2 text-sm opacity-70">Редактирование фракции</h4>
+                 <div class="flex gap-2 mb-2">
+                   <input type="color" id="edit-faction-color-${item.id}" class="p-1 h-10 w-12 rounded cursor-pointer border border-[var(--card-border)] bg-[var(--input-bg)] shrink-0" value="${item.color || '#3b82f6'}">
+                   <input type="text" id="edit-faction-name-${item.id}" class="theme-input w-full p-2 rounded" value="${item.name.replace(/"/g, '&quot;')}">
+                 </div>
+                 <div class="flex gap-2">
+                   <button class="flex-1 p-2 rounded border border-[var(--card-border)] hover:bg-black/5" onclick="state.worldFactionEditingId=null; app.render()">Отмена</button>
+                   <button class="flex-1 theme-btn p-2 rounded font-bold" onclick="actions.world.saveFEdit('${item.id}')">Сохранить</button>
+                 </div>
+               </div>
+             `;
+             return;
+          }
+
+          // Форма расширенного редактирования ПЕРСОНАЖА (Анкета + Имя)
+          if (state.worldSubTab === 'chars' && state.worldCharEditingId === item.id) {
+            html += `
+               <div class="theme-card p-4 flex flex-col mb-3 border-2 border-[var(--input-focus)] shadow-xl space-y-3">
+                 <h4 class="font-bold text-base border-b border-[var(--card-border)] pb-2 flex items-center gap-2">
+                   <i data-lucide="user-check" class="w-5 h-5 text-blue-500"></i> Анкета персонажа
+                 </h4>
+                 
+                 <div>
+                   <label class="text-[10px] uppercase font-bold opacity-60 block mb-1">Имя / Прозвище</label>
+                   <input type="text" id="edit-char-name-${item.id}" class="theme-input w-full p-2 rounded font-bold" value="${item.name.replace(/"/g, '&quot;')}">
+                 </div>
+
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                   <div>
+                     <label class="text-[10px] uppercase font-bold opacity-60 block mb-1">Мотивация (Чего хочет?)</label>
+                     <input type="text" id="edit-char-motiv-${item.id}" class="theme-input w-full p-2 rounded text-xs" placeholder="Напр: Отомстить за семью" value="${(item.motivation || '').replace(/"/g, '&quot;')}">
+                   </div>
+                   <div>
+                     <label class="text-[10px] uppercase font-bold opacity-60 block mb-1">Ключевой страх</label>
+                     <input type="text" id="edit-char-fear-${item.id}" class="theme-input w-full p-2 rounded text-xs" placeholder="Напр: Боязнь темноты / Предательства" value="${(item.fear || '').replace(/"/g, '&quot;')}">
+                   </div>
+                 </div>
+
+                 <div>
+                   <label class="text-[10px] uppercase font-bold opacity-60 block mb-1">Внешний вид / Особенности</label>
+                   <textarea id="edit-char-app-${item.id}" class="theme-input w-full p-2 rounded text-xs min-h-[60px]" placeholder="Шрам на левой щеке, высокий рост...">${item.appearance || ''}</textarea>
+                 </div>
+
+                 <div>
+                   <label class="text-[10px] uppercase font-bold opacity-60 block mb-1">Арка персонажа (Как меняется к концу?)</label>
+                   <textarea id="edit-char-arc-${item.id}" class="theme-input w-full p-2 rounded text-xs min-h-[60px]" placeholder="От эгоистичного юноши до жертвенного лидера...">${item.arc || ''}</textarea>
+                 </div>
+
+                 <div>
+                   <label class="text-[10px] uppercase font-bold opacity-60 block mb-1">Заметки / Биография</label>
+                   <textarea id="edit-char-notes-${item.id}" class="theme-input w-full p-2 rounded text-xs min-h-[60px]" placeholder="Дополнительные детали...">${item.notes || ''}</textarea>
+                 </div>
+
+                 <div class="flex gap-2 pt-2 border-t border-[var(--card-border)]">
+                   <button class="flex-1 p-2 rounded border border-[var(--card-border)] hover:bg-black/5" onclick="state.worldCharEditingId=null; app.render()">Отмена</button>
+                   <button class="flex-1 theme-btn p-2 rounded font-bold" onclick="actions.world.saveCEdit('${item.id}')">Сохранить анкету</button>
+                 </div>
+               </div>
+             `;
+             return;
+          }
+
+          // Форма редактирования ПРЕДМЕТА
+          if (state.worldSubTab === 'items' && state.worldItemEditingId === item.id) {
+            html += `
+               <div class="theme-card p-3 flex flex-col mb-2 border-2 border-[var(--input-focus)] shadow-lg">
+                 <h4 class="font-bold mb-2 text-sm opacity-70">Редактирование предмета</h4>
+                 <input type="text" id="edit-item-name-${item.id}" class="theme-input w-full p-2 rounded mb-2" value="${item.name.replace(/"/g, '&quot;')}">
+                 <div class="flex gap-2">
+                   <button class="flex-1 p-2 rounded border border-[var(--card-border)] hover:bg-black/5" onclick="state.worldItemEditingId=null; app.render()">Отмена</button>
+                   <button class="flex-1 theme-btn p-2 rounded font-bold" onclick="actions.world.saveIEdit('${item.id}')">Сохранить</button>
+                 </div>
+               </div>
+             `;
+             return;
+          }
+
+          let extra = '';
+          if(state.worldSubTab === 'chars') {
+            // Генерация тегов фракций и дропдауна для добавления новых
+            const fTags = (item.factions || []).map(fid => {
+              const f = book.factions.find(f => f.id === fid);
+              const fname = f ? f.name : 'Удалена';
+              const fcolor = f && f.color ? f.color : '#888';
+              return `<span class="bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text)] px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1.5 shadow-sm"><span class="w-2 h-2 rounded-full" style="background-color: ${fcolor}"></span>${fname} <button onclick="actions.world.remF('${item.id}', '${fid}')" class="opacity-70 hover:opacity-100">&times;</button></span>`;
+            }).join('');
+
+            const availF = book.factions.filter(f => !(item.factions || []).includes(f.id));
+            const addFSelect = availF.length > 0 ? `
+              <select class="bg-transparent text-[10px] border border-[var(--card-border)] rounded px-1 py-0.5 outline-none max-w-[80px]" onchange="if(this.value){ actions.world.addF('${item.id}', this.value); }">
+                <option value="">+ роль</option>
+                ${availF.map(f => `<option value="${f.id}" class="text-black">${f.name}</option>`).join('')}
+              </select>
+            ` : '';
+
+            let bioHtml = '';
+            if (item.motivation || item.fear || item.appearance || item.arc || item.notes) {
+              bioHtml = `
+                <div class="mt-3 pt-2 border-t border-black/10 text-xs space-y-1 opacity-90">
+                  ${item.motivation ? `<div><span class="font-bold opacity-70">🎯 Мотивация:</span> ${item.motivation}</div>` : ''}
+                  ${item.fear ? `<div><span class="font-bold opacity-70">😱 Страх:</span> ${item.fear}</div>` : ''}
+                  ${item.appearance ? `<div><span class="font-bold opacity-70">👁️ Внешность:</span> ${item.appearance}</div>` : ''}
+                  ${item.arc ? `<div><span class="font-bold opacity-70">📈 Арка:</span> ${item.arc}</div>` : ''}
+                  ${item.notes ? `<div><span class="font-bold opacity-70">📝 Заметки:</span> ${item.notes}</div>` : ''}
+                </div>
+              `;
+            }
+
+            extra = `
+              <div class="mt-2 flex flex-wrap gap-1 items-center">
+                ${fTags}
+                ${addFSelect}
+              </div>
+              <div class="text-xs opacity-70 mt-2 flex gap-2 items-center">
+                <select class="bg-transparent outline-none font-bold" onchange="actions.world.updateStatus('${item.id}', this.value)">
+                  <option value="alive" ${item.status==='alive'?'selected':''} class="text-black">Статус: Жив</option>
+                  <option value="dead" ${item.status==='dead'?'selected':''} class="text-black">Статус: Мертв</option>
+                  <option value="hidden" ${item.status==='hidden'?'selected':''} class="text-black">Статус: Скрыт</option>
+                </select>
+              </div>
+              ${bioHtml}
+            `;
+          }
+          
+          let titleHtml = `<span class="font-bold text-lg">${item.name}</span>`;
+          if (state.worldSubTab === 'factions') {
+             const fcolor = item.color || '#3b82f6';
+             titleHtml = `<div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full border border-black/20 shadow-sm" style="background-color: ${fcolor}"></span><span class="font-bold text-lg">${item.name}</span></div>`;
+          } else if (state.worldSubTab === 'items') {
+             titleHtml = `<div class="flex items-center gap-2"><i data-lucide="package" class="w-5 h-5 text-amber-600"></i><span class="font-bold text-lg">${item.name}</span></div>`;
+             
+             // Выбор владельца предмета (передача от персонажа к персонажу)
+             extra = `
+               <div class="mt-2 text-xs flex items-center gap-2 bg-black/5 p-2 rounded">
+                 <span class="opacity-70 font-bold">У кого:</span>
+                 <select class="bg-transparent font-bold outline-none flex-1" onchange="actions.world.changeItemOwner('${item.id}', this.value)">
+                   <option value="" ${!item.ownerId?'selected':''} class="text-black">Ничей / Утерян</option>
+                   ${book.characters.map(c => `<option value="${c.id}" ${c.id===item.ownerId?'selected':''} class="text-black">${c.name}</option>`).join('')}
+                 </select>
+               </div>
+             `;
+          }
+
+          let actionBtns = '';
+          if (state.worldSubTab === 'factions') {
+             actionBtns += `<button onclick="state.worldFactionEditingId='${item.id}'; app.render();" class="p-2 opacity-70 hover:opacity-100"><i data-lucide="edit-2" class="w-4 h-4"></i></button>`;
+          } else if (state.worldSubTab === 'chars') {
+             actionBtns += `<button onclick="state.worldCharEditingId='${item.id}'; app.render();" class="p-2 opacity-70 hover:opacity-100"><i data-lucide="edit-2" class="w-4 h-4"></i></button>`;
+          } else if (state.worldSubTab === 'items') {
+             actionBtns += `<button onclick="state.worldItemEditingId='${item.id}'; app.render();" class="p-2 opacity-70 hover:opacity-100"><i data-lucide="edit-2" class="w-4 h-4"></i></button>`;
+          }
+          actionBtns += `<button onclick="actions.world.del('${item.id}')" class="text-red-500 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>`;
+
+          html += `
+            <div class="theme-card p-3 flex flex-col mb-2">
+              <div class="flex justify-between items-center">
+                ${titleHtml}
+                <div class="flex items-center gap-1">${actionBtns}</div>
+              </div>
+              ${extra}
+            </div>
+          `;
+        });
+        
+        html += `</div></div>`;
+        container.innerHTML = html;
+      },
+
+      // --- STREAMING_CHUNK: Вкладка "СВЯЗИ" (Матрица + Редактор) ---
+      relations: (container) => {
+        const book = dataObj.getActiveBook();
+        let html = `<div class="p-4 pb-24 flex flex-col h-full min-h-[80vh]">`;
+        
+        // Переключатель
+        html += `
+          <div class="flex gap-1 mb-4 bg-black/10 p-1 rounded shrink-0 text-xs font-bold">
+            <button class="flex-1 p-2 flex justify-center items-center gap-1 rounded transition-colors ${state.relationsViewMode==='matrix'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.relationsViewMode='matrix'; app.render()"><i data-lucide="grid" class="w-4 h-4"></i> Герои</button>
+            <button class="flex-1 p-2 flex justify-center items-center gap-1 rounded transition-colors ${state.relationsViewMode==='factions'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.relationsViewMode='factions'; app.render()"><i data-lucide="shield" class="w-4 h-4"></i> Фракции</button>
+            <button class="flex-1 p-2 flex justify-center items-center gap-1 rounded transition-colors ${state.relationsViewMode==='list'?'theme-btn':'opacity-70 hover:bg-black/5'}" onclick="state.relationsViewMode='list'; app.render()"><i data-lucide="file-text" class="w-4 h-4"></i> Редактор</button>
+          </div>
+        `;
+
+        if (state.relationsViewMode === 'factions') {
+          // МАТРИЦА ФРАКЦИЙ
+          if (book.factions.length === 0) {
+            html += `<div class="p-8 text-center opacity-50 border rounded theme-card">Добавьте фракции во вкладке "Мир"</div>`;
+          } else {
+            const fMx = {};
+            (book.factionRelations || []).forEach(r => {
+              if(!fMx[r.source]) fMx[r.source] = {};
+              fMx[r.source][r.target] = r.text;
+            });
+
+            html += `<div class="mb-3 text-xs opacity-70 italic">Например: «Подразделение», «Вражда», «Союзник»</div>`;
+            html += `<div class="flex-1 overflow-auto rounded border border-[var(--card-border)] bg-white/5 relative max-h-[60vh] hide-scrollbar shadow-inner matrix-table">`;
+            html += `<table class="w-max min-w-full text-sm border-collapse table-fixed">`;
+            
+            html += `<thead class="sticky top-0 z-20 matrix-header shadow-sm"><tr>`;
+            html += `<th class="p-2 sticky left-0 z-30 matrix-header min-w-[120px] align-bottom text-xs font-normal border-b border-r border-[var(--card-border)]">
+                       <div class="text-right text-blue-600 font-bold mb-1 opacity-80">К кому &rarr;</div>
+                       <div class="text-left text-blue-600 font-bold opacity-80">&darr; Кто</div>
+                     </th>`;
+            book.factions.forEach(f => { html += `<th class="p-2 min-w-[120px] max-w-[150px] truncate align-bottom border-b border-[var(--card-border)]">${f.name}</th>`; });
+            html += `</tr></thead><tbody>`;
+            
+            book.factions.forEach(source => {
+              html += `<tr class="hover:bg-black/10 transition-colors"><th class="p-2 sticky left-0 z-10 text-left font-bold matrix-header border-r border-[var(--card-border)] truncate max-w-[100px]">${source.name}</th>`;
+              book.factions.forEach(target => {
+                const text = fMx[source.id]?.[target.id];
+                const isSelf = source.id === target.id;
+                html += `<td class="p-2 text-xs align-middle ${isSelf?'bg-black/20 opacity-50':''}">${text ? `<span class="font-bold text-blue-500">${text}</span>` : `<span class="opacity-20 flex justify-center">-</span>`}</td>`;
+              });
+              html += `</tr>`;
+            });
+            html += `</tbody></table></div>`;
+          }
+        } else if (state.relationsViewMode === 'matrix') {
+          // МАТРИЦА
+          if (book.characters.length === 0) {
+            html += `<div class="p-8 text-center opacity-50 border rounded theme-card">Добавьте персонажей во вкладке "Мир"</div>`;
+          } else {
+            // Подготовка данных матрицы
+            const mx = {};
+            book.relationships.forEach(r => {
+              if(!mx[r.source]) mx[r.source] = {};
+              mx[r.source][r.target] = mx[r.source][r.target] ? mx[r.source][r.target] + '; ' + r.text : r.text;
+            });
+
+            html += `<div class="flex-1 overflow-auto rounded border border-[var(--card-border)] bg-white/5 relative max-h-[60vh] hide-scrollbar shadow-inner matrix-table">`;
+            html += `<table class="w-max min-w-full text-sm border-collapse table-fixed">`;
+            
+            // New Matrix Header
+            html += `<thead class="sticky top-0 z-20 matrix-header shadow-sm"><tr>`;
+            html += `<th class="p-2 sticky left-0 z-30 matrix-header min-w-[120px] align-bottom text-xs font-normal border-b border-r border-[var(--card-border)]">
+                       <div class="text-right text-red-600 font-bold mb-1 opacity-80">К кому &rarr;</div>
+                       <div class="text-left text-red-600 font-bold opacity-80">&darr; Кто</div>
+                     </th>`;
+            book.characters.forEach(c => { html += `<th class="p-2 min-w-[120px] max-w-[150px] truncate align-bottom border-b border-[var(--card-border)]">${c.name}</th>`; });
+            html += `</tr></thead><tbody>`;
+            
+            book.characters.forEach(source => {
+              html += `<tr class="hover:bg-black/10 transition-colors"><th class="p-2 sticky left-0 z-10 text-left font-bold matrix-header border-r border-[var(--card-border)] truncate max-w-[100px]">${source.name}</th>`;
+              book.characters.forEach(target => {
+                const text = mx[source.id]?.[target.id];
+                const isSelf = source.id === target.id;
+                html += `<td class="p-2 text-xs align-middle ${isSelf?'bg-black/20 opacity-50':''}">${text ? `<span>${text}</span>` : `<span class="opacity-20 flex justify-center">-</span>`}</td>`;
+              });
+              html += `</tr>`;
+            });
+            html += `</tbody></table></div>`;
+          }
+        } else {
+          // РЕДАКТОР СВЯЗЕЙ (Герои и Фракции)
+          const charOpts = book.characters.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+          const factionOpts = book.factions.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+
+          html += `
+            <div class="theme-card p-4 mb-4">
+              <h3 class="font-bold mb-2 flex items-center gap-2"><i data-lucide="heart" class="w-4 h-4"></i> Связь персонажей</h3>
+              <div class="flex items-center gap-2 mb-2">
+                <select id="rel-source" class="theme-input p-2 rounded w-1/2"><option value="">Кто...</option>${charOpts}</select>
+                <i data-lucide="chevron-right" class="w-6 h-6 opacity-50 shrink-0"></i>
+                <select id="rel-target" class="theme-input p-2 rounded w-1/2"><option value="">К кому...</option>${charOpts}</select>
+              </div>
+              <input type="text" id="rel-text" class="theme-input p-2 rounded w-full mb-3" placeholder="Испытывает (например: тайно ненавидит)">
+              <button onclick="actions.relations.add()" class="theme-btn w-full p-2 rounded">Добавить связь персонажей</button>
+            </div>
+
+            <div class="theme-card p-4 mb-4">
+              <h3 class="font-bold mb-2 flex items-center gap-2"><i data-lucide="shield" class="w-4 h-4"></i> Связь / Вложенность фракций</h3>
+              <div class="flex items-center gap-2 mb-2">
+                <select id="frel-source" class="theme-input p-2 rounded w-1/2"><option value="">Фракция...</option>${factionOpts}</select>
+                <i data-lucide="chevron-right" class="w-6 h-6 opacity-50 shrink-0"></i>
+                <select id="frel-target" class="theme-input p-2 rounded w-1/2"><option value="">К фракции...</option>${factionOpts}</select>
+              </div>
+              <input type="text" id="frel-text" class="theme-input p-2 rounded w-full mb-3" placeholder="Отношение (напр: Подразделение, Враги, Подчиняется)">
+              <button onclick="actions.relations.addFactionRel()" class="theme-btn w-full p-2 rounded">Добавить связь фракций</button>
+            </div>
+            <div class="space-y-2">
+          `;
+          if (book.relationships.length === 0) html += `<div class="text-center opacity-50 py-4">Связей пока нет</div>`;
+          book.relationships.forEach(rel => {
+             html += `
+              <div class="theme-card p-3 flex justify-between items-center">
+                 <div class="text-sm leading-tight">
+                   <span class="font-bold">${dataObj.getCharName(rel.source)}</span>
+                   <span class="mx-1 opacity-70 italic">${rel.text}</span>
+                   <span class="font-bold">${dataObj.getCharName(rel.target)}</span>
+                 </div>
+                 <button onclick="actions.relations.del('${rel.id}')" class="text-red-500 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              </div>
+             `;
+          });
+          html += `</div>`;
+        }
+        
+        html += `</div>`;
+        container.innerHTML = html;
+      },
+
+      // --- Вкладка "АНАЛИЗ" ---
+      stats: (container) => {
+        const book = dataObj.getActiveBook();
+        const chapter = dataObj.getActiveChapter();
+        if(!chapter) return container.innerHTML = '<div class="p-4">Нет главы</div>';
+
+        // Сбор расширенной статистики
+        const globalCounts = { action: 0, desc: 0, dial: 0, replies: 0 };
+        const actorStats = {};   // { charId: { total: 0, actions: 0, lines: 0, texts: [] } }
+        const targetStats = {};  // { charId: count }
+        const locStats = {};     // { locId: count }
+
+        chapter.items.forEach(item => {
+          if (item.type === 'action') {
+            globalCounts.action++;
+            if (item.actorId) {
+              if (!actorStats[item.actorId]) actorStats[item.actorId] = { total: 0, actions: 0, lines: 0, texts: [] };
+              actorStats[item.actorId].total++;
+              actorStats[item.actorId].actions++;
+              if (item.text) actorStats[item.actorId].texts.push(item.text);
+            }
+            if (item.targetId) {
+              targetStats[item.targetId] = (targetStats[item.targetId] || 0) + 1;
+            }
+            if (item.locationId) {
+              locStats[item.locationId] = (locStats[item.locationId] || 0) + 1;
+            }
+          } else if (item.type === 'description') {
+            globalCounts.desc++;
+          } else if (item.type === 'dialogue') {
+            globalCounts.dial++;
+            if (item.nodes) {
+              globalCounts.replies += item.nodes.length;
+              item.nodes.forEach(node => {
+                if (node.speakerId) {
+                  if (!actorStats[node.speakerId]) actorStats[node.speakerId] = { total: 0, actions: 0, lines: 0, texts: [] };
+                  actorStats[node.speakerId].total++;
+                  actorStats[node.speakerId].lines++;
+                }
+              });
+            }
+          }
+        });
+
+        // Сортировка данных
+        const sortedActors = Object.entries(actorStats)
+          .map(([id, data]) => ({ id, name: dataObj.getCharName(id), ...data }))
+          .sort((a, b) => b.total - a.total);
+          
+        const sortedTargets = Object.entries(targetStats)
+          .map(([id, count]) => ({ name: dataObj.getCharName(id), count }))
+          .sort((a, b) => b.count - a.count);
+
+        const sortedLocs = Object.entries(locStats)
+          .map(([id, count]) => ({ name: dataObj.getLocName(id), count }))
+          .sort((a, b) => b.count - a.count);
+
+        let html = `<div class="p-4 pb-24"><div class="space-y-4">`;
+        
+        // 1. Заголовок и карточки общей сводки
+        html += `<div class="theme-card p-4">
+                  <h2 class="text-xl font-bold mb-4">Сводка: "${chapter.title}"</h2>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-black/5 p-2 rounded border border-[var(--card-border)] text-center">
+                      <div class="text-2xl font-bold">${chapter.items.length}</div>
+                      <div class="text-[10px] uppercase opacity-70">Всего событий</div>
+                    </div>
+                    <div class="bg-black/5 p-2 rounded border border-[var(--card-border)] text-center">
+                      <div class="text-2xl font-bold">${globalCounts.action}</div>
+                      <div class="text-[10px] uppercase opacity-70">Действий</div>
+                    </div>
+                    <div class="bg-black/5 p-2 rounded border border-[var(--card-border)] text-center">
+                      <div class="text-2xl font-bold">${globalCounts.desc}</div>
+                      <div class="text-[10px] uppercase opacity-70">Сред/Описаний</div>
+                    </div>
+                    <div class="bg-black/5 p-2 rounded border border-[var(--card-border)] text-center">
+                      <div class="text-2xl font-bold">${globalCounts.dial} <span class="text-sm opacity-50">(${globalCounts.replies})</span></div>
+                      <div class="text-[10px] uppercase opacity-70">Диалогов (фраз)</div>
+                    </div>
+                  </div>
+                </div>`;
+
+        // 2. График активности
+        html += `<div class="theme-card p-4">
+                  <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="bar-chart-2" class="w-5 h-5"></i> Рейтинг активности</h3>`;
+        if (sortedActors.length === 0) {
+           html += `<p class="italic text-sm opacity-50">Пока никто ничего не сделал.</p>`;
+        } else {
+           const max = sortedActors[0].total;
+           sortedActors.forEach(s => {
+              const perc = Math.max(5, (s.total / max) * 100);
+              html += `
+                <div class="mb-3">
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="font-bold truncate pr-2 w-1/2">${s.name}</span>
+                    <span class="opacity-70 text-right w-1/2">${s.actions} действ. / ${s.lines} фраз</span>
+                  </div>
+                  <div class="w-full bg-black/20 rounded-full h-4 overflow-hidden relative border border-[var(--card-border)]">
+                    <div class="theme-btn h-full transition-all" style="width: ${perc}%"></div>
+                    <span class="absolute right-2 top-0 text-[10px] leading-4 mix-blend-difference text-white font-bold">${s.total}</span>
+                  </div>
+                </div>
+              `;
+           });
+        }
+        html += `</div>`;
+
+        // 3. Цели и Локации (в две колонки, если поместятся)
+        html += `<div class="flex flex-col md:flex-row gap-4">`;
+        
+        // Главные цели
+        if (sortedTargets.length > 0) {
+          html += `<div class="theme-card p-4 flex-1">
+                    <h3 class="font-bold mb-3 text-sm opacity-80 uppercase">Главные цели действий</h3>
+                    <ul class="text-sm space-y-1">
+                      ${sortedTargets.map(t => `
+                        <li class="flex justify-between border-b border-black/10 pb-1">
+                          <span>${t.name}</span> <span class="font-bold">${t.count}</span>
+                        </li>`).join('')}
+                    </ul>
+                  </div>`;
+        }
+
+        // Популярные локации
+        if (sortedLocs.length > 0) {
+          html += `<div class="theme-card p-4 flex-1">
+                    <h3 class="font-bold mb-3 text-sm opacity-80 uppercase">Задействованные локации</h3>
+                    <ul class="text-sm space-y-1">
+                      ${sortedLocs.map(l => `
+                        <li class="flex justify-between border-b border-black/10 pb-1">
+                          <span class="truncate pr-2"><i data-lucide="map-pin" class="w-3 h-3 inline"></i> ${l.name}</span> <span class="font-bold">${l.count}</span>
+                        </li>`).join('')}
+                    </ul>
+                  </div>`;
+        }
+        html += `</div>`;
+
+        // 4. Журнал конкретных действий
+        const actorsWithActions = sortedActors.filter(a => a.texts.length > 0);
+        if (actorsWithActions.length > 0) {
+          html += `<div class="theme-card p-4">
+                    <h3 class="font-bold mb-4 flex items-center gap-2"><i data-lucide="list-checks" class="w-5 h-5"></i> Кто и что именно делал</h3>
+                    <div class="space-y-4">
+                      ${actorsWithActions.map(actor => `
+                        <div>
+                          <h4 class="font-bold text-sm text-[var(--input-focus)] border-b border-[var(--card-border)] pb-1 mb-2">${actor.name}</h4>
+                          <ul class="text-xs space-y-1 opacity-90 list-disc list-inside">
+                            ${actor.texts.map(txt => `<li><span class="italic">${txt}</span></li>`).join('')}
+                          </ul>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>`;
+        }
+        
+        html += `</div></div>`;
+        container.innerHTML = html;
+      },
+
+      // --- STREAMING_CHUNK: РЕДАКТОР ДИАЛОГОВ (Со схемой) ---
+      dialogueEditor: (container) => {
+        const book = dataObj.getActiveBook();
+        const chapter = dataObj.getActiveChapter();
+        const dialItem = chapter.items.find(i => i.id === state.dialogue.activeId);
+        if (!dialItem) { actions.dialogue.close(); return; }
+
+        if (!dialItem.nodes || dialItem.nodes.length === 0) {
+          dialItem.nodes = [{ id: Date.now().toString(), speakerId: '', emotion: '', text: '', nextIds: [] }];
+          app.save();
+        }
+
+        const nodes = dialItem.nodes;
+        if (!state.dialogue.currentNodeId) state.dialogue.currentNodeId = nodes[0].id;
+        
+        const currentNode = nodes.find(n => n.id === state.dialogue.currentNodeId);
+        if(!currentNode) { state.dialogue.currentNodeId = nodes[0].id; return app.render(); }
+
+        const incomingNodes = nodes.filter(n => n.nextIds.includes(currentNode.id));
+        const nodePreview = (n) => `${dataObj.getCharName(n.speakerId)}: "${n.text.substring(0, 20)}..."`;
+
+        // --- 1. Логика расчета графа (Поиск в ширину - BFS для определения слоев/глубины) ---
+        const levels = [];
+        const visited = new Set();
+        // Начинаем с первого узла как корня
+        const queue = [{ id: nodes[0].id, level: 0 }];
+        
+        while (queue.length > 0) {
+            const curr = queue.shift();
+            if (visited.has(curr.id)) continue; // Защита от бесконечных циклов
+            visited.add(curr.id);
+            
+            if (!levels[curr.level]) levels[curr.level] = [];
+            levels[curr.level].push(curr.id);
+            
+            const nData = nodes.find(n => n.id === curr.id);
+            if (nData) {
+                nData.nextIds.forEach(nextId => queue.push({ id: nextId, level: curr.level + 1 }));
+            }
+        }
+        // Если остались "сироты" (узлы без связей или оторванные ветки)
+        nodes.forEach(n => {
+            if (!visited.has(n.id)) {
+                if (!levels[0]) levels[0] = [];
+                levels[0].push(n.id);
+                visited.add(n.id);
+            }
+        });
+
+        // --- 2. Генерация HTML Графа (Кружки) ---
+        let graphHtml = `<div id="dialogue-nodes-container" class="relative z-10 flex flex-col gap-10 items-center min-w-max pb-10">`;
+        levels.forEach((levelNodes, lvlIdx) => {
+            graphHtml += `<div class="flex gap-6 justify-center">`;
+            levelNodes.forEach(nId => {
+                const n = nodes.find(x => x.id === nId);
+                const firstWord = (n.text || '').trim().split(/[ \n\t.,!?]+/)[0] || '...';
+                const isActive = nId === state.dialogue.currentNodeId;
+                
+                // Стили кружка зависят от активности
+                const bg = isActive ? 'var(--btn-bg)' : 'var(--card-bg)';
+                const color = isActive ? 'var(--btn-text)' : 'var(--text)';
+                const border = isActive ? 'var(--btn-bg)' : 'var(--card-border)';
+                const shadow = isActive ? 'shadow-[0_0_15px_var(--input-focus)] scale-110 z-20' : 'shadow-md opacity-80 hover:opacity-100 hover:scale-105';
+                
+                graphHtml += `
+                    <div id="d-node-${n.id}" onclick="state.dialogue.currentNodeId='${n.id}'; app.render();" 
+                         class="w-16 h-16 rounded-full flex items-center justify-center text-[11px] font-bold text-center overflow-hidden p-2 cursor-pointer transition-all duration-200 ${shadow} relative"
+                         style="background-color: ${bg}; color: ${color}; border: 3px solid ${border};" title="${n.text}">
+                        <span class="truncate w-full block text-center">${firstWord}</span>
+                    </div>
+                `;
+            });
+            graphHtml += `</div>`;
+        });
+        graphHtml += `</div>`;
+
+        // --- 3. Генерация основного интерфейса (Split View) ---
+        let html = `
+          <div class="sticky top-0 z-30 flex items-center justify-between p-4 shadow-md theme-card !rounded-none !border-x-0 !border-t-0">
+            <div class="flex items-center gap-3">
+              <button onclick="actions.dialogue.close()" class="p-2 opacity-70 hover:opacity-100 transition-opacity"><i data-lucide="arrow-left"></i></button>
+              <div>
+                <h2 class="font-bold truncate max-w-[200px] md:max-w-md">Диалог: ${dialItem.title}</h2>
+                <p class="text-xs opacity-70">Всего узлов: ${nodes.length}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex flex-col md:flex-row flex-1 h-[calc(100vh-76px)] overflow-hidden">
+            
+            <!-- Левая/Верхняя панель: Схема (Граф) -->
+            <div class="w-full md:w-5/12 border-b md:border-b-0 md:border-r border-[var(--card-border)] bg-black/5 relative flex flex-col" style="height: 35vh; md:height: auto;">
+                <div class="p-2 text-[10px] font-bold uppercase opacity-60 sticky top-0 bg-[var(--card-bg)]/90 backdrop-blur z-30 border-b border-[var(--card-border)] flex justify-between items-center shadow-sm">
+                    <span><i data-lucide="git-merge" class="w-3 h-3 inline"></i> Карта ветвей (Слайдер)</span>
+                    <span class="opacity-50 font-normal normal-case">Кликните кружок для перехода</span>
+                </div>
+                
+                <!-- Контейнер со скроллом для графа -->
+                <div id="dialogue-graph-scroll" class="relative p-6 flex-1 overflow-auto hide-scrollbar scroll-smooth" style="cursor: grab;">
+                    <!-- SVG слой для линий -->
+                    <svg id="dialogue-edges" class="absolute top-0 left-0 pointer-events-none" style="min-width: 100%; min-height: 100%; z-index: 0;"></svg>
+                    <!-- HTML слой для узлов -->
+                    ${graphHtml}
+                </div>
+            </div>
+
+            <!-- Правая/Нижняя панель: Редактор узла -->
+            <div class="w-full md:w-7/12 p-4 md:p-6 overflow-y-auto pb-32">
+        `;
+
+        if (incomingNodes.length > 0) {
+          html += `
+            <div class="mb-4">
+              <p class="text-[10px] uppercase font-bold opacity-50 mb-2">Ответ на:</p>
+              <div class="flex gap-2 overflow-x-auto hide-scrollbar snap-x pb-2">
+                ${incomingNodes.map(inN => `
+                  <button onclick="state.dialogue.currentNodeId='${inN.id}'; app.render();" class="shrink-0 p-2 text-xs rounded border snap-center theme-btn opacity-60 hover:opacity-100 max-w-[200px] truncate shadow-sm transition-opacity">
+                    &uarr; ${nodePreview(inN)}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        const charOpts = book.characters.map(c => `<option value="${c.id}" ${c.id===currentNode.speakerId?'selected':''}>${c.name}</option>`).join('');
+
+        html += `
+          <div class="theme-card relative !border-l-4 !border-l-blue-500 shadow-xl p-4 mb-6">
+            <div class="absolute top-2 right-2">
+              <button onclick="actions.dialogue.delNode()" class="text-red-500 p-2 opacity-70 hover:opacity-100 transition-opacity"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+            <p class="text-[10px] uppercase font-bold opacity-50 mb-3 text-[var(--input-focus)]">Выбранный узел</p>
+            <div class="space-y-3">
+              <div class="flex gap-2">
+                <select class="flex-1 theme-input p-2 rounded text-sm font-bold" onchange="actions.dialogue.updateNode('speakerId', this.value)">
+                  <option value="">Кто говорит?</option>${charOpts}
+                </select>
+                <input type="text" class="w-1/2 theme-input p-2 rounded text-sm italic" placeholder="Эмоция (опц.)" value="${currentNode.emotion}" onblur="actions.dialogue.updateNode('emotion', this.value)">
+              </div>
+              <textarea class="w-full theme-input p-3 rounded min-h-[140px] resize-none font-medium leading-relaxed" placeholder="Текст сообщения..." onblur="actions.dialogue.updateNode('text', this.value)">${currentNode.text}</textarea>
+            </div>
+          </div>
+        `;
+
+        html += `
+          <div>
+            <p class="text-[10px] uppercase font-bold opacity-50 mb-3 flex items-center gap-1"><i data-lucide="git-branch" class="w-4 h-4"></i> Развилки (Исходящие)</p>
+            <div class="space-y-2 mb-4">
+        `;
+
+        if (currentNode.nextIds.length === 0) {
+           html += `<div class="text-center opacity-40 py-6 border border-dashed border-[var(--card-border)] rounded italic text-sm">Здесь диалог обрывается.</div>`;
+        } else {
+           currentNode.nextIds.forEach(nextId => {
+             const nextN = nodes.find(n => n.id === nextId);
+             if(!nextN) return;
+             html += `
+               <div class="theme-card p-3 !m-0 flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity shadow-sm border-l-2 border-l-[var(--card-border)]">
+                 <div class="flex-1 pr-4" onclick="state.dialogue.currentNodeId='${nextId}'; app.render();">
+                   <div class="font-bold text-sm">${dataObj.getCharName(nextN.speakerId)} ${nextN.emotion ? `<span class="opacity-60 font-normal italic ml-2">(${nextN.emotion})</span>` : ''}</div>
+                   <div class="text-sm truncate opacity-90 mt-0.5">${nextN.text || '...'}</div>
+                 </div>
+                 <button onclick="actions.dialogue.unlink('${nextId}')" class="text-red-500 p-2 shrink-0 opacity-50 hover:opacity-100"><i data-lucide="x" class="w-4 h-4"></i></button>
+               </div>
+             `;
+           });
+        }
+
+        const unlinkedOpts = nodes.filter(n => n.id !== currentNode.id && !currentNode.nextIds.includes(n.id)).map(n => `<option value="${n.id}">+ Соединить с: ${nodePreview(n)}</option>`).join('');
+
+        html += `
+            </div>
+            <div class="flex flex-col gap-2 mt-4 bg-black/5 p-3 rounded border border-[var(--card-border)]">
+              <button onclick="actions.dialogue.addBranch()" class="theme-btn w-full p-2.5 rounded flex justify-center items-center gap-2 font-bold shadow-sm transition-transform active:scale-95"><i data-lucide="plus" class="w-4 h-4"></i> Добавить новый ответ</button>
+              <div class="relative mt-1">
+                <select class="theme-input w-full p-2.5 rounded text-sm font-bold shadow-sm" onchange="if(this.value) { actions.dialogue.link(this.value); this.value=''; }">
+                  <option value="">+ Зациклить ветку / Соединить...</option>
+                  ${unlinkedOpts}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div> <!-- end split flex -->
+        `;
+        
+        container.innerHTML = html;
+
+        // --- 4. Логика отрисовки линий SVG (После рендера DOM) ---
+        setTimeout(() => {
+            const svg = document.getElementById('dialogue-edges');
+            const graphCont = document.getElementById('dialogue-graph-scroll');
+            if(!svg || !graphCont) return;
+            
+            // Маркер-стрелочка
+            let svgHtml = `<defs>
+                <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="var(--card-border)"/>
+                </marker>
+                <!-- Отдельный маркер для активных линий -->
+                <marker id="arrowhead-active" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="var(--btn-bg)"/>
+                </marker>
+            </defs>`;
+            
+            nodes.forEach(n => {
+                const el1 = document.getElementById(`d-node-${n.id}`);
+                if(!el1) return;
+                const rect1 = el1.getBoundingClientRect();
+                const contRect = graphCont.getBoundingClientRect();
+                // Учитываем скролл контейнера
+                const scrollL = graphCont.scrollLeft;
+                const scrollT = graphCont.scrollTop;
+                
+                // Начало линии - низ кружка
+                const x1 = rect1.left - contRect.left + scrollL + rect1.width/2;
+                const y1 = rect1.top - contRect.top + scrollT + rect1.height; 
+                
+                n.nextIds.forEach(nextId => {
+                    const el2 = document.getElementById(`d-node-${nextId}`);
+                    if(!el2) return;
+                    const rect2 = el2.getBoundingClientRect();
+                    // Конец линии - верх следующего кружка
+                    const x2 = rect2.left - contRect.left + scrollL + rect2.width/2;
+                    const y2 = rect2.top - contRect.top + scrollT; 
+                    
+                    // Если связь исходит из текущего активного узла, подсвечиваем ее
+                    const isActiveEdge = (n.id === state.dialogue.currentNodeId);
+                    const strokeColor = isActiveEdge ? 'var(--btn-bg)' : 'var(--card-border)';
+                    const strokeWidth = isActiveEdge ? '3' : '2';
+                    const marker = isActiveEdge ? 'url(#arrowhead-active)' : 'url(#arrowhead)';
+                    const opacity = isActiveEdge ? '1' : '0.4';
+                    
+                    svgHtml += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${strokeColor}" stroke-width="${strokeWidth}" marker-end="${marker}" opacity="${opacity}"/>`;
+                });
+            });
+            
+            // Подгоняем размер SVG под размер контента (чтобы линии не обрезались при скролле)
+            svg.style.width = graphCont.scrollWidth + 'px';
+            svg.style.height = graphCont.scrollHeight + 'px';
+            svg.innerHTML = svgHtml;
+
+            // Центрируем скролл на активном элементе (Умный слайдер)
+            const activeEl = document.getElementById(`d-node-${state.dialogue.currentNodeId}`);
+            if(activeEl) {
+                // Прокрутка по центру с плавной анимацией
+                const targetScrollT = activeEl.offsetTop - (graphCont.clientHeight / 2) + (activeEl.clientHeight / 2);
+                graphCont.scrollTo({ top: targetScrollT, behavior: 'smooth' });
+            }
+            
+        }, 30); // Задержка для гарантии рендера элементов браузером
+      }
+    };
+
+    // --- STREAMING_CHUNK: Обработчики действий (Actions) ---
+    const actions = {
+      story: {
+        addChapter: () => {
+          dataObj.updateActiveBook(b => {
+            const ch = { id: Date.now().toString(), title: `Глава ${b.chapters.length + 1}`, items: [] };
+            b.chapters.push(ch);
+            state.activeChapterId = ch.id;
+            return b;
+          });
+        },
+        deleteChapter: async () => {
+          const book = dataObj.getActiveBook();
+          if (book.chapters.length === 1) return ui.alert('Должна быть хотя бы одна глава.');
+          const yes = await ui.confirm('Удалить главу и все события?');
+          if (yes) {
+            dataObj.updateActiveBook(b => {
+              b.chapters = b.chapters.filter(c => c.id !== state.activeChapterId);
+              state.activeChapterId = b.chapters[0].id;
+              return b;
+            });
+          }
+        },
+        renameChapter: (val) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            if(ch) ch.title = val;
+            return b;
+          });
+        },
+        moveChapter: (dir) => {
+          dataObj.updateActiveBook(b => {
+            const idx = b.chapters.findIndex(c => c.id === state.activeChapterId);
+            if (dir === -1 && idx > 0) {
+              [b.chapters[idx-1], b.chapters[idx]] = [b.chapters[idx], b.chapters[idx-1]];
+            } else if (dir === 1 && idx < b.chapters.length - 1) {
+              [b.chapters[idx+1], b.chapters[idx]] = [b.chapters[idx], b.chapters[idx+1]];
+            }
+            return b;
+          });
+        },
+        saveEdit: (id, type) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            const item = ch.items.find(i => i.id === id);
+            if (!item) return b;
+            
+            const tagEl = document.getElementById('edit-item-tag');
+            const timeEl = document.getElementById('edit-item-time');
+            const plEl = document.getElementById('edit-item-plotline');
+            item.tag = tagEl ? tagEl.value : '';
+            item.timeMark = timeEl ? timeEl.value : '';
+            item.plotLineId = plEl ? plEl.value : '';
+
+            if (type === 'action') {
+              item.actorId = document.getElementById('edit-act-actor').value;
+              item.targetId = document.getElementById('edit-act-target').value;
+              item.text = document.getElementById('edit-act-text').value;
+              item.locationId = document.getElementById('edit-act-loc').value;
+              item.itemId = document.getElementById('edit-act-item').value;
+            } else if (type === 'description') {
+              item.text = document.getElementById('edit-desc-text').value;
+            } else if (type === 'dialogue') {
+              item.title = document.getElementById('edit-dial-title').value;
+            }
+            state.storyEditingId = null;
+            return b;
+          });
+        },
+        addItem: () => {
+          const t = state.storyNewItemType;
+          const tagEl = document.getElementById('new-item-tag');
+          const timeEl = document.getElementById('new-item-time');
+          const plEl = document.getElementById('new-item-plotline');
+          const tag = tagEl ? tagEl.value : '';
+          const timeMark = timeEl ? timeEl.value : '';
+          const plotLineId = plEl ? plEl.value : '';
+          let newItem;
+          if (t === 'action') {
+            const act = document.getElementById('new-action-actor').value;
+            const text = document.getElementById('new-action-text').value;
+            if(!act || !text) return ui.alert('Выберите персонажа и действие!');
+            const itemId = document.getElementById('new-action-item').value;
+            newItem = { type: 'action', id: Date.now().toString(), actorId: act, targetId: document.getElementById('new-action-target').value, locationId: document.getElementById('new-action-loc').value, text, tag, timeMark, itemId, plotLineId };
+          } else if (t === 'description') {
+            const text = document.getElementById('new-desc-text').value;
+            if(!text) return ui.alert('Напишите описание!');
+            newItem = { type: 'description', id: Date.now().toString(), text, tag, timeMark, plotLineId };
+          } else if (t === 'dialogue') {
+            const title = document.getElementById('new-dial-title').value || 'Новый диалог';
+            newItem = { type: 'dialogue', id: Date.now().toString(), title, nodes: [], tag, timeMark, plotLineId };
+          }
+          dataObj.updateActiveBook(b => {
+            b.chapters.find(c => c.id === state.activeChapterId).items.push(newItem);
+            return b;
+          });
+        },
+        delItem: (id) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            ch.items = ch.items.filter(i => i.id !== id);
+            return b;
+          });
+        },
+        dupItem: (id) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            const item = ch.items.find(i => i.id === id);
+            if (item) {
+              const copy = JSON.parse(JSON.stringify(item));
+              copy.id = Date.now().toString();
+              ch.items.push(copy);
+            }
+            return b;
+          });
+        },
+        moveItem: (idx, dir) => {
+          dataObj.updateActiveBook(b => {
+            const items = b.chapters.find(c => c.id === state.activeChapterId).items;
+            if (dir === -1 && idx > 0) [items[idx-1], items[idx]] = [items[idx], items[idx-1]];
+            else if (dir === 1 && idx < items.length -1) [items[idx+1], items[idx]] = [items[idx], items[idx+1]];
+            return b;
+          });
+        }
+      },
+      world: {
+        add: () => {
+          const name = document.getElementById('world-new-name').value;
+          if(!name) return;
+          const id = Date.now().toString();
+          dataObj.updateActiveBook(b => {
+            if (!b.items) b.items = [];
+            if(state.worldSubTab === 'chars') {
+              const fId = document.getElementById('world-new-faction').value;
+              b.characters.push({id, name, factions: fId ? [fId] : [], status: document.getElementById('world-new-status').value});
+            }
+            else if(state.worldSubTab === 'factions') {
+               const color = document.getElementById('world-new-color').value;
+               b.factions.push({id, name, color});
+            }
+            else if(state.worldSubTab === 'items') {
+               const ownerId = document.getElementById('world-new-item-owner').value;
+               b.items.push({id, name, ownerId});
+            }
+            else b.locations.push({id, name});
+            return b;
+          });
+        },
+        saveFEdit: (id) => {
+            dataObj.updateActiveBook(b => {
+                const f = b.factions.find(x => x.id === id);
+                if (f) {
+                    f.name = document.getElementById(`edit-faction-name-${id}`).value;
+                    f.color = document.getElementById(`edit-faction-color-${id}`).value;
+                }
+                state.worldFactionEditingId = null;
+                return b;
+            });
+        },
+        saveCEdit: (id) => {
+            dataObj.updateActiveBook(b => {
+                const c = b.characters.find(x => x.id === id);
+                if (c) {
+                    c.name = document.getElementById(`edit-char-name-${id}`).value;
+                    c.motivation = document.getElementById(`edit-char-motiv-${id}`).value;
+                    c.fear = document.getElementById(`edit-char-fear-${id}`).value;
+                    c.appearance = document.getElementById(`edit-char-app-${id}`).value;
+                    c.arc = document.getElementById(`edit-char-arc-${id}`).value;
+                    c.notes = document.getElementById(`edit-char-notes-${id}`).value;
+                }
+                state.worldCharEditingId = null;
+                return b;
+            });
+        },
+        saveIEdit: (id) => {
+            dataObj.updateActiveBook(b => {
+                const item = (b.items || []).find(x => x.id === id);
+                if (item) {
+                    item.name = document.getElementById(`edit-item-name-${id}`).value;
+                }
+                state.worldItemEditingId = null;
+                return b;
+            });
+        },
+        changeItemOwner: (itemId, newOwnerId) => {
+            dataObj.updateActiveBook(b => {
+                const item = (b.items || []).find(x => x.id === itemId);
+                if (item) item.ownerId = newOwnerId;
+                return b;
+            });
+        },
+        del: (id) => {
+          const listName = state.worldSubTab === 'chars' ? 'characters' : 
+                          (state.worldSubTab === 'factions' ? 'factions' : 
+                          (state.worldSubTab === 'locations' ? 'locations' : 'items'));
+          dataObj.updateActiveBook(b => {
+            if (b[listName]) {
+              b[listName] = b[listName].filter(i => i.id !== id);
+            }
+            // Если удалили фракцию, удаляем ее у всех персонажей
+            if (listName === 'factions') {
+              b.characters.forEach(c => {
+                if(c.factions) c.factions = c.factions.filter(fId => fId !== id);
+              });
+            }
+            return b;
+          });
+        },
+        updateStatus: (id, st) => {
+          dataObj.updateActiveBook(b => {
+            b.characters.find(c => c.id === id).status = st;
+            return b;
+          });
+        },
+        addF: (charId, factionId) => {
+          dataObj.updateActiveBook(b => {
+            const char = b.characters.find(c => c.id === charId);
+            if (char && !char.factions.includes(factionId)) char.factions.push(factionId);
+            return b;
+          });
+        },
+        remF: (charId, factionId) => {
+          dataObj.updateActiveBook(b => {
+            const char = b.characters.find(c => c.id === charId);
+            if (char) char.factions = char.factions.filter(fid => fid !== factionId);
+            return b;
+          });
+        }
+      },
+      plotLines: {
+        add: () => {
+          const title = document.getElementById('new-plotline-title')?.value;
+          const color = document.getElementById('new-plotline-color')?.value || '#3b82f6';
+          if (!title) return ui.alert('Введите название сюжетной линии!');
+          dataObj.updateActiveBook(b => {
+            if (!b.plotLines) b.plotLines = [];
+            b.plotLines.push({ id: 'pl_' + Date.now(), title, color });
+            return b;
+          });
+        },
+        del: async (id) => {
+          const yes = await ui.confirm('Удалить эту сюжетную линию? События останутся, но потеряют привязку к ветке.');
+          if (yes) {
+            dataObj.updateActiveBook(b => {
+              b.plotLines = (b.plotLines || []).filter(pl => pl.id !== id);
+              // Сбрасываем привязку у событий этой ветки
+              b.chapters.forEach(ch => {
+                ch.items.forEach(item => {
+                  if (item.plotLineId === id) item.plotLineId = '';
+                });
+              });
+              return b;
+            });
+          }
+        }
+      },
+      relations: {
+        add: () => {
+          const source = document.getElementById('rel-source').value;
+          const target = document.getElementById('rel-target').value;
+          const text = document.getElementById('rel-text').value;
+          if(!source || !target || !text) return;
+          dataObj.updateActiveBook(b => {
+            b.relationships.push({ id: Date.now().toString(), source, target, text });
+            return b;
+          });
+        },
+        addFactionRel: () => {
+          const source = document.getElementById('frel-source').value;
+          const target = document.getElementById('frel-target').value;
+          const text = document.getElementById('frel-text').value;
+          if(!source || !target || !text) return;
+          dataObj.updateActiveBook(b => {
+            if(!b.factionRelations) b.factionRelations = [];
+            b.factionRelations.push({ id: Date.now().toString(), source, target, text });
+            return b;
+          });
+        },
+        del: (id) => {
+          dataObj.updateActiveBook(b => {
+            b.relationships = b.relationships.filter(r => r.id !== id);
+            return b;
+          });
+        }
+      },
+      dialogue: {
+        open: (id) => { state.dialogue.activeId = id; state.dialogue.currentNodeId = null; app.render(); },
+        close: () => { state.dialogue.activeId = null; app.render(); },
+        updateNode: (field, val) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            const dial = ch.items.find(i => i.id === state.dialogue.activeId);
+            const node = dial.nodes.find(n => n.id === state.dialogue.currentNodeId);
+            if(node) node[field] = val;
+            return b;
+          });
+        },
+        addBranch: () => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            const dial = ch.items.find(i => i.id === state.dialogue.activeId);
+            const newId = Date.now().toString();
+            dial.nodes.push({ id: newId, speakerId: '', emotion: '', text: '', nextIds: [] });
+            dial.nodes.find(n => n.id === state.dialogue.currentNodeId).nextIds.push(newId);
+            state.dialogue.currentNodeId = newId; // Переход
+            return b;
+          });
+        },
+        link: (targetId) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            const dial = ch.items.find(i => i.id === state.dialogue.activeId);
+            const node = dial.nodes.find(n => n.id === state.dialogue.currentNodeId);
+            if(!node.nextIds.includes(targetId)) node.nextIds.push(targetId);
+            return b;
+          });
+        },
+        unlink: (targetId) => {
+          dataObj.updateActiveBook(b => {
+            const ch = b.chapters.find(c => c.id === state.activeChapterId);
+            const dial = ch.items.find(i => i.id === state.dialogue.activeId);
+            const node = dial.nodes.find(n => n.id === state.dialogue.currentNodeId);
+            node.nextIds = node.nextIds.filter(id => id !== targetId);
+            return b;
+          });
+        },
+        delNode: async () => {
+          const book = dataObj.getActiveBook();
+          const ch = book.chapters.find(c => c.id === state.activeChapterId);
+          const dial = ch.items.find(i => i.id === state.dialogue.activeId);
+          if (dial.nodes.length <= 1) return ui.alert('Нельзя удалить последнее сообщение.');
+          
+          const yes = await ui.confirm('Удалить узел? Ветки оборвутся.');
+          if (yes) {
+            dataObj.updateActiveBook(b => {
+              const _ch = b.chapters.find(c => c.id === state.activeChapterId);
+              const _dial = _ch.items.find(i => i.id === state.dialogue.activeId);
+              _dial.nodes = _dial.nodes.filter(n => n.id !== state.dialogue.currentNodeId).map(n => {
+                n.nextIds = n.nextIds.filter(id => id !== state.dialogue.currentNodeId);
+                return n;
+              });
+              state.dialogue.currentNodeId = _dial.nodes[0].id;
+              return b;
+            });
+          }
+        }
+      }
+    };
+
+    // Старт
+    window.onload = app.init;
+  </script>
+</body>
+</html>
