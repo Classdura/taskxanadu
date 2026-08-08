@@ -299,6 +299,24 @@
         }
         .collapsed-content { display: none; }
 
+        /* Окно фокуса */
+        .focus-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--container-bg);
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: var(--glass-shadow);
+            max-width: 300px;
+            z-index: 1000;
+            display: none;
+        }
+        .focus-window.visible { display: block; }
+        .focus-window h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--accent-color); }
+        .focus-list { padding-left: 20px; margin: 0; font-size: 14px; }
+
         @media (max-width: 768px) {
             #sidebar {
                 position: fixed;
@@ -369,6 +387,13 @@
             <h1 id="map-title" contenteditable="true" onblur="app.updateMapTitle(this.innerText)">Название Карты</h1>
             <div class="global-stats" id="global-stats">Общий статус: 0/0 (0%)</div>
             <div class="tree-root" id="tree-root"></div>
+            
+            <!-- Окно фокуса -->
+            <div id="focus-window" class="focus-window">
+                <h3>Очередь фокуса:</h3>
+                <ol id="focus-list" class="focus-list"></ol>
+            </div>
+
 			<div style="display:flex; gap: 10px; justify-content: center;">
                 <button class="btn-main-add" onclick="app.addTask(null)">+ Добавить главную ветвь</button>
                 <button class="btn-main-add" onclick="app.addBulkTasks(null)">+📋 Массово</button>
@@ -653,6 +678,25 @@
                     this.saveState(); this.render();
                 }
             },
+            resetTaskColor(id) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const taskInfo = this.findTask(map.tasks, id);
+                if (taskInfo) {
+                    delete taskInfo.node.color;
+                    this.saveState(); this.render(); AudioSys.play('action');
+                }
+            },
+            toggleTaskTextColor(id) {
+                const map = this.state.maps.find(m => m.id === this.state.currentMapId);
+                const taskInfo = this.findTask(map.tasks, id);
+                if (taskInfo) {
+                    // Переключаем между null (по умолчанию), белым и черным
+                    if (!taskInfo.node.textColor) taskInfo.node.textColor = '#ffffff';
+                    else if (taskInfo.node.textColor === '#ffffff') taskInfo.node.textColor = '#000000';
+                    else delete taskInfo.node.textColor;
+                    this.saveState(); this.render(); AudioSys.play('action');
+                }
+            },
             deleteTask(id) {
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
                 const info = this.findTask(map.tasks, id);
@@ -787,6 +831,33 @@
             },
 
             // --- Rendering ---
+            renderFocusQueue(tasks) {
+                const windowEl = document.getElementById('focus-window');
+                const listEl = document.getElementById('focus-list');
+                
+                if (!this.state.focusedTaskIds || this.state.focusedTaskIds.length === 0) {
+                    windowEl.classList.remove('visible');
+                    return;
+                }
+                
+                listEl.innerHTML = '';
+                this.state.focusedTaskIds.forEach(id => {
+                    const taskInfo = this.findTask(tasks, id);
+                    if (taskInfo) {
+                        const li = document.createElement('li');
+                        li.innerText = taskInfo.node.text;
+                        listEl.appendChild(li);
+                    }
+                });
+                
+                // Показываем окно только если нашли хоть одну актуальную задачу
+                if (listEl.children.length > 0) {
+                    windowEl.classList.add('visible');
+                } else {
+                    windowEl.classList.remove('visible');
+                }
+            },
+
             render() {
                 this.renderMapList();
                 const map = this.state.maps.find(m => m.id === this.state.currentMapId);
@@ -803,6 +874,8 @@
                 if(map.tasks.length > 0) {
                     treeRoot.appendChild(this.createTaskNodes(map.tasks));
                 }
+                
+                this.renderFocusQueue(map.tasks);
             },
 
             renderMapList() {
@@ -843,15 +916,18 @@
                         : `<span class="btn-toggle"></span>`;
 
                     const inlineStyle = task.color ? `--node-custom-color: ${task.color};` : '';
+                    const textStyle = task.textColor ? `color: ${task.textColor};` : '';
 
                     li.innerHTML = `
                         <div id="task-${task.id}" class="task-content ${task.completed ? 'completed' : ''} ${(app.state.focusedTaskIds || []).includes(task.id) ? 'focused' : ''}" style="${inlineStyle}">
                             ${toggleBtn}
                             <input type="checkbox" ${task.completed ? 'checked' : ''} onclick="app.toggleComplete('${task.id}')">
-                            <input type="text" class="task-text" value="${task.text.replace(/"/g, '&quot;')}" onblur="app.updateTaskText('${task.id}', this.value)">
+                            <input type="text" class="task-text" style="${textStyle}" value="${task.text.replace(/"/g, '&quot;')}" onblur="app.updateTaskText('${task.id}', this.value)">
                             ${statsHtml}
                             <div class="task-controls">
                                 <input type="color" class="node-color-picker" value="${task.color || '#ffffff'}" onchange="app.updateTaskColor('${task.id}', this.value)" title="Цвет ветки">
+                                <button onclick="app.resetTaskColor('${task.id}')" title="Сбросить цвет фона">↺</button>
+                                <button onclick="app.toggleTaskTextColor('${task.id}')" title="Переключить цвет текста (ч/б)">A</button>
                                 <button onclick="app.moveTask('${task.id}', 'up')" title="Вверх">↑</button>
                                 <button onclick="app.moveTask('${task.id}', 'down')" title="Вниз">↓</button>
                                 <button onclick="app.moveTask('${task.id}', 'in')" title="Внутрь (Сделать дочерней)">→</button>
