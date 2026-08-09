@@ -307,15 +307,36 @@
             background: var(--container-bg);
             border: 2px solid var(--accent-color);
             border-radius: 8px;
-            padding: 15px;
+            padding: 12px 15px;
             box-shadow: var(--glass-shadow);
-            max-width: 300px;
+            width: 280px;
             z-index: 1000;
             display: none;
+            transition: all 0.2s ease;
         }
         .focus-window.visible { display: block; }
-        .focus-window h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--accent-color); }
-        .focus-list { padding-left: 20px; margin: 0; font-size: 14px; }
+        .focus-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .focus-window.collapsed .focus-header { margin-bottom: 0; }
+        .focus-window h3 { margin: 0; font-size: 14px; color: var(--accent-color); }
+        .focus-actions { display: flex; gap: 4px; }
+        .focus-actions button {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            opacity: 0.7;
+        }
+        .focus-actions button:hover { opacity: 1; background: var(--btn-hover); }
+        .focus-list { padding-left: 20px; margin: 0; font-size: 14px; max-height: 200px; overflow-y: auto; }
+        .focus-window.collapsed .focus-list { display: none; }
 
         @media (max-width: 768px) {
             #sidebar {
@@ -371,6 +392,7 @@
         <div class="toolbar">
             <button onclick="app.toggleSidebar()">Меню (Карты)</button>
             <button onclick="app.toggleTheme()">Сменить Тему</button>
+            <button id="btn-focus-toggle" onclick="app.toggleFocusWindowManual()">👁 Очередь фокуса (<span id="focus-count">0</span>)</button>
             <label>Фон: <input type="color" id="bg-color" onchange="app.changeBackground(this.value)"></label>
             <button onclick="app.undo()">Undo (Отменить)</button>
             <button onclick="app.redo()">Redo (Повторить)</button>
@@ -390,7 +412,13 @@
             
             <!-- Окно фокуса -->
             <div id="focus-window" class="focus-window">
-                <h3>Очередь фокуса:</h3>
+                <div class="focus-header">
+                    <h3>Очередь фокуса:</h3>
+                    <div class="focus-actions">
+                        <button onclick="app.toggleFocusCollapse()" id="btn-focus-collapse" title="Свернуть/Развернуть">—</button>
+                        <button onclick="app.closeFocusWindow()" title="Скрыть окно">✕</button>
+                    </div>
+                </div>
                 <ol id="focus-list" class="focus-list"></ol>
             </div>
 
@@ -443,7 +471,9 @@
                 theme: 'light',
                 maps: [],
                 currentMapId: null,
-                focusedTaskIds: [] 
+                focusedTaskIds: [],
+                focusWindowVisible: true,
+                focusWindowCollapsed: false
             },
             history: [],
             historyIndex: -1,
@@ -606,10 +636,34 @@
                     // Если задача уже в фокусе — убираем её из очереди
                     this.state.focusedTaskIds.splice(index, 1);
                 } else {
-                    // Иначе добавляем в очередь
+                    // Иначе добавляем в очередь и автоматически показываем окно
                     this.state.focusedTaskIds.push(id);
+                    this.state.focusWindowVisible = true;
                 }
                 
+                this.saveState();
+                this.render();
+            },
+
+            toggleFocusWindowManual() {
+                if (!this.state.focusedTaskIds || this.state.focusedTaskIds.length === 0) {
+                    this.showAlert("В очереди фокуса пока нет задач. Нажмите 👁 на любой задаче, чтобы добавить её!");
+                    return;
+                }
+                // Переключаем видимость окна
+                this.state.focusWindowVisible = !this.state.focusWindowVisible;
+                this.saveState();
+                this.render();
+            },
+
+            toggleFocusCollapse() {
+                this.state.focusWindowCollapsed = !this.state.focusWindowCollapsed;
+                this.saveState();
+                this.render();
+            },
+
+            closeFocusWindow() {
+                this.state.focusWindowVisible = false;
                 this.saveState();
                 this.render();
             },
@@ -813,6 +867,11 @@
                 let totalLeaves = 0;
                 let completedLeaves = 0;
 
+                let localTotal = tasks.length;
+                let localCompleted = 0;
+
+                if (!this.state.focusedTaskIds) this.state.focusedTaskIds = [];
+
                 tasks.forEach(task => {
                     if (task.children && task.children.length > 0) {
                         const stats = this.computeTree(task.children);
@@ -825,17 +884,38 @@
                         totalLeaves += 1;
                         completedLeaves += task.completed ? 1 : 0;
                     }
+
+                    // Оптимизированное авто-снятие фокуса:
+                    // Если узел (родительский или лист) оказался полностью выполнен,
+                    // и он стоял в фокусе — удаляем его из очереди фокуса.
+                    if (task.completed) {
+                        localCompleted++;
+                        const focusIdx = this.state.focusedTaskIds.indexOf(task.id);
+                        if (focusIdx !== -1) {
+                            this.state.focusedTaskIds.splice(focusIdx, 1);
+                        }
+                    }
                 });
 
-                return { total: totalLeaves, completed: completedLeaves };
+                return { 
+                    total: totalLeaves, 
+                    completed: completedLeaves,
+                    localTotal: localTotal,
+                    localCompleted: localCompleted
+                };
             },
 
             // --- Rendering ---
             renderFocusQueue(tasks) {
                 const windowEl = document.getElementById('focus-window');
                 const listEl = document.getElementById('focus-list');
+                const countEl = document.getElementById('focus-count');
+                const collapseBtn = document.getElementById('btn-focus-collapse');
                 
-                if (!this.state.focusedTaskIds || this.state.focusedTaskIds.length === 0) {
+                const focusCount = this.state.focusedTaskIds ? this.state.focusedTaskIds.length : 0;
+                if (countEl) countEl.innerText = focusCount;
+                
+                if (!this.state.focusedTaskIds || focusCount === 0 || !this.state.focusWindowVisible) {
                     windowEl.classList.remove('visible');
                     return;
                 }
@@ -846,10 +926,25 @@
                     if (taskInfo) {
                         const li = document.createElement('li');
                         li.innerText = taskInfo.node.text;
+                        li.style.cursor = 'pointer';
+                        li.title = 'Нажмите, чтобы перейти к задаче';
+                        li.onclick = () => {
+                            const el = document.getElementById('task-' + id);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        };
                         listEl.appendChild(li);
                     }
                 });
                 
+                // Переключаем класс свёрнутости
+                if (this.state.focusWindowCollapsed) {
+                    windowEl.classList.add('collapsed');
+                    if (collapseBtn) collapseBtn.innerText = '□';
+                } else {
+                    windowEl.classList.remove('collapsed');
+                    if (collapseBtn) collapseBtn.innerText = '—';
+                }
+
                 // Показываем окно только если нашли хоть одну актуальную задачу
                 if (listEl.children.length > 0) {
                     windowEl.classList.add('visible');
@@ -867,7 +962,13 @@
                 
                 const globalStats = this.computeTree(map.tasks);
                 const percent = globalStats.total === 0 ? 0 : Math.round((globalStats.completed / globalStats.total) * 100);
-                document.getElementById('global-stats').innerText = `Общий статус: ${globalStats.completed}/${globalStats.total} (${percent}%)`;
+                const localPercent = globalStats.localTotal === 0 ? 0 : Math.round((globalStats.localCompleted / globalStats.localTotal) * 100);
+                
+                const localText = globalStats.localTotal > 0 
+                    ? `<span class="task-stats" style="color: #ef4444; margin-left: 10px;" title="Прямые главные ветви">лок: ${globalStats.localCompleted}/${globalStats.localTotal} (${localPercent}%)</span>` 
+                    : '';
+
+                document.getElementById('global-stats').innerHTML = `Общий статус: <span class="task-stats" title="Все задачи (листья)">глоб: ${globalStats.completed}/${globalStats.total} (${percent}%)</span> ${localText}`;
 
                 const treeRoot = document.getElementById('tree-root');
                 treeRoot.innerHTML = '';
@@ -908,7 +1009,12 @@
                     let statsHtml = '';
                     if (task.stats) {
                         const pct = task.stats.total === 0 ? 0 : Math.round((task.stats.completed / task.stats.total) * 100);
-                        statsHtml = `<span class="task-stats">${task.stats.completed}/${task.stats.total} (${pct}%)</span>`;
+                        const localPct = task.stats.localTotal === 0 ? 0 : Math.round((task.stats.localCompleted / task.stats.localTotal) * 100);
+                        
+                        const localBadge = `<span class="task-stats" style="color: #ef4444;" title="Локальные задачи (прямые дети)">лок: ${task.stats.localCompleted}/${task.stats.localTotal} (${localPct}%)</span>`;
+                        const mainBadge = `<span class="task-stats" title="Глобальные задачи (все листья)">глоб: ${task.stats.completed}/${task.stats.total} (${pct}%)</span>`;
+                        
+                        statsHtml = `${localBadge}${mainBadge}`;
                     }
 
                     const toggleBtn = hasChildren 
