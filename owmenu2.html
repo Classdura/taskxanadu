@@ -62,7 +62,10 @@
     <div id="main-menu" class="view active">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h2 style="margin:0">Overwatch DB</h2>
-            <button class="btn btn-sec" onclick="openStats()">📊 Менеджер</button>
+            <div style="display:flex; gap:5px;">
+                <button class="btn btn-sec" onclick="openMatches()">📝 Анкеты</button>
+                <button class="btn btn-sec" onclick="openStats()">📊 Менеджер</button>
+            </div>
         </div>
 
         <div class="filter-row">
@@ -75,7 +78,12 @@
         <div style="display: flex; gap: 5px;">
             <button id="mode-c" class="btn btn-main" style="flex:1" onclick="setMode('counters')">КОНТРПИКИ</button>
             <button id="mode-s" class="btn btn-main" style="flex:1; opacity:0.5" onclick="setMode('synergy')">СИНЕРГИЯ</button>
+            <button id="mode-w" class="btn btn-main" style="flex:1; opacity:0.5" onclick="setMode('winrate')">СтатВинрейт</button>
         </div>
+        
+        <!-- Панель фильтрации статистики по режимам игры -->
+        <div id="game-mode-filter-row" class="filter-row" style="display:none; margin-top:10px;"></div>
+
 		<div id="sort-controls" style="display:flex; gap:5px; flex-wrap:wrap; margin-top:15px; justify-content:center;"></div>
         <div class="grid" id="hero-grid"></div>
 
@@ -126,6 +134,73 @@
             <input type="file" id="imp" style="display:none" onchange="importJSON(this)">
         </div>
         <div id="stats-list"></div>
+
+        <!-- Раздел управления пулом карт -->
+        <div style="margin-top: 25px; background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #444;">
+            <h4 style="margin: 0 0 10px 0; color: var(--accent);">🗺️ Пул карт</h4>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <input type="text" id="new-map-name" placeholder="Название карты..." style="flex:2;">
+                <button class="btn btn-main" style="flex:1;" onclick="addMap()">+ Карта</button>
+            </div>
+            <div id="maps-list-container" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+        </div>
+    </div>
+
+    <!-- Модальный экран анкет матчей -->
+    <div id="matches-view" class="view">
+        <button class="btn btn-sec" onclick="showMain()">← НАЗАД</button>
+        <h3 style="margin: 15px 0 5px 0;">Анкеты матчей</h3>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+            <button class="btn btn-main" style="flex:1" onclick="showMatchForm()">➕ Новая анкета</button>
+            <button class="btn btn-sec" style="background:#ff4444; color:white;" onclick="clearAllMatches()">🗑️ Очистить все</button>
+        </div>
+
+        <div id="match-form-container" style="display:none; background:var(--card); padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid #444;">
+            <h4 id="match-form-title" style="margin-top:0">Новая анкета</h4>
+            <input type="hidden" id="edit-match-id" value="">
+            
+            <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:110px;">
+                    <label style="font-size:11px; font-weight:bold;">Формат:</label>
+                    <select id="match-format" onchange="onFormatChange()">
+                        <option value="3x3">3x3</option>
+                        <option value="5x5" selected>5x5</option>
+                        <option value="6x6">6x6</option>
+                    </select>
+                </div>
+                <div style="flex:1; min-width:140px;">
+                    <label style="font-size:11px; font-weight:bold;">Результат:</label>
+                    <select id="match-loser">
+                        <option value="teamB">Проиграла Команда A</option>
+                        <option value="teamA">Проиграла Команда B</option>
+                    </select>
+                </div>
+                <div style="flex:1.2; min-width:160px;">
+                    <label style="font-size:11px; font-weight:bold;">Режим игры:</label>
+                    <select id="match-mode" onchange="updateModeSelectStyle()" style="transition:0.2s; font-weight:bold;">
+                        <!-- Заполняется динамически -->
+                    </select>
+                </div>
+                <div style="flex:1.2; min-width:150px;">
+                    <label style="font-size:11px; font-weight:bold;">Карта:</label>
+                    <select id="match-map">
+                        <!-- Заполняется динамически -->
+                    </select>
+                </div>
+            </div>
+
+            <div id="match-teams-container">
+                <!-- Динамические поля Команды A и Команды B -->
+            </div>
+
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="btn btn-main" style="flex:1" onclick="saveMatch()">Сохранить анкету</button>
+                <button class="btn btn-sec" onclick="hideMatchForm()">Отмена</button>
+            </div>
+        </div>
+
+        <div id="matches-list"></div>
     </div>
 
     <script>
@@ -136,10 +211,132 @@
             renderGrid();
         }
         let db = JSON.parse(localStorage.getItem('ow_ultra_v5')) || {};
+        if (!db.matches) db.matches = [];
+        if (!db.maps) db.maps = ['Кингс Роу', 'Дорадо', 'Шамбала', 'Нумбани', 'Гибралтар'];
         let currentMode = 'counters';
         let mainFilter = 'all';
         let selFilter = 'all';
         let activeHero = null;
+        let selectedGameModeFilter = 'all'; // Фильтр статистики по режиму
+
+        // Карта режимов игры и их фирменных цветов
+        const GAME_MODES = {
+            'all': { name: 'Общая', color: '#c2cbeb' },
+            'quick': { name: 'Нерейтинговый быстрый', color: '#115bff' },
+            'comp': { name: 'Соревновательный', color: '#d81654' },
+            'stadium': { name: 'Стадион', color: '#ff7606' },
+            'comp_stadium': { name: 'Соревновательный стадион', color: '#e33a02' },
+            'arcade': { name: 'Аркада', color: '#02dd02' },
+            'no_limits': { name: 'Без ограничений', color: '#027ecf' },
+            'custom': { name: 'Своя игра', color: '#9119b6' },
+            'ai': { name: 'Против ИИ', color: '#ffc402' }
+        };
+
+        // Обновление стиля выпадающего списка выбора режима в форме
+        function updateModeSelectStyle() {
+            const select = document.getElementById('match-mode');
+            if (!select) return;
+            const modeKey = select.value;
+            const modeData = GAME_MODES[modeKey] || GAME_MODES['quick'];
+            
+            select.style.borderColor = modeData.color;
+            select.style.color = modeData.color;
+            select.style.background = '#1e1e1e';
+        }
+
+        // Заполнение селекта режимов вариантами с подсветкой опций
+        function populateModeSelect() {
+            const select = document.getElementById('match-mode');
+            if (!select) return;
+            select.innerHTML = '';
+            
+            Object.keys(GAME_MODES).forEach(key => {
+                if (key === 'all') return; // Для конкретной анкеты "Общая" не выбирается
+                const m = GAME_MODES[key];
+                select.innerHTML += `<option value="${key}" style="color:${m.color}; background:#222; font-weight:bold;">${m.name}</option>`;
+            });
+            updateModeSelectStyle();
+        }
+
+        // Заполнение селекта карт
+        function populateMapSelect() {
+            const select = document.getElementById('match-map');
+            if (!select) return;
+            select.innerHTML = '<option value="">-- Без карты --</option>';
+            (db.maps || []).slice().sort().forEach(mapName => {
+                select.innerHTML += `<option value="${mapName}">${mapName}</option>`;
+            });
+        }
+
+        // Управление картами
+        function addMap() {
+            const input = document.getElementById('new-map-name');
+            const name = input ? input.value.trim() : '';
+            if (name && !db.maps.includes(name)) {
+                db.maps.push(name);
+                save();
+                input.value = '';
+                renderMapsList();
+            }
+        }
+
+        function deleteMap(mapName) {
+            if (confirm(`Удалить карту "${mapName}" из пула?`)) {
+                db.maps = db.maps.filter(m => m !== mapName);
+                save();
+                renderMapsList();
+            }
+        }
+
+        function renderMapsList() {
+            const container = document.getElementById('maps-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            if (!db.maps || db.maps.length === 0) {
+                container.innerHTML = '<span style="font-size:12px; color:#888;">Пул карт пуст</span>';
+                return;
+            }
+
+            db.maps.slice().sort().forEach(mapName => {
+                container.innerHTML += `
+                    <div style="background:#2a2a2a; padding:4px 8px; border-radius:15px; font-size:11px; display:flex; align-items:center; gap:6px; border:1px solid #444;">
+                        <span>${mapName}</span>
+                        <span onclick="deleteMap('${mapName}')" style="color:#ef4444; cursor:pointer; font-weight:bold;">✕</span>
+                    </div>
+                `;
+            });
+        }
+
+        // Рендер кнопок-фильтров режимов игры для главного экрана
+        function renderGameModeFilterRow() {
+            const row = document.getElementById('game-mode-filter-row');
+            if (!row) return;
+            row.innerHTML = '';
+            
+            Object.keys(GAME_MODES).forEach(key => {
+                const m = GAME_MODES[key];
+                const isActive = selectedGameModeFilter === key;
+                const btn = document.createElement('button');
+                btn.className = `f-btn ${isActive ? 'active' : ''}`;
+                btn.innerText = m.name;
+                btn.style.borderColor = m.color;
+                if (isActive) {
+                    btn.style.background = m.color;
+                    btn.style.color = '#000';
+                    btn.style.fontWeight = 'bold';
+                } else {
+                    btn.style.color = m.color;
+                    btn.style.background = '#222';
+                }
+                btn.onclick = () => {
+                    selectedGameModeFilter = key;
+                    renderGameModeFilterRow();
+                    renderGrid();
+                };
+                row.appendChild(btn);
+            });
+        }
 
         function save() { localStorage.setItem('ow_ultra_v5', JSON.stringify(db)); }
 
@@ -161,36 +358,51 @@
     const sortContainer = document.getElementById('sort-controls');
     if (!grid || !sortContainer) return;
 
-    // Отрисовываем кнопки отдельно от сетки
     sortContainer.innerHTML = `
         <button class="f-btn ${currentSort === 'name' ? 'active' : ''}" onclick="setSort('name')">А-Я</button>
+        <button class="f-btn ${currentSort === 'winrate_asc' ? 'active' : ''}" onclick="setSort('winrate_asc')">Винрейт ↓</button>
+        <button class="f-btn ${currentSort === 'winrate_desc' ? 'active' : ''}" onclick="setSort('winrate_desc')">Винрейт ↑</button>
         <button class="f-btn ${currentSort === 'hours' ? 'active' : ''}" onclick="setSort('hours')">По часам</button>
         <button class="f-btn ${currentSort === 'lvl' ? 'active' : ''}" onclick="setSort('lvl')">По уровню</button>
     `;
 
-    grid.innerHTML = ''; // Чистим только сетку
+    grid.innerHTML = '';
 
-    let sorted = Object.keys(db);
+    // Вспомогательная функция для получения ТОЛЬКО имен героев без служебных массивов
+    window.getHeroNames = function() {
+        return Object.keys(db).filter(k => k !== 'matches' && k !== 'maps').sort();
+    };
+
+    let sorted = getHeroNames();
     
-    // Сортировка
     if (currentSort === 'name') {
         sorted.sort();
+    } else if (currentSort === 'winrate_asc') {
+        sorted.sort((a, b) => getHeroWinrateNum(a) - getHeroWinrateNum(b));
+    } else if (currentSort === 'winrate_desc') {
+        sorted.sort((a, b) => getHeroWinrateNum(b) - getHeroWinrateNum(a));
     } else {
         sorted.sort((a, b) => (db[b][currentSort] || 0) - (db[a][currentSort] || 0));
     }
 
     sorted.forEach(name => {
         const h = db[name];
+        if (!h || typeof h !== 'object') return;
         if (mainFilter !== 'all' && h.role !== mainFilter) return;
         
         const div = document.createElement('div');
         div.className = `hero-btn ${h.role}`;
         div.style.overflow = 'hidden';
         const imgHtml = h.img ? `<img src="${h.img}" loading="lazy" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity:0.4; z-index:1;">` : '';
+        
+        const subLabel = (currentMode === 'winrate') 
+            ? `${getHeroWinrateText(name)}` 
+            : `Lvl: ${h.lvl}`;
+
         div.innerHTML = `
             ${imgHtml}
             <b style="position:relative; z-index:2; text-shadow:1px 1px 2px #000;">${name}</b>
-            <span style="font-size:10px; opacity:0.7; margin-top:5px; position:relative; z-index:2; text-shadow:1px 1px 2px #000;">Lvl: ${h.lvl}</span>
+            <span style="font-size:10px; opacity:0.7; margin-top:5px; position:relative; z-index:2; text-shadow:1px 1px 2px #000;">${subLabel}</span>
         `;
         div.onclick = () => openHero(name);
         grid.appendChild(div);
@@ -299,10 +511,10 @@
     if (!sel) return;
     sel.innerHTML = '<option value="">+ Добавить персонажа...</option>';
     
-    // Просто алфавитный список для удобства поиска
-    const names = Object.keys(db).filter(n => 
-        n !== activeHero && (selFilter === 'all' || db[n].role === selFilter)
-    ).sort();
+    // Используем getHeroNames(), чтобы исключить matches и maps
+    const names = getHeroNames().filter(n => 
+        n !== activeHero && (selFilter === 'all' || (db[n] && db[n].role === selFilter))
+    );
 
     names.forEach(n => {
         sel.innerHTML += `<option value="${n}">${n}</option>`;
@@ -339,16 +551,25 @@
         function setMode(m) {
     currentMode = m;
     
-    // Подсвечиваем активную кнопку режима
-    document.getElementById('mode-c').style.opacity = m === 'counters' ? '1' : '0.4';
-    document.getElementById('mode-s').style.opacity = m === 'synergy' ? '1' : '0.4';
+    const btnC = document.getElementById('mode-c');
+    const btnS = document.getElementById('mode-s');
+    const btnW = document.getElementById('mode-w');
+    if (btnC) btnC.style.opacity = m === 'counters' ? '1' : '0.4';
+    if (btnS) btnS.style.opacity = m === 'synergy' ? '1' : '0.4';
+    if (btnW) btnW.style.opacity = m === 'winrate' ? '1' : '0.4';
     
-    // МЕНЯЕМ ТЕКСТ ЗАГОЛОВКА
+    const filterRow = document.getElementById('game-mode-filter-row');
+    if (filterRow) {
+        filterRow.style.display = m === 'winrate' ? 'flex' : 'none';
+        if (m === 'winrate') renderGameModeFilterRow();
+    }
+
     const label = document.getElementById('rel-label');
     if (label) {
-        label.innerText = m === 'counters' ? 'Кем контрить:' : 'С кем лучше взаимодействия:';
+        label.innerText = m === 'counters' ? 'Кем контрить:' : (m === 'synergy' ? 'С кем лучше взаимодействия:' : 'Винрейт героев:');
     }
     
+    renderGrid();
     if(activeHero) renderRels();
 }
 
@@ -356,6 +577,7 @@
         function openStats() {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('stats-view').classList.add('active');
+    renderMapsList();
     const list = document.getElementById('stats-list');
     list.innerHTML = '';
     
@@ -374,8 +596,9 @@
         </div>
         `;
 
-    Object.keys(db).sort().forEach(name => {
+    getHeroNames().forEach(name => {
         const h = db[name];
+        if (!h || typeof h !== 'object') return;
         const imgBg = h.img ? `background-image:url(${h.img}); background-size:cover; background-position:center;` : 'background:#333;';
         list.innerHTML += `
             <div class="stat-item" style="flex-wrap: wrap; gap: 10px 8px;">
@@ -399,9 +622,8 @@
     });
 }
 function copyList(roleFilter) {
-    const names = Object.keys(db)
-        .filter(n => roleFilter === 'all' || db[n].role === roleFilter)
-        .sort();
+    const names = getHeroNames()
+        .filter(n => roleFilter === 'all' || (db[n] && db[n].role === roleFilter));
     
     const text = names.join('\n');
     navigator.clipboard.writeText(text).then(() => {
@@ -467,6 +689,301 @@ function copyList(roleFilter) {
                 } catch(e) { alert("Ошибка файла!"); }
             };
             r.readAsText(i.files[0]);
+        }
+
+        // --- Расчет многофакторного винрейта ---
+        function getHeroWinrateStats(heroName) {
+            let matches = db.matches || [];
+            let totalMatches = 0;
+            let wins = 0;
+            let totalPerfScore = 0;
+
+            matches.forEach(m => {
+                // Фильтрация по режиму игры
+                if (selectedGameModeFilter !== 'all' && m.mode !== selectedGameModeFilter) {
+                    return;
+                }
+
+                let allPlayers = [];
+                if (m.teamA) allPlayers = allPlayers.concat(m.teamA);
+                if (m.teamB) allPlayers = allPlayers.concat(m.teamB);
+
+                allPlayers.forEach(p => {
+                    if (p && p.name === heroName) {
+                        totalMatches++;
+                        if (p.isWin) wins++;
+
+                        const kda = (p.k + p.a) / Math.max(1, p.d);
+                        const impact = p.dmg + p.heal + p.mit;
+                        const matchPerf = (kda * 8) + (impact / 400);
+                        totalPerfScore += matchPerf;
+                    }
+                });
+            });
+
+            if (totalMatches === 0) return { wins: 0, total: 0, pct: 0 };
+
+            const baseWinrate = (wins / totalMatches) * 100;
+            const avgPerf = totalPerfScore / totalMatches;
+            
+            let adjustedWinrate = (0.55 * baseWinrate) + (0.45 * Math.min(100, avgPerf));
+            adjustedWinrate = Math.max(0, Math.min(100, adjustedWinrate));
+
+            return { wins, total: totalMatches, pct: adjustedWinrate };
+        }
+
+        function getHeroWinrateText(heroName) {
+            const stats = getHeroWinrateStats(heroName);
+            return stats.total > 0 ? `${stats.pct.toFixed(1)}%` : '0%';
+        }
+
+        function getHeroWinrateNum(heroName) {
+            return getHeroWinrateStats(heroName).pct;
+        }
+
+        // --- Управление анкетами ---
+        function openMatches() {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('matches-view').classList.add('active');
+            renderMatchesList();
+        }
+
+        function getPlayersCountByFormat(format) {
+            if (format === '3x3') return 3;
+            if (format === '6x6') return 6;
+            return 5; // По умолчанию 5x5
+        }
+
+        function onFormatChange() {
+            renderTeamInputs();
+        }
+
+        function renderTeamInputs(existingMatch = null) {
+            const container = document.getElementById('match-teams-container');
+            container.innerHTML = '';
+            
+            const format = document.getElementById('match-format').value;
+            const playerCount = getPlayersCountByFormat(format);
+            const heroList = getHeroNames();
+
+            let teamAHtml = `<div style="background:#1a2634; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #00a1ff;"><b style="color:#00a1ff;">Команда A (${playerCount} игрока)</b>`;
+            let teamBHtml = `<div style="background:#341a1a; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #ef4444;"><b style="color:#ef4444;">Команда B (${playerCount} игрока)</b>`;
+
+            for (let i = 0; i < playerCount; i++) {
+                const pA = (existingMatch && existingMatch.teamA && existingMatch.teamA[i]) ? existingMatch.teamA[i] : {};
+                const pB = (existingMatch && existingMatch.teamB && existingMatch.teamB[i]) ? existingMatch.teamB[i] : {};
+
+                teamAHtml += createPlayerInputBlock('A', i, pA, heroList);
+                teamBHtml += createPlayerInputBlock('B', i, pB, heroList);
+            }
+
+            teamAHtml += `</div>`;
+            teamBHtml += `</div>`;
+
+            container.innerHTML = teamAHtml + teamBHtml;
+        }
+
+        function createPlayerInputBlock(teamTag, index, pData, heroList) {
+            let optionsHtml = '<option value="">-- Выберите героя --</option>';
+            heroList.forEach(hn => {
+                optionsHtml += `<option value="${hn}" ${hn === pData.name ? 'selected' : ''}>${hn}</option>`;
+            });
+
+            return `
+                <div style="background:#222; padding:6px; border-radius:6px; margin-top:6px;">
+                    <div style="font-size:11px; color:#aaa; margin-bottom:3px;">Игрок ${index + 1}</div>
+                    <select id="m-${teamTag}-hero-${index}" style="margin-bottom:4px; padding:4px; font-size:11px;">${optionsHtml}</select>
+                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
+                        <input type="number" id="m-${teamTag}-k-${index}" placeholder="Уб (K)" value="${pData.k ?? ''}" style="font-size:10px; padding:4px;">
+                        <input type="number" id="m-${teamTag}-a-${index}" placeholder="Сод (A)" value="${pData.a ?? ''}" style="font-size:10px; padding:4px;">
+                        <input type="number" id="m-${teamTag}-d-${index}" placeholder="См (D)" value="${pData.d ?? ''}" style="font-size:10px; padding:4px;">
+                        <input type="number" id="m-${teamTag}-dmg-${index}" placeholder="Урон" value="${pData.dmg ?? ''}" style="font-size:10px; padding:4px;">
+                        <input type="number" id="m-${teamTag}-heal-${index}" placeholder="Исцел" value="${pData.heal ?? ''}" style="font-size:10px; padding:4px;">
+                        <input type="number" id="m-${teamTag}-mit-${index}" placeholder="Погл" value="${pData.mit ?? ''}" style="font-size:10px; padding:4px;">
+                    </div>
+                </div>
+            `;
+        }
+
+        function showMatchForm(matchId = null) {
+            document.getElementById('match-form-container').style.display = 'block';
+            document.getElementById('edit-match-id').value = matchId || '';
+            populateModeSelect();
+            populateMapSelect();
+
+            if (matchId) {
+                document.getElementById('match-form-title').innerText = 'Редактировать анкету';
+                const match = db.matches.find(m => m.id === matchId);
+                if (match) {
+                    document.getElementById('match-format').value = match.format;
+                    document.getElementById('match-loser').value = match.loserTeam || 'teamB';
+                    document.getElementById('match-mode').value = match.mode || 'quick';
+                    document.getElementById('match-map').value = match.map || '';
+                    updateModeSelectStyle();
+                    renderTeamInputs(match);
+                }
+            } else {
+                document.getElementById('match-form-title').innerText = 'Новая анкета';
+                document.getElementById('match-format').value = '5x5';
+                document.getElementById('match-loser').value = 'teamB';
+                document.getElementById('match-mode').value = 'quick';
+                document.getElementById('match-map').value = '';
+                updateModeSelectStyle();
+                renderTeamInputs();
+            }
+        }
+
+        function hideMatchForm() {
+            document.getElementById('match-form-container').style.display = 'none';
+        }
+
+        function saveMatch() {
+            const editId = document.getElementById('edit-match-id').value;
+            const format = document.getElementById('match-format').value;
+            const loserTeam = document.getElementById('match-loser').value;
+            const mode = document.getElementById('match-mode').value;
+            const map = document.getElementById('match-map').value;
+            const playerCount = getPlayersCountByFormat(format);
+
+            const teamA = [];
+            const teamB = [];
+
+            for (let i = 0; i < playerCount; i++) {
+                const heroA = document.getElementById(`m-A-hero-${i}`).value;
+                if (heroA) {
+                    teamA.push({
+                        name: heroA,
+                        isWin: loserTeam !== 'teamA',
+                        k: parseInt(document.getElementById(`m-A-k-${i}`).value) || 0,
+                        a: parseInt(document.getElementById(`m-A-a-${i}`).value) || 0,
+                        d: parseInt(document.getElementById(`m-A-d-${i}`).value) || 0,
+                        dmg: parseInt(document.getElementById(`m-A-dmg-${i}`).value) || 0,
+                        heal: parseInt(document.getElementById(`m-A-heal-${i}`).value) || 0,
+                        mit: parseInt(document.getElementById(`m-A-mit-${i}`).value) || 0
+                    });
+                }
+
+                const heroB = document.getElementById(`m-B-hero-${i}`).value;
+                if (heroB) {
+                    teamB.push({
+                        name: heroB,
+                        isWin: loserTeam !== 'teamB',
+                        k: parseInt(document.getElementById(`m-B-k-${i}`).value) || 0,
+                        a: parseInt(document.getElementById(`m-B-a-${i}`).value) || 0,
+                        d: parseInt(document.getElementById(`m-B-d-${i}`).value) || 0,
+                        dmg: parseInt(document.getElementById(`m-B-dmg-${i}`).value) || 0,
+                        heal: parseInt(document.getElementById(`m-B-heal-${i}`).value) || 0,
+                        mit: parseInt(document.getElementById(`m-B-mit-${i}`).value) || 0
+                    });
+                }
+            }
+
+            if (teamA.length === 0 && teamB.length === 0) {
+                alert('Заполните хотя бы одного персонажа!');
+                return;
+            }
+
+            const matchData = {
+                id: editId ? Number(editId) : Date.now(),
+                format,
+                loserTeam,
+                mode,
+                map,
+                teamA,
+                teamB
+            };
+
+            if (editId) {
+                const idx = db.matches.findIndex(m => m.id == editId);
+                if (idx !== -1) db.matches[idx] = matchData;
+            } else {
+                db.matches.push(matchData);
+            }
+
+            save();
+            hideMatchForm();
+            renderMatchesList();
+            renderGrid();
+        }
+
+        function deleteMatch(id) {
+            if (confirm('Удалить эту анкету?')) {
+                db.matches = db.matches.filter(m => m.id !== id);
+                save();
+                renderMatchesList();
+                renderGrid();
+            }
+        }
+
+        // Дублирование анкеты
+        function duplicateMatch(id) {
+            const match = db.matches.find(m => m.id === id);
+            if (!match) return;
+
+            const newMatch = JSON.parse(JSON.stringify(match));
+            newMatch.id = Date.now();
+
+            db.matches.push(newMatch);
+            save();
+            renderMatchesList();
+            renderGrid();
+        }
+
+        function clearAllMatches() {
+            if (confirm('Очистить все имеющиеся анкеты?')) {
+                db.matches = [];
+                save();
+                renderMatchesList();
+                renderGrid();
+            }
+        }
+
+        function renderMatchesList() {
+            const list = document.getElementById('matches-list');
+            if (!list) return;
+            list.innerHTML = '';
+
+            if (!db.matches || db.matches.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Нет сохраненных анкет</div>';
+                return;
+            }
+
+            db.matches.slice().reverse().forEach(m => {
+                const loserText = m.loserTeam === 'teamA' ? 'Проиграла Команда A' : 'Проиграла Команда B';
+                const modeData = GAME_MODES[m.mode] || GAME_MODES['quick'];
+                const modeBadge = `<span style="display:inline-block; padding:2px 6px; border-radius:4px; border:1px solid ${modeData.color}; color:${modeData.color}; font-size:10px; font-weight:bold; margin-left:6px;">${modeData.name}</span>`;
+                const mapBadge = m.map ? `<span style="display:inline-block; padding:2px 6px; border-radius:4px; background:#333; color:#ccc; font-size:10px; margin-left:4px;">🗺️ ${m.map}</span>` : '';
+
+                const renderTeamCards = (teamPlayers) => {
+                    return teamPlayers.map(h => `
+                        <div style="font-size:10px; background:#1e1e1e; padding:4px 6px; border-radius:4px; margin-top:3px;">
+                            <b>${h.name}</b> (${h.isWin ? 'Победа' : 'Поражение'}) — K: ${h.k} | A: ${h.a} | D: ${h.d} | DMG: ${h.dmg} | HEAL: ${h.heal} | MIT: ${h.mit}
+                        </div>
+                    `).join('');
+                };
+
+                list.innerHTML += `
+                    <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #444;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+                            <div>
+                                <b>Матч ${m.format}</b> ${modeBadge} ${mapBadge}
+                                <div style="color:#ff4444; font-size:11px; margin-top:2px;">${loserText}</div>
+                            </div>
+                            <div>
+                                <button onclick="duplicateMatch(${m.id})" title="Сдублировать анкету" style="background:none; border:none; color:#00a1ff; cursor:pointer; font-size:14px;">📋</button>
+                                <button onclick="showMatchForm(${m.id})" title="Редактировать" style="background:none; border:none; color:#f99e1a; cursor:pointer; font-size:14px;">✏️</button>
+                                <button onclick="deleteMatch(${m.id})" title="Удалить" style="background:none; border:none; color:red; cursor:pointer; font-size:14px;">🗑️</button>
+                            </div>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <div style="font-size:11px; color:#00a1ff; font-weight:bold;">Команда A:</div>
+                            ${renderTeamCards(m.teamA || [])}
+                            <div style="font-size:11px; color:#ef4444; font-weight:bold; margin-top:5px;">Команда B:</div>
+                            ${renderTeamCards(m.teamB || [])}
+                        </div>
+                    </div>
+                `;
+            });
         }
 
         // Старт
