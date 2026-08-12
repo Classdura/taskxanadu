@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Counter Pro .CTRE</title>
+    <title>Counter Pro .CTRE + Логистика</title>
     <style>
         :root {
             /* Палитра Frutiger Aero: сочный зеленый, лазурный, глянец и пузыри */
@@ -75,7 +75,7 @@
             background: var(--card-bg);
             backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
-            padding: clamp(20px, 8vh, 50px) 15px; 
+            padding: clamp(20px, 6vh, 40px) 15px; 
             border-radius: clamp(24px, 6vw, 40px);
             border: 2px solid var(--card-glass-border);
             box-shadow: var(--shadow-main);
@@ -86,7 +86,6 @@
             overflow: hidden;
         }
 
-        /* Тот самый стеклянный блик эпохи Windows Vista */
         .counter-card::before {
             content: '';
             position: absolute;
@@ -97,7 +96,7 @@
         }
 
         .main-display {
-            font-size: clamp(4rem, 25vw, 10rem); 
+            font-size: clamp(4rem, 20vw, 8rem); 
             font-weight: 900;
             cursor: pointer;
             user-select: none;
@@ -119,6 +118,8 @@
             gap: clamp(10px, 4vw, 25px); 
             position: relative;
             z-index: 5;
+            display: flex;
+            justify-content: center;
         }
 
         button { 
@@ -150,7 +151,7 @@
             font-size: clamp(1.5rem, 8vw, 3rem);
             width: clamp(60px, 18vw, 95px); 
             height: clamp(60px, 18vw, 95px);
-            border-radius: 35%; /* Более круглые, «водянистые» кнопки */
+            border-radius: 35%;
             border: 1px solid rgba(0,0,0,0.1);
             text-shadow: 0 -1px 1px rgba(0,0,0,0.3);
         }
@@ -158,11 +159,10 @@
         .extra-actions { 
             display: flex; 
             flex-wrap: wrap; 
-            gap: 16px; 
+            gap: 12px; 
             justify-content: center; 
-            margin-top: 25px; 
+            margin-top: 20px; 
             width: 100%;
-            height: 100%;
             position: relative;
             z-index: 5;
         }
@@ -171,14 +171,147 @@
             background: rgba(255, 255, 255, 0.5); 
             border: 1px solid rgba(255,255,255,0.6);
             color: var(--text-color); 
-            padding: 10px 18px; 
-            border-radius: 50px; /* Идеальные круглые пилюли */
+            padding: 8px 16px; 
+            border-radius: 50px;
             backdrop-filter: blur(5px);
         }
         
         [data-theme="dark"] .btn-extra {
             background: rgba(255, 255, 255, 0.07);
             border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logistics-panel {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+            position: relative;
+            z-index: 5;
+            text-align: left;
+        }
+
+        .logistics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .logistics-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.15);
+            transition: .4s;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        [data-theme="dark"] .slider {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            background-image: linear-gradient(to bottom, #ffffff 0%, #e0e0e0 100%);
+        }
+
+        input:checked + .slider {
+            background-color: #2ecc71;
+            background-image: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        .log-list {
+            max-height: 120px;
+            overflow-y: auto;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        [data-theme="dark"] .log-list {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .log-item {
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.4);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        [data-theme="dark"] .log-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .log-empty {
+            text-align: center;
+            opacity: 0.6;
+            padding: 10px;
+            font-style: italic;
+        }
+
+        .log-list::-webkit-scrollbar, #counters-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .log-list::-webkit-scrollbar-thumb, #counters-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 10px;
+        }
+        .log-list::-webkit-scrollbar-track, #counters-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         footer { 
@@ -210,7 +343,6 @@
             text-shadow: 0 -1px 0 rgba(0,0,0,0.2);
         }
 
-        /* Modal Glassmorphism */
         .modal {
             display: none;
             position: fixed;
@@ -271,7 +403,6 @@
         
         #file-input { display: none; }
 
-        /* Sidebar Glassmorphism */
         .sidebar {
             position: fixed;
             top: 0; left: -280px;
@@ -345,6 +476,45 @@
         
         .sidebar-section { margin-bottom: 20px; border-bottom: 1px solid rgba(128,128,128,0.15); padding-bottom: 15px; }
         .sidebar-title { font-size: 0.75rem; opacity: 0.7; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; }
+        
+        /* Стили для Режима Доски */
+        .board-container {
+            display: none;
+            gap: clamp(10px, 3vw, 20px);
+            width: 100%;
+            grid-template-columns: repeat(var(--board-cols, 2), 1fr);
+            margin-bottom: 25px;
+        }
+        .board-container.active { display: grid; }
+        
+        .mini-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            padding: 15px;
+            border-radius: 20px;
+            border: 2px solid var(--card-glass-border);
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .mini-card:active { transform: scale(0.95); }
+        .mini-card .mini-name { 
+            font-size: 0.9rem; font-weight: 700; margin-bottom: 8px; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8;
+        }
+        .mini-card .mini-val { 
+            font-size: clamp(2rem, 8vw, 3rem); font-weight: 900; margin-bottom: 12px; cursor: pointer;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.4);
+        }
+        [data-theme="dark"] .mini-card .mini-val { text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+        .mini-card .mini-controls { display: flex; justify-content: center; gap: 8px; }
+        .mini-card .btn-step-mini {
+            width: clamp(35px, 10vw, 45px); height: clamp(35px, 10vw, 45px); font-size: 1.2rem; 
+            border-radius: 35%; color: white; border: 1px solid rgba(0,0,0,0.1); 
+            cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -370,12 +540,19 @@
             <button class="btn-footer" id="btn-import-sidebar" style="width:100%;">📂 Загрузить .ctre</button>
         </div>
     </nav>
+    
     <div class="app-container">
-<header>
-            <div style="text-align: left;">
+        <header>
+            <div style="text-align: left; display: flex; align-items: center; gap: 10px;">
                 <h1 id="display-name">Счетчик</h1>
+                <button id="mode-toggle" class="btn-extra" style="font-size: 0.8rem; cursor: pointer; padding: 4px 10px;">🎛 Доска</button>
             </div>
-            <button id="theme-toggle" style="background:none; border:none; cursor:pointer; font-size: 1.5rem;">🌓</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div id="board-cols-control" style="display: none; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: bold; background: var(--card-bg); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--card-glass-border);">
+                    <span style="opacity:0.8;">Сетка:</span> <input type="range" id="board-cols-slider" min="1" max="5" value="2" style="width: 50px; height: 4px; padding: 0;">
+                </div>
+                <button id="theme-toggle" style="background:none; border:none; cursor:pointer; font-size: 1.5rem;">🌓</button>
+            </div>
         </header>
 		
         <main class="counter-card" id="counter-card">
@@ -385,7 +562,28 @@
                 <button class="btn-step" id="btn-plus">+</button>
             </div>
             <div class="extra-actions" id="extra-actions"></div>
+
+            <div class="logistics-panel">
+                <div class="logistics-header">
+                    <span class="logistics-title">
+                        <span>📦 Логистика</span>
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 0.75rem; opacity: 0.8;">Запись:</span>
+                        <label class="switch">
+                            <input type="checkbox" id="logging-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <button id="btn-clear-logs" style="background: none; border: none; font-size: 0.9rem; cursor: pointer; padding: 2px 6px; box-shadow: none;">🗑️</button>
+                    </div>
+                </div>
+                <div class="log-list" id="log-list">
+                    <div class="log-empty">Нет записей</div>
+                </div>
+            </div>
         </main>
+        
+        <div id="board-container" class="board-container"></div>
 
         <footer style="grid-template-columns: 1fr 1fr 1fr;">
             <button class="btn-footer" id="btn-reset">Сброс</button>
@@ -420,14 +618,40 @@
         let appState = {
             collectionName: "Мои счетчики",
             currentIndex: 0,
+            boardMode: false,
+            boardCols: 2,
             counters: [
-                { name: "Счетчик 1", value: 0, resetValue: 0, color: "#007bff", step: 1, min: -9999, max: 9999, extraActions: "" }
+                { 
+                    name: "Счетчик 1", 
+                    value: 0, 
+                    resetValue: 0, 
+                    color: "#007bff", 
+                    step: 1, 
+                    min: -9999, 
+                    max: 9999, 
+                    extraActions: "",
+                    loggingEnabled: true,
+                    onBoard: false,
+                    history: []
+                }
             ]
         };
 
         // Загрузка из LocalStorage
         const saved = localStorage.getItem('counter_pro_data');
-        if (saved) appState = JSON.parse(saved);
+        if (saved) {
+            try {
+                appState = JSON.parse(saved);
+                appState.counters.forEach(c => {
+                    if (c.loggingEnabled === undefined) c.loggingEnabled = true;
+                    if (c.onBoard === undefined) c.onBoard = false;
+                    if (!c.history) c.history = [];
+                });
+                appState.boardMode = false; // Всегда начинаем с одиночного режима
+            } catch (e) {
+                console.error("Ошибка чтения локального хранилища", e);
+            }
+        }
 
         const elements = {
             display: document.getElementById('main-value'),
@@ -437,7 +661,9 @@
             modal: document.getElementById('settings-modal'),
             sidebar: document.getElementById('sidebar'),
             overlay: document.getElementById('sidebar-overlay'),
-            list: document.getElementById('counters-list')
+            list: document.getElementById('counters-list'),
+            logList: document.getElementById('log-list'),
+            loggingToggle: document.getElementById('logging-toggle')
         };
 
         function getCurrent() { return appState.counters[appState.currentIndex]; }
@@ -447,15 +673,47 @@
         }
 
         function updateUI() {
-            const cur = getCurrent();
-            elements.display.innerText = cur.value;
-            elements.name.innerText = cur.name;
-            elements.card.style.borderColor = cur.color;
             document.getElementById('collection-name-input').value = appState.collectionName;
-            document.querySelectorAll('.btn-step').forEach(b => b.style.backgroundColor = cur.color);
+            
+            const card = elements.card;
+            const footer = document.querySelector('footer');
+            const boardContainer = document.getElementById('board-container');
+            const boardControls = document.getElementById('board-cols-control');
+            const modeToggle = document.getElementById('mode-toggle');
+            
+            if (appState.boardMode) {
+                // Включаем доску
+                card.style.display = 'none';
+                if(footer) footer.style.display = 'none';
+                boardContainer.classList.add('active');
+                boardControls.style.display = 'flex';
+                
+                elements.name.innerText = appState.collectionName || "Доска";
+                modeToggle.innerText = "⬅ Назад";
+                document.documentElement.style.setProperty('--board-cols', appState.boardCols);
+                document.getElementById('board-cols-slider').value = appState.boardCols;
+                renderBoard();
+            } else {
+                // Одиночный режим
+                card.style.display = 'block';
+                if(footer) footer.style.display = 'flex';
+                boardContainer.classList.remove('active');
+                boardControls.style.display = 'none';
+                modeToggle.innerText = "🎛 Доска";
+                
+                const cur = getCurrent();
+                if (cur) {
+                    elements.display.innerText = cur.value;
+                    elements.name.innerText = cur.name;
+                    card.style.borderColor = cur.color;
+                    document.querySelectorAll('.btn-step').forEach(b => b.style.backgroundColor = cur.color);
+                    elements.loggingToggle.checked = cur.loggingEnabled !== false;
+                    createExtraButtons();
+                    renderLogs();
+                }
+            }
             
             renderCountersList();
-            createExtraButtons();
             saveToLS();
         }
 
@@ -463,27 +721,82 @@
             elements.list.innerHTML = '';
             appState.counters.forEach((c, i) => {
                 const div = document.createElement('div');
-                div.className = `counter-item ${i === appState.currentIndex ? 'active' : ''}`;
+                div.className = `counter-item ${i === appState.currentIndex && !appState.boardMode ? 'active' : ''}`;
                 div.innerHTML = `
-                    <span style="flex-grow:1">${c.name}</span>
-                    <button onclick="duplicateCounter(${i})" style="background:none; border:none; padding:0 5px;">📑</button>
-                    <button onclick="deleteCounter(${i})" style="background:none; border:none; padding:0 5px; color:red;">✕</button>
+                    <button onclick="toggleBoard(event, ${i})" style="background:none; border:none; padding:0 5px; font-size: 1.1rem; opacity: ${c.onBoard ? '1' : '0.2'}; cursor:pointer; box-shadow:none; filter: ${c.onBoard ? 'drop-shadow(0 0 5px rgba(255,215,0,0.8))' : 'none'};" title="На доску">📌</button>
+                    <span style="flex-grow:1; text-align:left; font-size:0.9rem; margin-left: 5px;" onclick="selectCounter(${i})">${c.name}</span>
+                    <button onclick="duplicateCounter(event, ${i})" style="background:none; border:none; padding:0 5px; box-shadow:none;">📑</button>
+                    <button onclick="deleteCounter(event, ${i})" style="background:none; border:none; padding:0 5px; color:red; box-shadow:none;">✕</button>
                 `;
-                div.onclick = (e) => {
-                    if(e.target.tagName !== 'BUTTON') {
-                        appState.currentIndex = i;
-                        updateUI();
-                        closeSidebar();
-                    }
-                };
                 elements.list.appendChild(div);
             });
+        }
+        
+        window.selectCounter = (index) => {
+            if (index >= 0 && index < appState.counters.length) {
+                appState.currentIndex = index;
+                appState.boardMode = false;
+                updateUI();
+                closeSidebar();
+            }
+        };
+
+        function renderLogs() {
+            const cur = getCurrent();
+            elements.logList.innerHTML = '';
+            
+            if (!cur.history || cur.history.length === 0) {
+                elements.logList.innerHTML = '<div class="log-empty">История кликов пуста</div>';
+                return;
+            }
+
+            cur.history.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'log-item';
+                item.innerHTML = `
+                    <span style="font-weight:600;">${log.text}</span>
+                    <span style="opacity:0.6; font-size:0.75rem;">${log.timestamp}</span>
+                `;
+                elements.logList.appendChild(item);
+            });
+
+            elements.logList.scrollTop = elements.logList.scrollHeight;
+        }
+
+        function addLogEntry(changeAmount) {
+            const cur = getCurrent();
+            if (cur.loggingEnabled === false) return;
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('ru-RU');
+            const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const recordNum = (cur.history ? cur.history.length : 0) + 1;
+            const changeSign = changeAmount > 0 ? `+${changeAmount}` : `${changeAmount}`;
+            
+            const logText = `Запись №${recordNum}, ${dateStr}, ${timeStr}`;
+            
+            if (!cur.history) cur.history = [];
+            cur.history.push({
+                text: logText,
+                timestamp: `(изм. на ${changeSign} → итог: ${cur.value})`
+            });
+
+            if (cur.history.length > 100) {
+                cur.history.shift();
+            }
         }
 
         function changeValue(n) {
             const cur = getCurrent();
-            let v = cur.value + n;
-            if (v >= cur.min && v <= cur.max) { cur.value = v; updateUI(); }
+            if (!cur) return;
+            const stepVal = parseInt(n) || parseInt(cur.step) || 1;
+            let v = cur.value + stepVal;
+            if (v >= cur.min && v <= cur.max) { 
+                cur.value = v; 
+                addLogEntry(stepVal); 
+                updateUI(); 
+            }
         }
 
         function createExtraButtons() {
@@ -500,45 +813,147 @@
             });
         }
 
-        // Сайдбар
+        // Логика доски
+        window.toggleBoard = (e, index) => {
+            e.stopPropagation();
+            appState.counters[index].onBoard = !appState.counters[index].onBoard;
+            updateUI();
+        };
+
+        function renderBoard() {
+            const container = document.getElementById('board-container');
+            container.innerHTML = '';
+            
+            const boardCounters = appState.counters.filter(c => c.onBoard);
+            
+            if (boardCounters.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; opacity: 0.6; padding: 30px; font-weight: bold;">Нет счетчиков на доске.<br><br>Откройте меню ☰ и нажмите 📌 рядом с нужными счетчиками.</div>';
+                return;
+            }
+
+            appState.counters.forEach((c, index) => {
+                if (!c.onBoard) return;
+                
+                const card = document.createElement('div');
+                card.className = 'mini-card';
+                card.style.borderColor = c.color;
+                
+                card.innerHTML = `
+                    <div class="mini-name">${c.name}</div>
+                    <div class="mini-val" onclick="changeBoardValue(${index}, ${c.step})" style="color: ${c.color};">${c.value}</div>
+                    <div class="mini-controls">
+                        <button class="btn-step-mini" style="background: linear-gradient(to bottom, ${c.color} 0%, rgba(0,0,0,0.2) 200%);" onclick="changeBoardValue(${index}, -${c.step})">-</button>
+                        <button class="btn-step-mini" style="background: linear-gradient(to bottom, ${c.color} 0%, rgba(0,0,0,0.2) 200%);" onclick="changeBoardValue(${index}, ${c.step})">+</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.changeBoardValue = (index, changeAmount) => {
+            const c = appState.counters[index];
+            let v = c.value + changeAmount;
+            if (v >= c.min && v <= c.max) { 
+                c.value = v; 
+                
+                if (c.loggingEnabled !== false) {
+                    const now = new Date();
+                    const recordNum = (c.history ? c.history.length : 0) + 1;
+                    const changeSign = changeAmount > 0 ? `+${changeAmount}` : `${changeAmount}`;
+                    if (!c.history) c.history = [];
+                    c.history.push({
+                        text: `Запись №${recordNum} (Доска), ${now.toLocaleDateString('ru-RU')}, ${now.toLocaleTimeString('ru-RU')}`,
+                        timestamp: `(изм. на ${changeSign} → итог: ${c.value})`
+                    });
+                    if (c.history.length > 100) c.history.shift();
+                }
+                updateUI(); 
+            }
+        };
+
         const openSidebar = () => { elements.sidebar.classList.add('active'); elements.overlay.classList.add('active'); };
         const closeSidebar = () => { elements.sidebar.classList.remove('active'); elements.overlay.classList.remove('active'); };
         document.getElementById('open-menu').onclick = openSidebar;
         elements.overlay.onclick = closeSidebar;
 
-        // Операции со счетчиками
         document.getElementById('btn-add').onclick = () => {
-            appState.counters.push({ ...appState.counters[0], name: "Новый счетчик", value: 0 });
+            appState.counters.push({ 
+                name: "Новый счетчик", 
+                value: 0, 
+                resetValue: 0, 
+                color: "#007bff", 
+                step: 1, 
+                min: -9999, 
+                max: 9999, 
+                extraActions: "",
+                loggingEnabled: true,
+                onBoard: false,
+                history: []
+            });
             appState.currentIndex = appState.counters.length - 1;
+            appState.boardMode = false; // При добавлении выходим из доски к новому счетчику
             updateUI();
         };
 
-        window.duplicateCounter = (index) => {
+        window.duplicateCounter = (e, index) => {
+            e.stopPropagation(); 
             const clone = JSON.parse(JSON.stringify(appState.counters[index]));
             clone.name += " (копия)";
+            clone.history = []; 
             appState.counters.push(clone);
             updateUI();
         };
 
-        window.deleteCounter = (index) => {
+        window.deleteCounter = (e, index) => {
+            e.stopPropagation(); 
             if (appState.counters.length <= 1) return;
             appState.counters.splice(index, 1);
-            appState.currentIndex = 0;
+            if (appState.currentIndex >= appState.counters.length) {
+                appState.currentIndex = 0;
+            }
             updateUI();
         };
 
-        // Остальная логика
         elements.display.onclick = () => changeValue(parseInt(getCurrent().step));
         document.getElementById('btn-plus').onclick = () => changeValue(parseInt(getCurrent().step));
         document.getElementById('btn-minus').onclick = () => changeValue(-parseInt(getCurrent().step));
-        document.getElementById('btn-reset').onclick = () => { getCurrent().value = getCurrent().resetValue; updateUI(); };
         
+        document.getElementById('btn-reset').onclick = () => { 
+            const cur = getCurrent();
+            const diff = cur.resetValue - cur.value;
+            cur.value = cur.resetValue; 
+            if (diff !== 0) {
+                addLogEntry(diff);
+            }
+            updateUI(); 
+        };
+        
+        // Переключатели доски
+        document.getElementById('mode-toggle').onclick = () => {
+            appState.boardMode = !appState.boardMode;
+            updateUI();
+        };
+
+        document.getElementById('board-cols-slider').oninput = (e) => {
+            appState.boardCols = parseInt(e.target.value);
+            updateUI();
+        };
+        
+        elements.loggingToggle.onchange = (e) => {
+            getCurrent().loggingEnabled = e.target.checked;
+            saveToLS();
+        };
+
+        document.getElementById('btn-clear-logs').onclick = () => {
+            getCurrent().history = [];
+            updateUI();
+        };
+
         document.getElementById('collection-name-input').oninput = (e) => {
             appState.collectionName = e.target.value;
             saveToLS();
         };
 
-        // Настройки и модалка
         document.getElementById('btn-settings').onclick = () => {
             const cur = getCurrent();
             document.getElementById('set-name').value = cur.name;
@@ -568,7 +983,6 @@
 
         elements.modal.onkeydown = (e) => { if(e.key === 'Enter') document.getElementById('btn-save-settings').click(); };
 
-        // Импорт/Экспорт (в сайдбаре)
         document.getElementById('btn-export-sidebar').onclick = () => {
             const data = JSON.stringify(appState);
             const blob = new Blob([data], {type: "application/json"});
@@ -584,15 +998,23 @@
             inp.onchange = (e) => {
                 const reader = new FileReader();
                 reader.onload = (re) => {
-                    appState = JSON.parse(re.target.result);
-                    updateUI();
+                    try {
+                        appState = JSON.parse(re.target.result);
+                        appState.counters.forEach(c => {
+                            if (c.loggingEnabled === undefined) c.loggingEnabled = true;
+                            if (c.onBoard === undefined) c.onBoard = false;
+                            if (!c.history) c.history = [];
+                        });
+                        updateUI();
+                    } catch (err) {
+                        alert("Неверный формат файла .ctre");
+                    }
                 };
                 reader.readAsText(e.target.files[0]);
             };
             inp.click();
         };
 
-        // Функция смены темы с сохранением
         function setTheme(theme) {
             document.body.setAttribute('data-theme', theme);
             localStorage.setItem('counter_theme', theme);
@@ -603,10 +1025,9 @@
             setTheme(current === 'dark' ? 'light' : 'dark');
         };
 
-        // Запуск приложения
         const savedTheme = localStorage.getItem('counter_theme') || 'light';
-        setTheme(savedTheme); // Сначала ставим тему
-        updateUI(); // Потом рисуем интерфейс
+        setTheme(savedTheme); 
+        updateUI(); 
     </script>
 </body>
 </html>
