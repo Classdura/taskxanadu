@@ -691,7 +691,7 @@ function copyList(roleFilter) {
             r.readAsText(i.files[0]);
         }
 
-        // --- Расчет многофакторного винрейта с учетом времени (Per Minute) ---
+        // --- Расчет многофакторного винрейта на основе пропорционального разделения статов ---
         function getHeroWinrateStats(heroName) {
             let matches = db.matches || [];
             let weightedWins = 0;
@@ -707,25 +707,47 @@ function copyList(roleFilter) {
                 if (m.teamA) allPlayers = allPlayers.concat(m.teamA);
                 if (m.teamB) allPlayers = allPlayers.concat(m.teamB);
 
-                allPlayers.forEach(playerData => {
-                    // playerData — массив героев одного игрока или одиночный объект (для старых анкет)
-                    const heroEntries = Array.isArray(playerData) ? playerData : [playerData];
+                allPlayers.forEach(player => {
+                    if (!player) return;
 
-                    heroEntries.forEach(p => {
-                        if (p && p.name === heroName) {
-                            const minutes = Math.max(1, p.minutes || 1);
-                            
-                            // Вес матча пропорционален времени игры (полноценный матч ~ 10+ мин = вес 1.0)
-                            const weight = Math.min(1, minutes / 10);
+                    // Совместимость с со старой и новой структурой данных
+                    const heroes = player.heroes || (Array.isArray(player) ? player : [player]);
+                    const stats = player.stats || player;
+                    const isWin = player.isWin !== undefined ? player.isWin : (heroes[0] ? heroes[0].isWin : false);
+
+                    // Считаем общее время игрока в секундах
+                    let totalPlayerSeconds = 0;
+                    heroes.forEach(h => {
+                        const sec = h.seconds || parseTimeToSeconds(h.timeStr || h.minutes);
+                        totalPlayerSeconds += (sec > 0 ? sec : 300); // По умолчанию 5 мин если не указано
+                    });
+
+                    heroes.forEach(h => {
+                        if (h && h.name === heroName) {
+                            const heroSec = h.seconds || parseTimeToSeconds(h.timeStr || h.minutes) || (totalPlayerSeconds / heroes.length);
+                            const heroMinutes = Math.max(0.5, heroSec / 60);
+
+                            // Доля времени данного героя от общего времени игрока
+                            const ratio = totalPlayerSeconds > 0 ? (heroSec / totalPlayerSeconds) : (1 / heroes.length);
+
+                            // Пропорциональные показатели персонажа
+                            const k = (stats.k || 0) * ratio;
+                            const a = (stats.a || 0) * ratio;
+                            const d = (stats.d || 0) * ratio;
+                            const dmg = (stats.dmg || 0) * ratio;
+                            const heal = (stats.heal || 0) * ratio;
+                            const mit = (stats.mit || 0) * ratio;
+
+                            // Вес матча для статистики герою
+                            const weight = Math.min(1, heroMinutes / 10);
                             
                             totalWeight += weight;
-                            if (p.isWin) weightedWins += weight;
+                            if (isWin) weightedWins += weight;
 
-                            // Показатели в минуту (Per Minute)
-                            const kda = (p.k + p.a) / Math.max(1, p.d);
-                            const impactPerMin = (p.dmg + p.heal + p.mit) / minutes;
+                            // Расчет удельного импакта
+                            const kda = (k + a) / Math.max(1, d);
+                            const impactPerMin = (dmg + heal + mit) / heroMinutes;
 
-                            // Оценка перформанса в минуту
                             const matchPerfPerMin = (kda * 8) + (impactPerMin / 65);
                             totalWeightedPerfScore += (matchPerfPerMin * weight);
                         }
@@ -738,7 +760,6 @@ function copyList(roleFilter) {
             const baseWinrate = (weightedWins / totalWeight) * 100;
             const avgPerf = totalWeightedPerfScore / totalWeight;
             
-            // 55% веса — результат матча, 45% — удельный перформанс в минуту
             let adjustedWinrate = (0.55 * baseWinrate) + (0.45 * Math.min(100, avgPerf));
             adjustedWinrate = Math.max(0, Math.min(100, adjustedWinrate));
 
@@ -796,41 +817,67 @@ function copyList(roleFilter) {
             container.innerHTML = teamAHtml + teamBHtml;
         }
 
+        // Вспомогательная функция перевода MM:SS в секунды
+        function parseTimeToSeconds(timeStr) {
+            if (!timeStr) return 0;
+            const str = String(timeStr).trim();
+            if (str.includes(':')) {
+                const parts = str.split(':');
+                const m = parseInt(parts[0]) || 0;
+                const s = parseInt(parts[1]) || 0;
+                return (m * 60) + s;
+            }
+            const val = parseFloat(str) || 0;
+            // Если ввели просто число, считаем, что это минуты
+            return Math.round(val * 60);
+        }
+
+        // Перевод секунд обратно в формат MM:SS
+        function formatSecondsToMMSS(seconds) {
+            const sec = Math.max(0, Math.round(seconds));
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
         function createPlayerInputBlock(teamTag, pIndex, pData, heroList) {
-            // pData — это массив персонажей игрока (до 3 шт.)
-            const heroesArray = Array.isArray(pData) ? pData : (pData.name ? [pData] : []);
-            
-            let heroSubBlocks = '';
+            // pData — объект игрока: { heroes: [{name, timeStr}], stats: {k,a,d,dmg,heal,mit} }
+            const heroesArray = (pData && pData.heroes) ? pData.heroes : (Array.isArray(pData) ? pData : []);
+            const stats = (pData && pData.stats) ? pData.stats : (pData.k !== undefined ? pData : {});
+
+            let heroRowsHtml = '';
             for (let hIndex = 0; hIndex < 3; hIndex++) {
                 const hData = heroesArray[hIndex] || {};
                 
-                let optionsHtml = '<option value="">-- Персонаж ' + (hIndex + 1) + ' --</option>';
+                let optionsHtml = `<option value="">-- Персонаж ${hIndex + 1} --</option>`;
                 heroList.forEach(hn => {
                     optionsHtml += `<option value="${hn}" ${hn === hData.name ? 'selected' : ''}>${hn}</option>`;
                 });
 
-                heroSubBlocks += `
-                    <div style="background:#181818; padding:5px; border-radius:4px; margin-top:4px; border:1px solid #333;">
-                        <div style="display:flex; gap:4px; margin-bottom:4px;">
-                            <select id="m-${teamTag}-p${pIndex}-h${hIndex}-name" style="flex:2; padding:3px; font-size:10px;">${optionsHtml}</select>
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-min" placeholder="Мин" value="${hData.minutes ?? ''}" style="flex:1; font-size:10px; padding:3px; text-align:center;" title="Время игры в минутах">
-                        </div>
-                        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:3px;">
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-k" placeholder="K" value="${hData.k ?? ''}" style="font-size:9px; padding:3px;">
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-a" placeholder="A" value="${hData.a ?? ''}" style="font-size:9px; padding:3px;">
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-d" placeholder="D" value="${hData.d ?? ''}" style="font-size:9px; padding:3px;">
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-dmg" placeholder="DMG" value="${hData.dmg ?? ''}" style="font-size:9px; padding:3px;">
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-heal" placeholder="HEAL" value="${hData.heal ?? ''}" style="font-size:9px; padding:3px;">
-                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-mit" placeholder="MIT" value="${hData.mit ?? ''}" style="font-size:9px; padding:3px;">
-                        </div>
+                heroRowsHtml += `
+                    <div style="display:flex; gap:6px; margin-bottom:4px;">
+                        <select id="m-${teamTag}-p${pIndex}-h${hIndex}-name" style="flex:3; padding:5px; font-size:11px;">${optionsHtml}</select>
+                        <input type="text" id="m-${teamTag}-p${pIndex}-h${hIndex}-time" placeholder="Мин:Сек (напр. 05:30)" value="${hData.timeStr ?? ''}" style="flex:1.5; font-size:11px; padding:5px; text-align:center;">
                     </div>
                 `;
             }
 
             return `
-                <div style="background:#222; padding:6px; border-radius:6px; margin-top:6px; border-left:3px solid var(--accent);">
-                    <div style="font-size:11px; font-weight:bold; color:#ccc; margin-bottom:2px;">Игрок ${pIndex + 1}</div>
-                    ${heroSubBlocks}
+                <div style="background:#222; padding:8px; border-radius:6px; margin-top:8px; border-left:3px solid var(--accent);">
+                    <div style="font-size:11px; font-weight:bold; color:#ccc; margin-bottom:6px;">Игрок ${pIndex + 1}</div>
+                    
+                    <!-- 3 строки выбора персонажей и времени -->
+                    ${heroRowsHtml}
+
+                    <!-- Единые 6 показателей для игрока растянутые в 1 линию -->
+                    <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:4px; margin-top:8px;">
+                        <input type="number" id="m-${teamTag}-p${pIndex}-k" placeholder="K" value="${stats.k ?? ''}" style="font-size:10px; padding:5px; text-align:center;">
+                        <input type="number" id="m-${teamTag}-p${pIndex}-a" placeholder="A" value="${stats.a ?? ''}" style="font-size:10px; padding:5px; text-align:center;">
+                        <input type="number" id="m-${teamTag}-p${pIndex}-d" placeholder="D" value="${stats.d ?? ''}" style="font-size:10px; padding:5px; text-align:center;">
+                        <input type="number" id="m-${teamTag}-p${pIndex}-dmg" placeholder="DMG" value="${stats.dmg ?? ''}" style="font-size:10px; padding:5px; text-align:center;">
+                        <input type="number" id="m-${teamTag}-p${pIndex}-heal" placeholder="HEAL" value="${stats.heal ?? ''}" style="font-size:10px; padding:5px; text-align:center;">
+                        <input type="number" id="m-${teamTag}-p${pIndex}-mit" placeholder="MIT" value="${stats.mit ?? ''}" style="font-size:10px; padding:5px; text-align:center;">
+                    </div>
                 </div>
             `;
         }
@@ -878,25 +925,35 @@ function copyList(roleFilter) {
             const readTeamPlayers = (teamTag, isWin) => {
                 const players = [];
                 for (let pIdx = 0; pIdx < playerCount; pIdx++) {
-                    const playerHeroes = [];
+                    const heroes = [];
                     for (let hIdx = 0; hIdx < 3; hIdx++) {
                         const hName = document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-name`).value;
+                        const timeStr = document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-time`).value;
                         if (hName) {
-                            playerHeroes.push({
+                            heroes.push({
                                 name: hName,
-                                isWin: isWin,
-                                minutes: Math.max(1, parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-min`).value) || 1),
-                                k: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-k`).value) || 0,
-                                a: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-a`).value) || 0,
-                                d: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-d`).value) || 0,
-                                dmg: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-dmg`).value) || 0,
-                                heal: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-heal`).value) || 0,
-                                mit: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-mit`).value) || 0
+                                timeStr: timeStr,
+                                seconds: parseTimeToSeconds(timeStr)
                             });
                         }
                     }
-                    if (playerHeroes.length > 0) {
-                        players.push(playerHeroes);
+
+                    // Считываем единые 6 показателей игрока
+                    const stats = {
+                        k: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-k`).value) || 0,
+                        a: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-a`).value) || 0,
+                        d: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-d`).value) || 0,
+                        dmg: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-dmg`).value) || 0,
+                        heal: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-heal`).value) || 0,
+                        mit: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-mit`).value) || 0
+                    };
+
+                    if (heroes.length > 0) {
+                        players.push({
+                            isWin: isWin,
+                            heroes: heroes,
+                            stats: stats
+                        });
                     }
                 }
                 return players;
@@ -982,19 +1039,23 @@ function copyList(roleFilter) {
                 const mapBadge = m.map ? `<span style="display:inline-block; padding:2px 6px; border-radius:4px; background:#333; color:#ccc; font-size:10px; margin-left:4px;">🗺️ ${m.map}</span>` : '';
 
                 const renderTeamCards = (teamPlayers) => {
-                    return teamPlayers.map((playerData, pIdx) => {
-                        const heroEntries = Array.isArray(playerData) ? playerData : [playerData];
-                        const heroesHtml = heroEntries.map(h => `
-                            <span style="color:#fff; font-weight:bold;">${h.name}</span> (${h.minutes || 1} мин) 
-                            <span style="opacity:0.7;">[K:${h.k} A:${h.a} D:${h.d} | DMG:${h.dmg} H:${h.heal} M:${h.mit}]</span>
-                        `).join(' ➔ ');
-
-                        const isWin = heroEntries[0] ? heroEntries[0].isWin : false;
+                    return teamPlayers.map((player, pIdx) => {
+                        const heroes = player.heroes || (Array.isArray(player) ? player : [player]);
+                        const stats = player.stats || player;
+                        const isWin = player.isWin !== undefined ? player.isWin : (heroes[0] ? heroes[0].isWin : false);
                         const statusColor = isWin ? '#22c55e' : '#ef4444';
 
+                        const heroesChain = heroes.map(h => {
+                            const tStr = h.timeStr || (h.minutes ? `${h.minutes}:00` : '00:00');
+                            return `<span style="color:#fff; font-weight:bold;">${h.name}</span> <span style="color:var(--accent);">(${tStr})</span>`;
+                        }).join(' ➔ ');
+
                         return `
-                            <div style="font-size:10px; background:#1e1e1e; padding:4px 6px; border-radius:4px; margin-top:3px; border-left:2px solid ${statusColor};">
-                                <b style="color:#aaa;">Игрок ${pIdx + 1}:</b> ${heroesHtml}
+                            <div style="font-size:10px; background:#1e1e1e; padding:5px; border-radius:4px; margin-top:3px; border-left:3px solid ${statusColor};">
+                                <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
+                                    <div><b style="color:#aaa;">Игрок ${pIdx + 1}:</b> ${heroesChain}</div>
+                                    <div style="opacity:0.8;">K:${stats.k || 0} A:${stats.a || 0} D:${stats.d || 0} | DMG:${stats.dmg || 0} HEAL:${stats.heal || 0} MIT:${stats.mit || 0}</div>
+                                </div>
                             </div>
                         `;
                     }).join('');
