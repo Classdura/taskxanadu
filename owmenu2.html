@@ -691,15 +691,14 @@ function copyList(roleFilter) {
             r.readAsText(i.files[0]);
         }
 
-        // --- Расчет многофакторного винрейта ---
+        // --- Расчет многофакторного винрейта с учетом времени (Per Minute) ---
         function getHeroWinrateStats(heroName) {
             let matches = db.matches || [];
-            let totalMatches = 0;
-            let wins = 0;
-            let totalPerfScore = 0;
+            let weightedWins = 0;
+            let totalWeight = 0;
+            let totalWeightedPerfScore = 0;
 
             matches.forEach(m => {
-                // Фильтрация по режиму игры
                 if (selectedGameModeFilter !== 'all' && m.mode !== selectedGameModeFilter) {
                     return;
                 }
@@ -708,28 +707,42 @@ function copyList(roleFilter) {
                 if (m.teamA) allPlayers = allPlayers.concat(m.teamA);
                 if (m.teamB) allPlayers = allPlayers.concat(m.teamB);
 
-                allPlayers.forEach(p => {
-                    if (p && p.name === heroName) {
-                        totalMatches++;
-                        if (p.isWin) wins++;
+                allPlayers.forEach(playerData => {
+                    // playerData — массив героев одного игрока или одиночный объект (для старых анкет)
+                    const heroEntries = Array.isArray(playerData) ? playerData : [playerData];
 
-                        const kda = (p.k + p.a) / Math.max(1, p.d);
-                        const impact = p.dmg + p.heal + p.mit;
-                        const matchPerf = (kda * 8) + (impact / 400);
-                        totalPerfScore += matchPerf;
-                    }
+                    heroEntries.forEach(p => {
+                        if (p && p.name === heroName) {
+                            const minutes = Math.max(1, p.minutes || 1);
+                            
+                            // Вес матча пропорционален времени игры (полноценный матч ~ 10+ мин = вес 1.0)
+                            const weight = Math.min(1, minutes / 10);
+                            
+                            totalWeight += weight;
+                            if (p.isWin) weightedWins += weight;
+
+                            // Показатели в минуту (Per Minute)
+                            const kda = (p.k + p.a) / Math.max(1, p.d);
+                            const impactPerMin = (p.dmg + p.heal + p.mit) / minutes;
+
+                            // Оценка перформанса в минуту
+                            const matchPerfPerMin = (kda * 8) + (impactPerMin / 65);
+                            totalWeightedPerfScore += (matchPerfPerMin * weight);
+                        }
+                    });
                 });
             });
 
-            if (totalMatches === 0) return { wins: 0, total: 0, pct: 0 };
+            if (totalWeight === 0) return { wins: 0, total: 0, pct: 0 };
 
-            const baseWinrate = (wins / totalMatches) * 100;
-            const avgPerf = totalPerfScore / totalMatches;
+            const baseWinrate = (weightedWins / totalWeight) * 100;
+            const avgPerf = totalWeightedPerfScore / totalWeight;
             
+            // 55% веса — результат матча, 45% — удельный перформанс в минуту
             let adjustedWinrate = (0.55 * baseWinrate) + (0.45 * Math.min(100, avgPerf));
             adjustedWinrate = Math.max(0, Math.min(100, adjustedWinrate));
 
-            return { wins, total: totalMatches, pct: adjustedWinrate };
+            return { wins: weightedWins, total: totalWeight, pct: adjustedWinrate };
         }
 
         function getHeroWinrateText(heroName) {
@@ -783,24 +796,41 @@ function copyList(roleFilter) {
             container.innerHTML = teamAHtml + teamBHtml;
         }
 
-        function createPlayerInputBlock(teamTag, index, pData, heroList) {
-            let optionsHtml = '<option value="">-- Выберите героя --</option>';
-            heroList.forEach(hn => {
-                optionsHtml += `<option value="${hn}" ${hn === pData.name ? 'selected' : ''}>${hn}</option>`;
-            });
+        function createPlayerInputBlock(teamTag, pIndex, pData, heroList) {
+            // pData — это массив персонажей игрока (до 3 шт.)
+            const heroesArray = Array.isArray(pData) ? pData : (pData.name ? [pData] : []);
+            
+            let heroSubBlocks = '';
+            for (let hIndex = 0; hIndex < 3; hIndex++) {
+                const hData = heroesArray[hIndex] || {};
+                
+                let optionsHtml = '<option value="">-- Персонаж ' + (hIndex + 1) + ' --</option>';
+                heroList.forEach(hn => {
+                    optionsHtml += `<option value="${hn}" ${hn === hData.name ? 'selected' : ''}>${hn}</option>`;
+                });
+
+                heroSubBlocks += `
+                    <div style="background:#181818; padding:5px; border-radius:4px; margin-top:4px; border:1px solid #333;">
+                        <div style="display:flex; gap:4px; margin-bottom:4px;">
+                            <select id="m-${teamTag}-p${pIndex}-h${hIndex}-name" style="flex:2; padding:3px; font-size:10px;">${optionsHtml}</select>
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-min" placeholder="Мин" value="${hData.minutes ?? ''}" style="flex:1; font-size:10px; padding:3px; text-align:center;" title="Время игры в минутах">
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:3px;">
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-k" placeholder="K" value="${hData.k ?? ''}" style="font-size:9px; padding:3px;">
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-a" placeholder="A" value="${hData.a ?? ''}" style="font-size:9px; padding:3px;">
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-d" placeholder="D" value="${hData.d ?? ''}" style="font-size:9px; padding:3px;">
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-dmg" placeholder="DMG" value="${hData.dmg ?? ''}" style="font-size:9px; padding:3px;">
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-heal" placeholder="HEAL" value="${hData.heal ?? ''}" style="font-size:9px; padding:3px;">
+                            <input type="number" id="m-${teamTag}-p${pIndex}-h${hIndex}-mit" placeholder="MIT" value="${hData.mit ?? ''}" style="font-size:9px; padding:3px;">
+                        </div>
+                    </div>
+                `;
+            }
 
             return `
-                <div style="background:#222; padding:6px; border-radius:6px; margin-top:6px;">
-                    <div style="font-size:11px; color:#aaa; margin-bottom:3px;">Игрок ${index + 1}</div>
-                    <select id="m-${teamTag}-hero-${index}" style="margin-bottom:4px; padding:4px; font-size:11px;">${optionsHtml}</select>
-                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">
-                        <input type="number" id="m-${teamTag}-k-${index}" placeholder="Уб (K)" value="${pData.k ?? ''}" style="font-size:10px; padding:4px;">
-                        <input type="number" id="m-${teamTag}-a-${index}" placeholder="Сод (A)" value="${pData.a ?? ''}" style="font-size:10px; padding:4px;">
-                        <input type="number" id="m-${teamTag}-d-${index}" placeholder="См (D)" value="${pData.d ?? ''}" style="font-size:10px; padding:4px;">
-                        <input type="number" id="m-${teamTag}-dmg-${index}" placeholder="Урон" value="${pData.dmg ?? ''}" style="font-size:10px; padding:4px;">
-                        <input type="number" id="m-${teamTag}-heal-${index}" placeholder="Исцел" value="${pData.heal ?? ''}" style="font-size:10px; padding:4px;">
-                        <input type="number" id="m-${teamTag}-mit-${index}" placeholder="Погл" value="${pData.mit ?? ''}" style="font-size:10px; padding:4px;">
-                    </div>
+                <div style="background:#222; padding:6px; border-radius:6px; margin-top:6px; border-left:3px solid var(--accent);">
+                    <div style="font-size:11px; font-weight:bold; color:#ccc; margin-bottom:2px;">Игрок ${pIndex + 1}</div>
+                    ${heroSubBlocks}
                 </div>
             `;
         }
@@ -845,38 +875,35 @@ function copyList(roleFilter) {
             const map = document.getElementById('match-map').value;
             const playerCount = getPlayersCountByFormat(format);
 
-            const teamA = [];
-            const teamB = [];
-
-            for (let i = 0; i < playerCount; i++) {
-                const heroA = document.getElementById(`m-A-hero-${i}`).value;
-                if (heroA) {
-                    teamA.push({
-                        name: heroA,
-                        isWin: loserTeam !== 'teamA',
-                        k: parseInt(document.getElementById(`m-A-k-${i}`).value) || 0,
-                        a: parseInt(document.getElementById(`m-A-a-${i}`).value) || 0,
-                        d: parseInt(document.getElementById(`m-A-d-${i}`).value) || 0,
-                        dmg: parseInt(document.getElementById(`m-A-dmg-${i}`).value) || 0,
-                        heal: parseInt(document.getElementById(`m-A-heal-${i}`).value) || 0,
-                        mit: parseInt(document.getElementById(`m-A-mit-${i}`).value) || 0
-                    });
+            const readTeamPlayers = (teamTag, isWin) => {
+                const players = [];
+                for (let pIdx = 0; pIdx < playerCount; pIdx++) {
+                    const playerHeroes = [];
+                    for (let hIdx = 0; hIdx < 3; hIdx++) {
+                        const hName = document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-name`).value;
+                        if (hName) {
+                            playerHeroes.push({
+                                name: hName,
+                                isWin: isWin,
+                                minutes: Math.max(1, parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-min`).value) || 1),
+                                k: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-k`).value) || 0,
+                                a: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-a`).value) || 0,
+                                d: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-d`).value) || 0,
+                                dmg: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-dmg`).value) || 0,
+                                heal: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-heal`).value) || 0,
+                                mit: parseInt(document.getElementById(`m-${teamTag}-p${pIdx}-h${hIdx}-mit`).value) || 0
+                            });
+                        }
+                    }
+                    if (playerHeroes.length > 0) {
+                        players.push(playerHeroes);
+                    }
                 }
+                return players;
+            };
 
-                const heroB = document.getElementById(`m-B-hero-${i}`).value;
-                if (heroB) {
-                    teamB.push({
-                        name: heroB,
-                        isWin: loserTeam !== 'teamB',
-                        k: parseInt(document.getElementById(`m-B-k-${i}`).value) || 0,
-                        a: parseInt(document.getElementById(`m-B-a-${i}`).value) || 0,
-                        d: parseInt(document.getElementById(`m-B-d-${i}`).value) || 0,
-                        dmg: parseInt(document.getElementById(`m-B-dmg-${i}`).value) || 0,
-                        heal: parseInt(document.getElementById(`m-B-heal-${i}`).value) || 0,
-                        mit: parseInt(document.getElementById(`m-B-mit-${i}`).value) || 0
-                    });
-                }
-            }
+            const teamA = readTeamPlayers('A', loserTeam !== 'teamA');
+            const teamB = readTeamPlayers('B', loserTeam !== 'teamB');
 
             if (teamA.length === 0 && teamB.length === 0) {
                 alert('Заполните хотя бы одного персонажа!');
@@ -955,11 +982,22 @@ function copyList(roleFilter) {
                 const mapBadge = m.map ? `<span style="display:inline-block; padding:2px 6px; border-radius:4px; background:#333; color:#ccc; font-size:10px; margin-left:4px;">🗺️ ${m.map}</span>` : '';
 
                 const renderTeamCards = (teamPlayers) => {
-                    return teamPlayers.map(h => `
-                        <div style="font-size:10px; background:#1e1e1e; padding:4px 6px; border-radius:4px; margin-top:3px;">
-                            <b>${h.name}</b> (${h.isWin ? 'Победа' : 'Поражение'}) — K: ${h.k} | A: ${h.a} | D: ${h.d} | DMG: ${h.dmg} | HEAL: ${h.heal} | MIT: ${h.mit}
-                        </div>
-                    `).join('');
+                    return teamPlayers.map((playerData, pIdx) => {
+                        const heroEntries = Array.isArray(playerData) ? playerData : [playerData];
+                        const heroesHtml = heroEntries.map(h => `
+                            <span style="color:#fff; font-weight:bold;">${h.name}</span> (${h.minutes || 1} мин) 
+                            <span style="opacity:0.7;">[K:${h.k} A:${h.a} D:${h.d} | DMG:${h.dmg} H:${h.heal} M:${h.mit}]</span>
+                        `).join(' ➔ ');
+
+                        const isWin = heroEntries[0] ? heroEntries[0].isWin : false;
+                        const statusColor = isWin ? '#22c55e' : '#ef4444';
+
+                        return `
+                            <div style="font-size:10px; background:#1e1e1e; padding:4px 6px; border-radius:4px; margin-top:3px; border-left:2px solid ${statusColor};">
+                                <b style="color:#aaa;">Игрок ${pIdx + 1}:</b> ${heroesHtml}
+                            </div>
+                        `;
+                    }).join('');
                 };
 
                 list.innerHTML += `
