@@ -800,8 +800,19 @@ function copyList(roleFilter) {
             const playerCount = getPlayersCountByFormat(format);
             const heroList = getHeroNames();
 
-            let teamAHtml = `<div style="background:#1a2634; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #00a1ff;"><b style="color:#00a1ff;">Команда A (${playerCount} игрока)</b>`;
-            let teamBHtml = `<div style="background:#341a1a; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #ef4444;"><b style="color:#ef4444;">Команда B (${playerCount} игрока)</b>`;
+            let teamAHtml = `
+                <div style="background:#1a2634; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #00a1ff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <b style="color:#00a1ff;">Команда A (${playerCount} игрока)</b>
+                        <button type="button" class="btn btn-main" style="padding:4px 8px; font-size:10px;" onclick="pasteFullTeamStatsFromClipboard('A')" title="Вставить показатели на ВСЮ Команду A">📋 Вставить статы всей команды</button>
+                    </div>`;
+
+            let teamBHtml = `
+                <div style="background:#341a1a; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #ef4444;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <b style="color:#ef4444;">Команда B (${playerCount} игрока)</b>
+                        <button type="button" class="btn btn-main" style="padding:4px 8px; font-size:10px;" onclick="pasteFullTeamStatsFromClipboard('B')" title="Вставить показатели на ВСЮ Команду B">📋 Вставить статы всей команды</button>
+                    </div>`;
 
             for (let i = 0; i < playerCount; i++) {
                 const pA = (existingMatch && existingMatch.teamA && existingMatch.teamA[i]) ? existingMatch.teamA[i] : {};
@@ -864,7 +875,10 @@ function copyList(roleFilter) {
 
             return `
                 <div style="background:#222; padding:8px; border-radius:6px; margin-top:8px; border-left:3px solid var(--accent);">
-                    <div style="font-size:11px; font-weight:bold; color:#ccc; margin-bottom:6px;">Игрок ${pIndex + 1}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <div style="font-size:11px; font-weight:bold; color:#ccc;">Игрок ${pIndex + 1}</div>
+                        <button type="button" class="btn btn-sec" style="padding:2px 8px; font-size:10px; background:#333; border:1px solid #555;" onclick="pasteStatsFromClipboard('${teamTag}', ${pIndex})" title="Вставить 6 чисел из буфера обмена">📋 Вставить статы</button>
+                    </div>
                     
                     <!-- 3 строки выбора персонажей и времени -->
                     ${heroRowsHtml}
@@ -1083,6 +1097,69 @@ function copyList(roleFilter) {
                     </div>
                 `;
             });
+        }
+
+        // --- ВСТАВКА ЧИСЛОВЫХ ЗНАЧЕНИЙ НА ВСЮ КОМАНДУ ИЗ БУФЕРА ОБМЕНА ---
+        async function pasteFullTeamStatsFromClipboard(teamTag) {
+            try {
+                // Читаем данные из буфера обмена
+                const text = await navigator.clipboard.readText();
+                if (!text || !text.trim()) {
+                    alert('Буфер обмена пуст!');
+                    return;
+                }
+
+                // Разбиваем текст по переносам строк, табуляциям или запятым
+                const rawTokens = text.trim().split(/[\t\n,;]+/);
+                const numbers = [];
+
+                rawTokens.forEach(token => {
+                    // Очищаем от пробелов (включая тысячи "13 331" -> 13331)
+                    const clean = token.replace(/\s+/g, '');
+                    const num = parseInt(clean);
+                    if (!isNaN(num)) {
+                        numbers.push(num);
+                    }
+                });
+
+                if (numbers.length === 0) {
+                    alert('В буфере обмена не найдено чисел!');
+                    return;
+                }
+
+                const format = document.getElementById('match-format').value;
+                const totalPlayers = getPlayersCountByFormat(format);
+                const fields = ['k', 'a', 'd', 'dmg', 'heal', 'mit'];
+
+                let numIdx = 0;
+
+                // Заполняем по 6 показателей на каждого игрока команды
+                for (let pIdx = 0; pIdx < totalPlayers; pIdx++) {
+                    if (numIdx >= numbers.length) break;
+
+                    fields.forEach(field => {
+                        if (numIdx < numbers.length) {
+                            const inputEl = document.getElementById(`m-${teamTag}-p${pIdx}-${field}`);
+                            if (inputEl) {
+                                inputEl.value = numbers[numIdx];
+                            }
+                            numIdx++;
+                        }
+                    });
+
+                    // Красивая визуальная подсветка заполненной строки игрока
+                    const playerBlock = document.getElementById(`m-${teamTag}-p${pIdx}-k`)?.parentElement;
+                    if (playerBlock) {
+                        playerBlock.style.transition = '0.3s';
+                        playerBlock.style.boxShadow = '0 0 10px var(--accent)';
+                        setTimeout(() => playerBlock.style.boxShadow = 'none', 1000);
+                    }
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert('Не удалось прочитать буфер обмена. Убедитесь, что дали разрешение браузеру на вставку.');
+            }
         }
 
         // Старт
