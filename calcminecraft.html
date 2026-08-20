@@ -1,0 +1,2371 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thaumcraft 4: Калькулятор Крафтов</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --border-gold: #c5a059;
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+            --accent: #6b2e91;
+            --accent-hover: #883cbd;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            padding-bottom: 250px; /* Место под футер */
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(to bottom, #2a163d, var(--bg-dark));
+            border-bottom: 2px solid var(--border-gold);
+        }
+
+        header h1 {
+            margin: 0 0 10px 0;
+            color: var(--border-gold);
+        }
+
+        header p { margin: 0; color: var(--text-muted); }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            background-color: var(--bg-panel);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            border: 1px solid var(--border-gold);
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: 0.2s;
+            font-size: 16px;
+        }
+
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        main {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .btn-add {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .btn-add:hover { background: var(--accent-hover); }
+
+        /* Стили блоков крафта */
+        .craft-block {
+            background: var(--bg-panel);
+            border: 1px solid #333;
+            border-left: 4px solid var(--border-gold);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .craft-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .craft-actions button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin-left: 5px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .craft-actions button:hover { background: #555; }
+        .craft-actions .btn-del { background: #8a2be2; } /* Чуть другой цвет для удаления, чтоб не путать с красным */
+        .craft-actions .btn-del:hover { background: #6a1b9a; }
+
+        .craft-body {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .grid-3x3 {
+            display: grid;
+            grid-template-columns: repeat(3, 40px);
+            grid-gap: 5px;
+        }
+
+        /* Базовые слоты и стиль GUI Minecraft */
+        .slot {
+            width: 42px;
+            height: 42px;
+            background: #8b8b8b;
+            border: 2px solid;
+            border-color: #373737 #ffffff #ffffff #373737;
+            color: #ffffff;
+            text-shadow: 1px 1px 0 #000;
+            text-align: center;
+            font-size: 11px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        
+        .slot:focus {
+            background: #9e9e9e;
+            border-color: #555555 #ffffff #ffffff #555555;
+        }
+
+        /* Контейнер ванильного верстака */
+        .mc-workbench-panel {
+            background: #c6c6c6;
+            border: 3px solid;
+            border-color: #ffffff #555555 #555555 #ffffff;
+            padding: 12px 18px;
+            border-radius: 2px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .mc-title {
+            color: #404040;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            user-select: none;
+        }
+
+        .mc-craft-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .mc-arrow-svg {
+            width: 32px;
+            height: 24px;
+            image-rendering: pixelated;
+        }
+
+        /* GUI Печи Minecraft */
+        .furnace-panel {
+            background: #c6c6c6;
+            border: 3px solid;
+            border-color: #ffffff #555555 #555555 #ffffff;
+            padding: 14px 18px;
+            border-radius: 2px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .furnace-body {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .furnace-left-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .furnace-flame-icon {
+            font-size: 16px;
+            line-height: 1;
+            filter: drop-shadow(0 0 3px #ff7700);
+        }
+
+        .furnace-fuel-box {
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px dashed #777;
+            padding: 8px;
+            border-radius: 3px;
+            max-width: 260px;
+            font-size: 11px;
+            color: #222;
+        }
+
+        .furnace-fuel-title {
+            font-weight: bold;
+            color: #9c4100;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .furnace-fuel-list {
+            margin: 0;
+            padding-left: 16px;
+        }
+
+        .mc-result-slot {
+            width: 52px;
+            height: 52px;
+            background: #8b8b8b;
+            border: 2px solid;
+            border-color: #373737 #ffffff #ffffff #373737;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Поле выхода за 1 крафт в правом нижнем углу слота */
+        .slot-yield-badge {
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 2px;
+            padding: 0 2px;
+        }
+
+        .slot-yield-badge input {
+            width: 22px;
+            border: none;
+            background: transparent;
+            color: #ffff55; /* Желтый оттенок шрифта Minecraft */
+            font-size: 10px;
+            font-weight: bold;
+            text-align: right;
+            outline: none;
+        }
+
+        .mc-result-slot input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            color: #fff;
+            text-shadow: 1px 1px 0 #000;
+            text-align: center;
+            font-size: 12px;
+            outline: none;
+        }
+        
+        .slot:focus {
+            border-color: var(--border-gold);
+            outline: none;
+        }
+
+        .arrow { font-size: 24px; color: var(--border-gold); }
+
+        .result-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .input-text {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            padding: 8px;
+            border-radius: 3px;
+        }
+
+        .input-number {
+            width: 60px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            padding: 5px;
+            text-align: center;
+        }
+
+        /* Наполнение: Круговой Алтарь и Матрица */
+        .altar-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto 20px auto;
+            background: radial-gradient(circle, rgba(42, 22, 61, 0.4) 0%, transparent 65%);
+            border-radius: 50%;
+            perspective: 800px;
+        }
+
+        /* 3D Руническая матрица (Кубик в центре) */
+        .runic-matrix-float {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            animation: matrixFloat 3s ease-in-out infinite alternate;
+        }
+        .runic-matrix-spin {
+            width: 50px; height: 50px;
+            transform-style: preserve-3d;
+            animation: matrixSpin 10s linear infinite;
+        }
+        .matrix-face {
+            position: absolute;
+            width: 50px; height: 50px;
+            background: rgba(30, 25, 40, 0.95);
+            border: 2px solid #a85bc9;
+            box-shadow: inset 0 0 15px rgba(168, 91, 201, 0.7);
+            display: flex; justify-content: center; align-items: center;
+            color: #a85bc9; font-size: 24px; font-weight: bold; font-family: sans-serif;
+        }
+        .matrix-front  { transform: translateZ(25px); }
+        .matrix-back   { transform: rotateY(180deg) translateZ(25px); }
+        .matrix-left   { transform: rotateY(-90deg) translateZ(25px); }
+        .matrix-right  { transform: rotateY(90deg) translateZ(25px); }
+        .matrix-top    { transform: rotateX(90deg) translateZ(25px); }
+        .matrix-bottom { transform: rotateX(-90deg) translateZ(25px); }
+
+        @keyframes matrixFloat { from { margin-top: -10px; } to { margin-top: 10px; } }
+        @keyframes matrixSpin {
+            from { transform: rotateX(-35deg) rotateY(0deg); }
+            to { transform: rotateX(-35deg) rotateY(360deg); }
+        }
+
+        /* Центральный слот */
+        .center-item-wrapper {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .center-item-wrapper .slot {
+            width: 50px; height: 50px;
+            background: rgba(18, 18, 18, 0.75); /* Полупрозрачный, чтобы видеть куб */
+            border: 2px solid #a85bc9;
+            box-shadow: 0 0 15px #a85bc9;
+            font-size: 11px;
+        }
+
+        /* Пьедесталы по кругу */
+        .pedestal-group {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 5;
+        }
+        .pedestal-group .slot {
+            margin-bottom: -5px; /* Накладываем инпут на подставку */
+            z-index: 2;
+            position: relative;
+        }
+        .pedestal-visual {
+            width: 38px; height: 16px;
+            background: linear-gradient(to bottom, #555, #2a2a2a);
+            border-radius: 3px;
+            border-bottom: 3px solid #111;
+            position: relative;
+            box-shadow: 0 5px 8px rgba(0,0,0,0.8);
+        }
+        .pedestal-visual::after { /* Верхняя площадка пьедестала */
+            content: ''; position: absolute;
+            top: -5px; left: 2px;
+            width: 34px; height: 10px;
+            background: #666;
+            border-radius: 50%;
+            border: 1px solid #444;
+        }
+
+        /* Вращающаяся фоновая шестерня */
+        .bg-gear-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            height: 700px;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.04;
+        }
+        .bg-gear-svg {
+            width: 100%;
+            height: 100%;
+            animation: spinGear 60s linear infinite;
+        }
+        @keyframes spinGear {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Гексагональный Магический Верстак */
+        .arcane-workbench-container {
+            position: relative;
+            width: 270px;
+            height: 270px;
+            background: radial-gradient(circle, #1a3322 0%, #0d1e13 70%, transparent 100%);
+            border: 2px dashed #2f5439;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px;
+        }
+
+        .arcane-workbench-container .grid-3x3 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+
+        /* Круглые слоты аспектов по вершинам шестигранника */
+        .vis-node {
+            position: absolute;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #555;
+            background: #181818;
+            box-shadow: 0 0 8px rgba(0,0,0,0.8);
+            z-index: 3;
+        }
+
+        .vis-node span {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .vis-node input {
+            width: 32px;
+            background: #111;
+            border: 1px solid #444;
+            color: #fff;
+            font-size: 11px;
+            text-align: center;
+            padding: 2px 0;
+            border-radius: 2px;
+        }
+
+        .vis-node input:focus {
+            outline: none;
+            border-color: #fff;
+        }
+
+        /* Позиции и цвета по скриншоту TC4 */
+        .vis-aer      { top: 2px; left: 50%; transform: translateX(-50%); border-color: #ffff66; color: #ffff66; }
+        .vis-perditio { top: 48px; right: 6px; border-color: #555555; color: #aaaaaa; }
+        .vis-ordo     { bottom: 48px; right: 6px; border-color: #ffffff; color: #ffffff; }
+        .vis-aqua     { bottom: 2px; left: 50%; transform: translateX(-50%); border-color: #3399ff; color: #3399ff; }
+        .vis-ignis    { bottom: 48px; left: 6px; border-color: #ff5500; color: #ff5500; }
+        .vis-terra    { top: 48px; left: 6px; border-color: #22aa22; color: #55ff55; }
+/* Панель Тигля (Таум-Алхимия) */
+        .crucible-panel {
+            position: relative;
+            width: 420px;
+            min-height: 240px;
+            background: linear-gradient(145deg, #44474a, #2f3235);
+            border: 4px solid #232526;
+            border-radius: 4px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.5);
+            padding: 15px;
+            box-sizing: border-box;
+            outline: 2px dashed #595d61;
+            outline-offset: -8px;
+        }
+
+        .crucible-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .crucible-catalyst {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .crucible-result {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .crucible-circle-slot {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: 2px solid #555;
+            background: #1c1d1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+        }
+
+        .crucible-circle-slot input {
+            width: 46px;
+            border: none;
+            background: transparent;
+            color: #fff;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        .crucible-vat {
+            background: rgba(18, 20, 22, 0.9);
+            border: 2px solid #333638;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 100px;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.95);
+            position: relative;
+            z-index: 2;
+        }
+
+        .crucible-arrows-svg {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            height: 90px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .aspect-list { margin-top: 10px; width: 100%; }
+        .aspect-row { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
+        .aspect-row select, .aspect-row input { background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; }
+
+        /* Итоговый блок */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(30, 30, 30, 0.95);
+            border-top: 2px solid var(--border-gold);
+            padding: 15px 20px;
+            box-sizing: border-box;
+            max-height: 230px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .summary-container {
+            display: flex;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .summary-col { flex: 1; }
+        .summary-col h3 { margin-top: 0; color: var(--border-gold); font-size: 16px; margin-bottom: 10px;}
+        .summary-list { list-style: none; padding: 0; margin: 0; font-size: 14px; max-height: 150px; overflow-y: auto;}
+        .summary-list li { margin-bottom: 4px; border-bottom: 1px dashed #444; padding-bottom: 2px;}
+        
+        .reference-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .reference-table th, .reference-table td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: left;
+        }
+        .reference-table th { background: #333; color: var(--border-gold); }
+/* --- Стили интерфейсов Botania --- */
+        .botania-panel {
+            background: #c6c6c6;
+            border: 3px solid;
+            border-color: #ffffff #555555 #555555 #ffffff;
+            padding: 15px;
+            border-radius: 2px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            min-width: 320px;
+        }
+
+        .botania-title {
+            color: #333333;
+            font-size: 15px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            font-family: monospace;
+        }
+
+        /* Интерактивный мана-бар с рисками деления на 4 четверти */
+        .mana-bar-wrapper {
+            width: 260px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .mana-bar-container {
+            position: relative;
+            width: 100%;
+            height: 14px;
+            background: #8b8b8b;
+            border: 2px solid;
+            border-color: #373737 #ffffff #ffffff #373737;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .mana-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, #0055ff, #00bbff);
+            width: 5%;
+            transition: width 0.1s ease;
+        }
+
+        .mana-bar-divider {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #2b2b2b;
+            pointer-events: none;
+        }
+        .mana-div-25 { left: 25%; }
+        .mana-div-50 { left: 50%; }
+        .mana-div-75 { left: 75%; }
+
+        .mana-info-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 11px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .mana-warning {
+            color: #cc0000;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        /* Манонаполнение */
+        .mana-infusion-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 15px;
+            padding: 10px 0;
+        }
+
+        .pool-catalyst-select {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #555;
+            font-size: 11px;
+            padding: 3px;
+            border-radius: 3px;
+        }
+
+        /* Анимированный портал эльфов */
+        .elven-portal-container {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            border: 4px solid #5a3d28; /* Древесина жизнедерева */
+            box-sizing: border-box;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 0 12px rgba(0, 255, 128, 0.4);
+        }
+
+        .elven-portal-swirl {
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: conic-gradient(from 0deg, #00ff88, #00a86b, #10e080, #00754a, #00ff88);
+            border-radius: 50%;
+            filter: blur(4px);
+            animation: elvenPortalSpin 4s linear infinite;
+        }
+
+        @keyframes elvenPortalSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Круговой интерфейс Рунического алтаря */
+        .runic-altar-circle {
+            position: relative;
+            width: 240px;
+            height: 240px;
+            border: 3px dashed #a0a0a0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        .runic-center-block {
+            width: 44px;
+            height: 44px;
+            background: #999;
+            border: 2px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            text-align: center;
+            font-weight: bold;
+            color: #222;
+        }
+
+        .runic-slot-node {
+            position: absolute;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Динамические слоты эльфийской торговли */
+        .elven-slots-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            max-width: 180px;
+            justify-content: center;
+        }
+		/* --- Tinker's Construct GUI --- */
+        .smeltery-panel {
+            background: #c6c6c6;
+            border: 3px solid;
+            border-color: #ffffff #555555 #555555 #ffffff;
+            padding: 16px;
+            border-radius: 2px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            min-width: 480px;
+        }
+
+        .smeltery-workspace {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .smeltery-tanks {
+            display: flex;
+            gap: 10px;
+            background: #8b8b8b;
+            border: 2px solid;
+            border-color: #373737 #ffffff #ffffff #373737;
+            padding: 6px;
+        }
+
+        /* Резервуары Плавильни */
+        .metal-tank-wrapper {
+            position: relative;
+            width: 80px;
+            height: 150px;
+            background: #151515;
+            border: 2px solid;
+            border-color: #373737 #ffffff #ffffff #373737;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            box-sizing: border-box;
+        }
+
+        .metal-tank-fluid {
+            width: 100%;
+            background: linear-gradient(180deg, #ff9900, #ff3300, #880000);
+            transition: height 0.2s ease-out;
+            min-height: 0;
+        }
+
+        .lava-tank-wrapper {
+            position: relative;
+            width: 36px;
+            height: 150px;
+            background: #151515;
+            border: 2px solid;
+            border-color: #373737 #ffffff #ffffff #373737;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            box-sizing: border-box;
+        }
+
+        .lava-tank-fluid {
+            width: 100%;
+            background: linear-gradient(180deg, #ffe600 0%, #ff5500 60%, #aa1100 100%);
+            transition: height 0.2s ease-out;
+            min-height: 0;
+        }
+
+        .metal-tank-wrapper {
+            position: relative;
+            width: 80px;
+            height: 150px;
+            background: #181818;
+            border: 2px solid #373737;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            box-shadow: inset 0 0 6px #000;
+        }
+
+        .metal-tank-fluid {
+            width: 100%;
+            background: linear-gradient(180deg, #ff9900, #ff3300, #880000);
+            transition: height 0.25s ease-out;
+            box-shadow: 0 0 10px rgba(255, 80, 0, 0.6);
+        }
+
+        @keyframes lavaPulse {
+            0% { filter: brightness(0.9) contrast(1.1); }
+            100% { filter: brightness(1.3) contrast(1.3) drop-shadow(0 0 5px #ff5500); }
+        }
+
+        .tank-ticks {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2px 0;
+            box-sizing: border-box;
+        }
+
+        .tick-line {
+            width: 8px;
+            height: 2px;
+            background: #1111bb;
+        }
+        .tick-line.major { width: 18px; height: 2px; background: #0000ff; }
+
+        .smeltery-controls-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .smeltery-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #222;
+        }
+
+        .smeltery-select {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 4px;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+
+        .casting-table-box {
+            background: rgba(0,0,0,0.1);
+            border: 1px dashed #666;
+            padding: 8px;
+            border-radius: 3px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .status-badge {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .status-ok { background: #2e7d32; color: #fff; }
+        .status-err { background: #c62828; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <!-- Вращающаяся шестеренка на фоне -->
+    <div class="bg-gear-container">
+        <svg class="bg-gear-svg" viewBox="0 0 100 100" fill="#c5a059">
+            <path d="M50 35c-8.28 0-15 6.72-15 15s6.72 15 15 15 15-6.72 15-15-6.72-15-15-15zm0 24c-4.97 0-9-4.03-9-9s4.03-9 9-9 9 4.03 9 9-4.03 9-9 9zm43.5-12.7l-6.1-2.1c-.4-1.5-.9-3-1.6-4.4l3.3-5.5c.8-1.4.5-3.2-.8-4.2l-5.7-5.7c-1-1-2.8-1.3-4.2-.6l-5.5 3.3c-1.4-.7-2.9-1.2-4.4-1.6l-2.1-6.1c-.5-1.5-1.9-2.5-3.5-2.5h-8c-1.6 0-3 1-3.5 2.5l-2.1 6.1c-1.5.4-3 .9-4.4 1.6l-5.5-3.3c-1.4-.7-3.2-.4-4.2.6l-5.7 5.7c-1 1-1.3 2.8-.8 4.2l3.3 5.5c-.7 1.4-1.2 2.9-1.6 4.4l-6.1 2.1c-1.5.5-2.5 1.9-2.5 3.5v8c0 1.6 1 3 2.5 3.5l6.1 2.1c.4 1.5.9 3 1.6 4.4l-3.3 5.5c-.8 1.4-.5 3.2.8 4.2l5.7 5.7c1 1 2.8 1.3 4.2.6l5.5-3.3c1.4.7 2.9 1.2 4.4 1.6l2.1 6.1c.5 1.5 1.9 2.5 3.5 2.5h8c1.6 0 3-1 3.5-2.5l2.1-6.1c1.5-.4 3-.9 4.4-1.6l5.5 3.3c1.4.7 3.2.4 4.2-.6l5.7-5.7c1-1 1.3-2.8.8-4.2l-3.3-5.5c.7-1.4 1.2-2.9 1.6-4.4l6.1-2.1c1.5-.5 2.5-1.9 2.5-3.5v-8c0-1.6-1-3-2.5-3.5z"/>
+        </svg>
+    </div>
+
+    <header>
+        <h1>Minecraft-Thaumcraft-Botania Калькулятор Крафтов</h1>
+        <p>Планируй, считай аспекты и собирай ресурсы без головной боли</p>
+    </header>
+
+    <nav id="tabs">
+        <button class="tab-btn active" data-tab="normal">Обычный верстак</button>
+        <button class="tab-btn" data-tab="furnace">Печь</button>
+        <button class="tab-btn" data-tab="arcane">Верстак в вис</button>
+        <button class="tab-btn" data-tab="alchemy">Таум-алхимия</button>
+        <button class="tab-btn" data-tab="infusion">Таум-наполнение</button>
+        <button class="tab-btn" data-tab="mana-infusion">Манонаполнение</button>
+        <button class="tab-btn" data-tab="runic-altar">Рунический алтарь</button>
+        <button class="tab-btn" data-tab="elven-trade">Торговля с эльфами</button>
+        <button class="tab-btn" data-tab="smeltery">Плавка в плавильне</button>
+        <button class="tab-btn" data-tab="reference">Эссенции (Справка)</button>
+    </nav>
+
+    <main>
+        <!-- Рабочая зона -->
+        <div id="workspace">
+            <div class="controls" id="controls">
+                <button class="btn-add" id="btn-add-craft">Добавить крафт</button>
+            </div>
+            <div id="craft-list"></div>
+        </div>
+
+        <!-- Справка (Вкладка 5) -->
+        <div id="reference-view" style="display: none;">
+            <h2>Справочник расщепления предметов на аспекты</h2>
+            <p>Памятка по получению первичных и сложных аспектов из доступных ресурсов:</p>
+            <table class="reference-table">
+                <thead>
+                    <tr><th>Аспект</th><th>Ресурс (источник)</th><th>Выход эссенции</th></tr>
+                </thead>
+                <tbody id="reference-tbody">
+                    <!-- Заполняется автоматически из ESSENCE_BREAKDOWN -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer id="summary-block">
+        <div class="summary-container">
+            <div class="summary-col">
+                <h3>Готовая продукция (Итог)</h3>
+                <ul class="summary-list" id="sum-results"><li>Пусто</li></ul>
+            </div>
+            <div class="summary-col">
+                <h3>Предметы (ингредиенты)</h3>
+                <ul class="summary-list" id="sum-items"><li>Пусто</li></ul>
+            </div>
+            <div class="summary-col">
+                <h3>Затраты Вис / Маны</h3>
+                <ul class="summary-list" id="sum-vis"><li>Пусто</li></ul>
+            </div>
+            <div class="summary-col">
+                <h3>Эссенции / Аспекты</h3>
+                <ul class="summary-list" id="sum-aspects"><li>Пусто</li></ul>
+            </div>
+            <div class="summary-col">
+                <h3>Конвертация в базу</h3>
+                <ul class="summary-list" id="sum-base"><li>Пусто</li></ul>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Расширенная база аспектов (TC4)
+        const ASPECTS = [
+            "Aer", "Alienis", "Aqua", "Arbor", "Auram", "Bestia", "Cognitio", "Corpus", 
+            "Exanimis", "Fabrico", "Fames", "Gelum", "Herba", "Humanus", "Ignis", 
+            "Instrumentum", "Iter", "Limus", "Lucrum", "Lux", "Machina", "Messis", 
+            "Metallum", "Meto", "Mortuus", "Motus", "Ordo", "Pannus", "Perditio", 
+            "Perfodio", "Permutatio", "Potentia", "Praecantatio", "Sano", "Sensus", 
+            "Spiritus", "Telum", "Tempestas", "Terra", "Tenebrae", "Tutamen", 
+            "Vacuos", "Venenum", "Victus", "Vinculum", "Vitium", "Vitreus", "Volatus"
+        ].sort();
+
+        // Полная база расщепления предметов на эссенции
+        const ESSENCE_BREAKDOWN = {
+            "Aqua": [{ item: "Сахарный тростник", yield: 1 }],
+            "Ignis": [{ item: "Уголь", yield: 2 }, { item: "Адский камень", yield: 1 }],
+            "Perditio": [{ item: "Булыжник", yield: 1 }],
+            "Aer": [{ item: "Сахарный тростник", yield: 1 }, { item: "Перо", yield: 1 }],
+            "Terra": [{ item: "Булыжник", yield: 1 }],
+            "Ordo": [{ item: "Гладкий песчаник", yield: 1 }],
+            "Alienis": [{ item: "Эндер Пёрл", yield: 1 }, { item: "Древний камень", yield: 1 }],
+            "Arbor": [{ item: "Дуб (древесина)", yield: 1 }],
+            "Auram": [{ item: "Эфирная эссенция", yield: 2 }],
+            "Bestia": [{ item: "Нитка", yield: 1 }],
+            "Cognitio": [{ item: "Бумага", yield: 1 }],
+            "Corpus": [{ item: "Гнилая плоть", yield: 2 }],
+            "Exanimis": [{ item: "Череп (скелет / визер)", yield: 4 }],
+            "Fabrico": [{ item: "Верстак", yield: 4 }],
+            "Fames": [{ item: "Еда (сахар/пшеница/картофель/морковь/арбуз/яблоко)", yield: 1 }],
+            "Gelum": [{ item: "Снежок", yield: 1 }, { item: "Блок снега", yield: 3 }],
+            "Herba": [{ item: "Сахарный тростник", yield: 1 }],
+            "Humanus": [{ item: "Гнилая плоть", yield: 1 }],
+            "Instrumentum": [{ item: "Кремень", yield: 1 }, { item: "Каменная лопата", yield: 2 }],
+            "Iter": [{ item: "Лодка", yield: 4 }],
+            "Limus": [{ item: "Слизь", yield: 2 }],
+            "Lucrum": [{ item: "Изумруд", yield: 5 }, { item: "Алмаз", yield: 4 }, { item: "Слиток золота", yield: 2 }],
+            "Lux": [{ item: "Факел", yield: 1 }],
+            "Machina": [{ item: "Кнопка", yield: 1 }],
+            "Messis": [{ item: "Пшеница / Яблоко", yield: 2 }, { item: "Картофель / Морковь", yield: 1 }],
+            "Metallum": [{ item: "Слиток железа", yield: 4 }],
+            "Meto": [{ item: "Ножницы", yield: 3 }, { item: "Каменная мотыга", yield: 2 }],
+            "Mortuus": [{ item: "Кость", yield: 2 }, { item: "Голова (зомби/скелет/крипер)", yield: 4 }],
+            "Motus": [{ item: "Люк", yield: 1 }],
+            "Pannus": [{ item: "Нитка", yield: 1 }],
+            "Perfodio": [{ item: "Каменная кирка", yield: 2 }],
+            "Permutatio": [{ item: "Выбрасыватель", yield: 1 }, { item: "Ртуть", yield: 2 }],
+            "Potentia": [{ item: "Кварц", yield: 1 }, { item: "Редстоун", yield: 2 }, { item: "Уголь", yield: 2 }],
+            "Praecantatio": [{ item: "Адский нарост", yield: 1 }],
+            "Sano": [{ item: "Зелье лечения I", yield: 3 }, { item: "Зелье лечения II", yield: 6 }],
+            "Sensus": [{ item: "Краситель / Морковь", yield: 1 }, { item: "Паучий глаз", yield: 2 }],
+            "Spiritus": [{ item: "Песок душ", yield: 1 }],
+            "Telum": [{ item: "Стрела", yield: 1 }],
+            "Tenebrae": [{ item: "Эндерняк", yield: 1 }, { item: "любой гриб", yield: 1 }],
+            "Tempestas": [{ item: "Эфирная эссенция Tempestas", yield: 2 }],
+            "Tutamen": [{ item: "Кожа", yield: 1 }, { item: "Железный нагрудник", yield: 6 }, { item: "Железные поножи", yield: 5 }, { item: "Шлем / Ботинки (ж)", yield: 2 }],
+            "Vacuos": [{ item: "Миска", yield: 1 }],
+            "Venenum": [{ item: "Ртуть", yield: 1 }, { item: "Паучий глаз", yield: 2 }],
+            "Victus": [{ item: "Цветок (ванильный) / Яйцо", yield: 1 }, { item: "Сырая курица", yield: 2 }],
+            "Vinculum": [{ item: "Песок душ", yield: 1 }, { item: "Янтарь", yield: 2 }],
+            "Vitium": [{ item: "Заражённое волокно", yield: 2 }, { item: "Заражённая слизь", yield: 3 }],
+            "Vitreus": [{ item: "Стекло / Кварц", yield: 1 }],
+            "Volatus": [{ item: "Перо", yield: 2 }]
+        };
+
+        // Главное хранилище состояния
+        const state = {
+            activeTab: 'normal',
+            crafts: []
+        };
+
+        // Генерация ID
+        const generateId = () => '_' + Math.random().toString(36).substr(2, 9);
+
+        // Фабрика новых крафтов
+        function createCraft(type) {
+            const base = { id: generateId(), type, count: 1, resultYield: 1, result: '' };
+            if (type === 'normal') {
+                base.grid = Array(9).fill('');
+            } else if (type === 'furnace') {
+                base.source = '';
+                base.result = '';
+            } else if (type === 'arcane') {
+                base.grid = Array(9).fill('');
+                base.vis = { ignis: 0, aer: 0, aqua: 0, terra: 0, ordo: 0, perditio: 0 };
+            } else if (type === 'alchemy') {
+                base.source = '';
+                base.aspects = [];
+            } else if (type === 'infusion') {
+                base.center = '';
+                base.pedestals = Array(12).fill('');
+                base.aspects = [];
+            } else if (type === 'mana-infusion') {
+                base.source = '';
+                base.catalyst = 'none'; // 'none', 'alchemy', 'conjuration'
+                base.mana = 5; // % от бассейна маны (0..100)
+            } else if (type === 'runic-altar') {
+                base.items = Array(10).fill('');
+                base.mana = 20; // % от бассейна
+            } else if (type === 'elven-trade') {
+                base.inputs = ['', '']; // До 10 слотов
+            } else if (type === 'smeltery') {
+                base.mode = "preset"; // 'preset' или 'custom'
+                base.baseSize = 3; // Внутренний размер дна: 1..7 (3x3)
+                base.height = 2; // Высота стен: 1..20
+                base.tanksCount = 1; // Количество резервуаров лавы (по 4000 mB)
+                base.currentLava = 4000;
+                base.material = "Железо";
+                base.form = "ingot";
+                base.inputCount = 18;
+                base.customMB = 1440;
+                base.customLava = 183;
+                base.castPart = "Обух кирки";
+            }
+            return base;
+        }
+
+        // --- Управление DOM и Рендер ---
+
+        const tabs = document.querySelectorAll('.tab-btn');
+        function switchTab(tabKey) {
+            state.activeTab = tabKey;
+            tabs.forEach(t => {
+                if (t.dataset.tab === tabKey) {
+                    t.classList.add('active');
+                } else {
+                    t.classList.remove('active');
+                }
+            });
+
+            if (state.activeTab === 'reference') {
+                document.getElementById('workspace').style.display = 'none';
+                document.getElementById('reference-view').style.display = 'block';
+            } else {
+                document.getElementById('workspace').style.display = 'block';
+                document.getElementById('reference-view').style.display = 'none';
+                renderCraftList();
+            }
+
+            // Сохраняем текущую активную вкладку
+            try {
+                localStorage.setItem('tc_active_tab', state.activeTab);
+            } catch(e) {}
+        }
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                switchTab(e.target.dataset.tab);
+            });
+        });
+
+        document.getElementById('btn-add-craft').addEventListener('click', () => {
+            state.crafts.push(createCraft(state.activeTab));
+            renderCraftList();
+            updateTotals();
+        });
+
+        function removeCraft(id) {
+            state.crafts = state.crafts.filter(c => c.id !== id);
+            renderCraftList();
+            updateTotals();
+        }
+
+        function duplicateCraft(id) {
+            const target = state.crafts.find(c => c.id === id);
+            if (target) {
+                const clone = JSON.parse(JSON.stringify(target));
+                clone.id = generateId();
+                state.crafts.push(clone);
+                renderCraftList();
+                updateTotals();
+            }
+        }
+
+        function addAspect(craftId) {
+            const craft = state.crafts.find(c => c.id === craftId);
+            craft.aspects.push({ aspect: ASPECTS[0], amount: 1, format: 'direct' });
+            renderCraftList();
+            updateTotals();
+        }
+
+        function removeAspect(craftId, index) {
+            const craft = state.crafts.find(c => c.id === craftId);
+            craft.aspects.splice(index, 1);
+            renderCraftList();
+            updateTotals();
+        }
+
+function addElvenInput(craftId) {
+            const craft = state.crafts.find(c => c.id === craftId);
+            if (craft && craft.inputs.length < 10) {
+                craft.inputs.push('');
+                renderCraftList();
+                updateTotals();
+            }
+        }
+
+        function removeElvenInput(craftId, index) {
+            const craft = state.crafts.find(c => c.id === craftId);
+            if (craft && craft.inputs.length > 1) {
+                craft.inputs.splice(index, 1);
+                renderCraftList();
+                updateTotals();
+            }
+        }
+
+        function setManaPercent(craftId, event) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const percent = Math.min(100, Math.max(1, Math.round((clickX / rect.width) * 100)));
+            const craft = state.crafts.find(c => c.id === craftId);
+            if (craft) {
+                craft.mana = percent;
+                renderCraftList();
+                updateTotals();
+            }
+        }
+        // Функция точечного мгновенного обновления плавильни с динамическими потолками
+        function updateSmelteryCard(craftId) {
+            const craft = state.crafts.find(c => c.id === craftId);
+            if (!craft || craft.type !== 'smeltery') return;
+
+            const card = document.querySelector(`.craft-block[data-craft-id="${craftId}"]`);
+            if (!card) return;
+
+            const mode = craft.mode || "preset";
+            const mult = Math.max(1, parseInt(craft.count) || 1);
+
+            // Геометрия структуры и расчет потолков
+            const baseSize = Math.min(7, Math.max(1, parseInt(craft.baseSize) || 3));
+            const height = Math.min(20, Math.max(1, parseInt(craft.height) || 2));
+            const tanksCount = Math.min(16, Math.max(1, parseInt(craft.tanksCount) || 1));
+
+            const totalSlots = baseSize * baseSize * height;
+            const maxLiquidMB = totalSlots * 1296;
+            const maxLavaMB = tanksCount * 4000;
+
+            const currentLava = craft.currentLava !== undefined ? Math.min(maxLavaMB, Math.max(0, Number(craft.currentLava))) : maxLavaMB;
+
+            let totalMeltMB = 0;
+            let singleSessionLava = 0;
+            let inCount = 0;
+
+            if (mode === 'preset') {
+                const matKey = craft.material || "Железо";
+                const matData = SMELTERY_MATERIALS[matKey] || SMELTERY_MATERIALS["Железо"];
+                const formType = craft.form || "ingot";
+                inCount = craft.inputCount !== undefined ? Math.max(1, parseInt(craft.inputCount)) : 10;
+
+                let unitMB = matData.ingotMB;
+                let unitLava = matData.lavaIngot;
+                if (formType === 'block') { unitMB = matData.blockMB; unitLava = matData.lavaBlock; }
+                if (formType === 'nugget') { unitMB = matData.nuggetMB; unitLava = matData.lavaNugget; }
+
+                totalMeltMB = unitMB * inCount;
+                singleSessionLava = unitLava * inCount;
+            } else {
+                totalMeltMB = Math.max(0, parseInt(craft.customMB) || 0);
+                singleSessionLava = Math.max(0, parseInt(craft.customLava) || 0);
+            }
+
+            const totalLavaSpent = Math.round(singleSessionLava * mult);
+
+            // Расчет отливки деталей
+            const chosenPart = CASTING_PARTS.find(p => p.name === (craft.castPart || "Обух кирки")) || CASTING_PARTS[0];
+            const mbPerPart = chosenPart.cost;
+            const possiblePartsPerSession = mbPerPart > 0 ? Math.floor(totalMeltMB / mbPerPart) : 0;
+            const mbUsedPerSession = possiblePartsPerSession * mbPerPart;
+            const mbLeftover = Math.max(0, totalMeltMB - mbUsedPerSession);
+
+            // Проверки лимитов и потолков
+            const isSlotsOverflow = mode === 'preset' && inCount > totalSlots;
+            const isSmelteryOverflow = totalMeltMB > maxLiquidMB;
+            const isNotEnoughMetal = totalMeltMB < mbPerPart;
+            const isNotEnoughLava = totalLavaSpent > currentLava;
+
+            // Расчет процентов шкал по реальным максимумам
+            const metalHeightPercent = Math.min(100, Math.max(0, (totalMeltMB / maxLiquidMB) * 100));
+            const lavaFillPercent = Math.min(100, Math.max(0, (currentLava / maxLavaMB) * 100));
+
+            // Обновляем визуальные шкалы
+            const metalFluid = card.querySelector('.metal-tank-fluid');
+            if (metalFluid) metalFluid.style.height = `${metalHeightPercent}%`;
+
+            const lavaFluid = card.querySelector('.lava-tank-fluid');
+            if (lavaFluid) lavaFluid.style.height = `${lavaFillPercent}%`;
+
+            // Текстовые подсказки
+            const neededLavaSpan = card.querySelector('.smeltery-needed-lava');
+            if (neededLavaSpan) neededLavaSpan.innerText = `${totalLavaSpent} mB`;
+
+            const castingInfoDiv = card.querySelector('.smeltery-casting-info');
+            if (castingInfoDiv) {
+                castingInfoDiv.innerHTML = `Расплав: <strong>${totalMeltMB}</strong> / ${maxLiquidMB} mB &rarr; Выйдет: <strong>${possiblePartsPerSession} шт.</strong> (остаток: ${mbLeftover} mB)`;
+            }
+
+            // Обновляем плашку статуса
+            const statusContainer = card.querySelector('.smeltery-status-box');
+            if (statusContainer) {
+                if (isSlotsOverflow) {
+                    statusContainer.innerHTML = `<span class="status-badge status-err">⚠️ Превышен лимит слотов структуры (${inCount} > ${totalSlots} слотов)!</span>`;
+                } else if (isSmelteryOverflow) {
+                    statusContainer.innerHTML = `<span class="status-badge status-err">⚠️ Переполнение плавильни (${totalMeltMB} > ${maxLiquidMB} mB)!</span>`;
+                } else if (isNotEnoughMetal) {
+                    statusContainer.innerHTML = `<span class="status-badge status-err">⚠️ Мало металла (${totalMeltMB} < ${mbPerPart} mB)!</span>`;
+                } else if (isNotEnoughLava) {
+                    statusContainer.innerHTML = `<span class="status-badge status-err">⚠️ Не хватает лавы (${currentLava} < ${totalLavaSpent} mB)!</span>`;
+                } else {
+                    statusContainer.innerHTML = `<span class="status-badge status-ok">✓ Структура активна: объема и лавы хватает</span>`;
+                }
+            }
+
+            const totalPartsSpan = card.querySelector('.smeltery-total-parts');
+            if (totalPartsSpan) totalPartsSpan.innerText = `${possiblePartsPerSession * mult} шт.`;
+        }
+
+        // Универсальный обработчик изменений данных (input и change)
+        function handleCraftDataUpdate(e) {
+            const target = e.target;
+            const craftId = target.dataset.id;
+            if (!craftId) return;
+
+            const craft = state.crafts.find(c => c.id === craftId);
+            if (!craft) return;
+
+            const field = target.dataset.field;
+            const index = target.dataset.index;
+            const val = target.type === 'number' ? Number(target.value) : target.value;
+
+            if (field === 'grid' || field === 'pedestals' || field === 'items' || field === 'inputs') {
+                craft[field][index] = val;
+            } else if (field === 'vis') {
+                craft.vis[target.dataset.type] = val;
+            } else if (field === 'aspect-name') {
+                craft.aspects[index].aspect = val;
+            } else if (field === 'aspect-amount') {
+                craft.aspects[index].amount = val;
+            } else if (field === 'aspect-format') {
+                craft.aspects[index].format = val;
+            } else {
+                craft[field] = val;
+            }
+
+            // При смене режима, параметров структуры или материала перерисовываем карточку
+            if (target.tagName === 'SELECT' || field === 'mode' || field === 'baseSize' || field === 'height' || field === 'tanksCount') {
+                renderCraftList();
+            } else if (craft.type === 'smeltery') {
+                updateSmelteryCard(craftId);
+            }
+
+            updateTotals();
+        }
+
+        const craftListEl = document.getElementById('craft-list');
+        craftListEl.addEventListener('input', handleCraftDataUpdate);
+        craftListEl.addEventListener('change', handleCraftDataUpdate);
+
+        // Функция "Выделить весь текст" при нажатии или фокусе на ячейку ввода
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT' && (e.target.type === 'text' || e.target.type === 'number')) {
+                e.target.select();
+            }
+        });
+        document.addEventListener('mouseup', (e) => {
+            if (e.target.tagName === 'INPUT' && (e.target.type === 'text' || e.target.type === 'number')) {
+                // Предотвращаем сброс выделения браузером при клике мыши
+                if (document.activeElement === e.target && e.target.selectionStart === e.target.selectionEnd) {
+                    e.target.select();
+                }
+            }
+        });
+
+        // HTML-генераторы
+        function getAspectsHtml(craft) {
+            const options = ASPECTS.map(a => `<option value="${a}">${a}</option>`).join('');
+            let html = `<div class="aspect-list"><strong>Требуемые аспекты:</strong><br>`;
+            craft.aspects.forEach((asp, idx) => {
+                html += `
+                <div class="aspect-row">
+                    <select data-id="${craft.id}" data-field="aspect-name" data-index="${idx}">
+                        ${ASPECTS.map(a => `<option value="${a}" ${a === asp.aspect ? 'selected' : ''}>${a}</option>`).join('')}
+                    </select>
+                    <input type="number" min="1" value="${asp.amount}" data-id="${craft.id}" data-field="aspect-amount" data-index="${idx}" class="input-number">
+                    <select data-id="${craft.id}" data-field="aspect-format" data-index="${idx}">
+                        <option value="direct" ${asp.format === 'direct' ? 'selected' : ''}>Единиц</option>
+                        <option value="jar" ${asp.format === 'jar' ? 'selected' : ''}>Банок (x64)</option>
+                        <option value="phial" ${asp.format === 'phial' ? 'selected' : ''}>Флаконов (x8)</option>
+                    </select>
+                    <button class="btn-del" onclick="removeAspect('${craft.id}', ${idx})">x</button>
+                </div>`;
+            });
+            html += `<button class="btn-add" style="padding: 5px; font-size: 12px;" onclick="addAspect('${craft.id}')">+ Добавить аспект</button></div>`;
+            return html;
+        }
+		
+		// Таблица видов топлива и их теплоемкости (в количестве выплавляемых предметов)
+        // Таблица видов топлива (без стержней ифрита, с акцентом на уголь)
+        const FUEL_TIERS = [
+            { name: "Уголь / Древесный уголь", power: 8 },
+            { name: "Доски / Дерево / Ступени / Сундуки", power: 1.5 },
+            { name: "Деревянные инстр. / Плиты / Двери", power: 1.0 },
+            { name: "Палки / Саженцы / Кнопки / Шерсть", power: 0.5 }
+        ];
+		// Справочник материалов плавильни: mB на форму и расход лавы (на 1 шт.)
+        const SMELTERY_MATERIALS = {
+            "Железо": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 375/9, lavaIngot: 165/9, lavaNugget: 150/9 },
+            "Золото": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 165/9, lavaIngot: 105/9, lavaNugget: 90/9 },
+            "Медь": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 195/9, lavaIngot: 135/9, lavaNugget: 120/9 },
+            "Олово": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 150/9, lavaIngot: 100/9, lavaNugget: 90/9 },
+            "Алюминий": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 135/9, lavaIngot: 90/9, lavaNugget: 80/9 },
+            "Кобальт": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 225/9, lavaIngot: 165/9, lavaNugget: 150/9 },
+            "Ардит": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 225/9, lavaIngot: 165/9, lavaNugget: 150/9 },
+            "Бронза": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 180/9, lavaIngot: 120/9, lavaNugget: 110/9 },
+            "Алюминиевая латунь": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 135/9, lavaIngot: 90/9, lavaNugget: 80/9 },
+            "Мануллин": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 255/9, lavaIngot: 180/9, lavaNugget: 160/9 },
+            "Алюмит": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 270/9, lavaIngot: 190/9, lavaNugget: 170/9 },
+            "Сталь": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 240/9, lavaIngot: 170/9, lavaNugget: 150/9 },
+            "Камень (Сжиженный)": { blockMB: 1296, ingotMB: 144, nuggetMB: 16, lavaBlock: 240/9, lavaIngot: 150/9, lavaNugget: 130/9 },
+            "Обсидиан": { blockMB: 288, ingotMB: 288, nuggetMB: 32, lavaBlock: 240/9, lavaIngot: 240/9, lavaNugget: 100/9 },
+            "Стекло": { blockMB: 1000, ingotMB: 1000, nuggetMB: 100, lavaBlock: 180/9, lavaIngot: 180/9, lavaNugget: 100/9 },
+            "Изумруд": { blockMB: 5760, ingotMB: 640, nuggetMB: 71, lavaBlock: 150/9, lavaIngot: 150/9, lavaNugget: 50/9 },
+            "Клей": { blockMB: 288, ingotMB: 144, nuggetMB: 16, lavaBlock: 45/9, lavaIngot: 25/9, lavaNugget: 15/9 },
+            "Жемчуг Энда": { blockMB: 288, ingotMB: 250, nuggetMB: 28, lavaBlock: 150/9, lavaIngot: 150/9, lavaNugget: 50/9 }
+        };
+
+        // Справочник отливок на Литейном столе (в mB)
+        const CASTING_PARTS = [
+            { name: "Слиток", cost: 144 },
+            { name: "Самородок", cost: 16 },
+            { name: "Блок (в литейный бассейн)", cost: 1296 },
+            { name: "Пустой слепок", cost: 288 },
+            { name: "Обожжённый кирпич", cost: 36 },
+            { name: "Драгоценный камень", cost: 144 },
+            { name: "Сжиженный изумруд -> 1 Изумруд", cost: 640 },
+            { name: "Клей", cost: 144 },
+            { name: "Кровь в свернувшуюся кровь", cost: 160 },
+            { name: "В ведро (жидкость)", cost: 1000 },
+            { name: "Стеклянная панель", cost: 250 },
+            { name: "Стержень инструмента", cost: 72 },
+            { name: "Обух кирки", cost: 144 },
+            { name: "Штык лопаты", cost: 144 },
+            { name: "Обух топора", cost: 144 },
+            { name: "Лезвие меча", cost: 144 },
+            { name: "Широкая гарда", cost: 72 },
+            { name: "Малая гарда", cost: 72 },
+            { name: "Поперечная гарда", cost: 72 },
+            { name: "Крепление", cost: 72 },
+            { name: "Сковорода", cost: 144 },
+            { name: "Табличка", cost: 144 },
+            { name: "Лезвие ножа", cost: 72 },
+            { name: "Лезвие стамески", cost: 72 },
+            { name: "Прочный стержень", cost: 432 },
+            { name: "Прочное крепление", cost: 432 },
+            { name: "Большая пластина", cost: 1152 },
+            { name: "Большой обух топора", cost: 1152 },
+            { name: "Лезвие косы", cost: 1152 },
+            { name: "Пластина копалки", cost: 1152 },
+            { name: "Большое лезвие меча", cost: 1152 },
+            { name: "Боёк молота", cost: 1152 },
+            { name: "Полная гарда", cost: 432 },
+            { name: "Жемчуг Эндера (из жидк. края)", cost: 250 },
+            { name: "Золотая морковь (128 mB + морковь)", cost: 128 },
+            { name: "Золотой арбуз (128 mB + арбуз)", cost: 128 },
+            { name: "Золотое яблоко (1152 mB + яблоко)", cost: 1152 },
+            { name: "Золотая голова (1152 mB + голова)", cost: 1152 },
+            { name: "Часть сюрикэна", cost: 72 },
+            { name: "Плечо арбалета", cost: 576 },
+            { name: "Основа арбалета", cost: 720 },
+            { name: "Плечо лука", cost: 216 },
+            { name: "Наконечник стрелы", cost: 144 },
+            { name: "Болт для арбалета", cost: 144 }
+        ];
+
+        // Расчет экономичной комбинации топлива "тика-в-тику" (приоритет: уголь)
+        function calculateOptimalFuel(itemCount) {
+            if (!itemCount || itemCount <= 0) return { breakdown: [], totalPower: 0, waste: 0, returnBuckets: 0 };
+
+            let remaining = itemCount;
+            const result = [];
+            const returnBuckets = 0;
+
+            // 1. Основной объем закрываем углем / древесным углем (1 уголь = 8 предметов)
+            if (remaining >= 8) {
+                const coalCount = Math.floor(remaining / 8);
+                result.push({ name: "Уголь / Древесный уголь", count: coalCount, power: coalCount * 8 });
+                remaining = remaining % 8;
+            }
+
+            // 2. Хвостик меньше 8 предметов подбираем "тика-в-тику" мелким деревом
+            if (remaining > 0) {
+                let bestCombo = null;
+                let minWaste = Infinity;
+
+                // Перебор малых комбинаций: доски (1.5), полублоки (1.0), палки (0.5)
+                // Либо берем еще 1 уголь, если деревянная мелочь даст больший перерасход
+                for (let planks = 0; planks <= Math.ceil(remaining / 1.5); planks++) {
+                    for (let slabs = 0; slabs <= Math.ceil(remaining / 1.0); slabs++) {
+                        for (let sticks = 0; sticks <= Math.ceil(remaining / 0.5); sticks++) {
+                            const power = (planks * 1.5) + (slabs * 1.0) + (sticks * 0.5);
+                            if (power >= remaining) {
+                                const waste = power - remaining;
+                                const totalItems = planks + slabs + sticks;
+                                if (waste < minWaste || (waste === minWaste && (!bestCombo || totalItems < bestCombo.totalItems))) {
+                                    minWaste = waste;
+                                    bestCombo = { planks, slabs, sticks, totalItems };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Если остаток ровно 7 или перерасход дерева слишком большой, проще сжечь 1 уголь (перерасход 1-2)
+                if (minWaste >= 2 && remaining >= 6) {
+                    const existingCoal = result.find(r => r.name === "Уголь / Древесный уголь");
+                    if (existingCoal) {
+                        existingCoal.count += 1;
+                        existingCoal.power += 8;
+                    } else {
+                        result.push({ name: "Уголь / Древесный уголь", count: 1, power: 8 });
+                    }
+                } else if (bestCombo) {
+                    if (bestCombo.planks > 0) result.push({ name: "Доски / Дерево", count: bestCombo.planks, power: bestCombo.planks * 1.5 });
+                    if (bestCombo.slabs > 0) result.push({ name: "Полублоки / Плиты", count: bestCombo.slabs, power: bestCombo.slabs * 1.0 });
+                    if (bestCombo.sticks > 0) result.push({ name: "Палки / Саженцы", count: bestCombo.sticks, power: bestCombo.sticks * 0.5 });
+                }
+            }
+
+            const totalPower = result.reduce((sum, r) => sum + r.power, 0);
+            const waste = Math.max(0, Math.round((totalPower - itemCount) * 10) / 10);
+
+            return { breakdown: result, totalPower, waste, returnBuckets };
+        }
+		
+        function renderCraftList() {
+            const container = document.getElementById('craft-list');
+            const filtered = state.crafts.filter(c => c.type === state.activeTab);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted)">В этой категории пока нет крафтов. Нажми "Добавить крафт".</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(craft => {
+                let bodyHtml = '';
+                
+                // --- ОБЫЧНЫЙ ВЕРСТАК ---
+                if (craft.type === 'normal') {
+                    bodyHtml = `
+                        <div class="mc-workbench-panel">
+                            <div class="mc-title">Создание</div>
+                            <div class="mc-craft-row">
+                                <div class="grid-3x3">
+                                    ${craft.grid.map((item, i) => `<input type="text" class="slot" placeholder="" value="${item}" data-id="${craft.id}" data-field="grid" data-index="${i}">`).join('')}
+                                </div>
+
+                                <!-- Пиксельная стрелка Minecraft -->
+                                <svg class="mc-arrow-svg" viewBox="0 0 24 18">
+                                    <path d="M0 7 h14 v-4 h2 v2 h2 v2 h2 v2 h2 v2 h-2 v2 h-2 v2 h-2 v-4 h-14 z" fill="#8b8b8b" stroke="#373737" stroke-width="1"/>
+                                </svg>
+
+                                <div class="result-group">
+                                    <div class="mc-result-slot">
+                                        <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                        <div class="slot-yield-badge" title="Выход за 1 крафт">
+                                            <input type="number" min="1" value="${craft.resultYield || 1}" data-id="${craft.id}" data-field="resultYield">
+                                        </div>
+                                    </div>
+                                    <label style="color: #404040; font-size: 12px; font-weight: bold; margin-top: 4px;" title="Количество крафтов">
+                                        x<input type="number" class="input-number" style="width: 45px; padding: 2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                // --- ПЕЧЬ ---
+                else if (craft.type === 'furnace') {
+                    const count = parseInt(craft.count) || 1;
+                    const fuelPlan = calculateOptimalFuel(count);
+                    const fuelListHtml = fuelPlan.breakdown.map(f => `<li>${f.name}: <strong>${f.count}</strong> шт. (на ${f.power} предм.)</li>`).join('');
+
+                    bodyHtml = `
+                        <div class="furnace-panel">
+                            <div class="mc-title">Печь (Выплавка)</div>
+                            <div class="furnace-body">
+                                <div class="furnace-left-col">
+                                    <input type="text" class="slot" placeholder="Сырье" value="${craft.source}" data-id="${craft.id}" data-field="source" title="Входной предмет">
+                                    <div class="furnace-flame-icon">🔥</div>
+                                    <input type="text" class="slot" style="font-size: 10px; color: #ffbb66;" placeholder="Топливо" value="Авто" disabled title="Топливо рассчитывается автоматически">
+                                </div>
+
+                                <!-- Пиксельная стрелка Minecraft -->
+                                <svg class="mc-arrow-svg" viewBox="0 0 24 18">
+                                    <path d="M0 7 h14 v-4 h2 v2 h2 v2 h2 v2 h2 v2 h-2 v2 h-2 v2 h-2 v-4 h-14 z" fill="#8b8b8b" stroke="#373737" stroke-width="1"/>
+                                </svg>
+
+                                <div class="result-group">
+                                    <div class="mc-result-slot">
+                                        <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                        <div class="slot-yield-badge" title="Выход за 1 выплавку">
+                                            <input type="number" min="1" value="${craft.resultYield || 1}" data-id="${craft.id}" data-field="resultYield">
+                                        </div>
+                                    </div>
+                                    <label style="color: #404040; font-size: 12px; font-weight: bold; margin-top: 4px;" title="Количество предметов на переплавку">
+                                        x<input type="number" class="input-number" style="width: 45px; padding: 2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count">
+                                    </label>
+                                </div>
+
+                                <div class="furnace-fuel-box">
+                                    <div class="furnace-fuel-title">⚡ Точный подбор топлива:</div>
+                                    <ul class="furnace-fuel-list">${fuelListHtml || '<li>Введите сырье</li>'}</ul>
+                                    <div style="font-size: 10px; color: #555; margin-top: 4px;">
+                                        Хватит на: <strong>${fuelPlan.totalPower}</strong> шт. | Перерасход: <strong>${fuelPlan.waste}</strong> ед.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                // --- ВЕРСТАК В ВИС ---
+                else if (craft.type === 'arcane') {
+                    bodyHtml = `
+                        <div class="arcane-workbench-container">
+                            <div class="vis-node vis-aer">
+                                <span>Aer</span>
+                                <input type="number" min="0" step="any" value="${craft.vis.aer || 0}" data-id="${craft.id}" data-field="vis" data-type="aer">
+                            </div>
+                            <div class="vis-node vis-perditio">
+                                <span>Per</span>
+                                <input type="number" min="0" step="any" value="${craft.vis.perditio || 0}" data-id="${craft.id}" data-field="vis" data-type="perditio">
+                            </div>
+                            <div class="vis-node vis-ordo">
+                                <span>Ord</span>
+                                <input type="number" min="0" step="any" value="${craft.vis.ordo || 0}" data-id="${craft.id}" data-field="vis" data-type="ordo">
+                            </div>
+                            <div class="vis-node vis-aqua">
+                                <span>Aqu</span>
+                                <input type="number" min="0" step="any" value="${craft.vis.aqua || 0}" data-id="${craft.id}" data-field="vis" data-type="aqua">
+                            </div>
+                            <div class="vis-node vis-ignis">
+                                <span>Ign</span>
+                                <input type="number" min="0" step="any" value="${craft.vis.ignis || 0}" data-id="${craft.id}" data-field="vis" data-type="ignis">
+                            </div>
+                            <div class="vis-node vis-terra">
+                                <span>Ter</span>
+                                <input type="number" min="0" step="any" value="${craft.vis.terra || 0}" data-id="${craft.id}" data-field="vis" data-type="terra">
+                            </div>
+
+                            <div class="grid-3x3">
+                                ${craft.grid.map((item, i) => `<input type="text" class="slot" placeholder="-" value="${item}" data-id="${craft.id}" data-field="grid" data-index="${i}">`).join('')}
+                            </div>
+                        </div>
+                        <div class="arrow">➡️</div>
+                        <div class="result-group">
+                            <div class="mc-result-slot">
+                                <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                <div class="slot-yield-badge" title="Выход за 1 крафт">
+                                    <input type="number" min="1" value="${craft.resultYield || 1}" data-id="${craft.id}" data-field="resultYield">
+                                </div>
+                            </div>
+                            <label style="font-size: 12px; font-weight: bold; margin-top: 4px;" title="Количество крафтов">
+                                x<input type="number" class="input-number" style="width: 45px; padding: 2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count">
+                            </label>
+                        </div>
+                    `;
+                }
+                // --- АЛХИМИЯ ---
+                else if (craft.type === 'alchemy') {
+                    bodyHtml = `
+                        <div class="crucible-panel">
+                            <!-- Изогнутые стрелки Таумономикона -->
+                            <svg class="crucible-arrows-svg" viewBox="0 0 420 90">
+                                <defs>
+                                    <marker id="arrow-down" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d3032" />
+                                    </marker>
+                                    <marker id="arrow-up" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d3032" />
+                                    </marker>
+                                </defs>
+                                <!-- Стрелка от катализатора вниз в тигель -->
+                                <path d="M 90 20 Q 145 20 155 70" fill="none" stroke="#2d3032" stroke-width="12" marker-end="url(#arrow-down)" stroke-linecap="round"/>
+                                <!-- Стрелка из тигля вверх к результату -->
+                                <path d="M 265 70 Q 275 20 330 20" fill="none" stroke="#2d3032" stroke-width="12" marker-end="url(#arrow-up)" stroke-linecap="round"/>
+                            </svg>
+
+                            <!-- Верхний ряд: Катализатор и Результат -->
+                            <div class="crucible-top-row">
+                                <div class="crucible-catalyst">
+                                    <span style="font-size: 11px; color: var(--text-muted);">Катализатор</span>
+                                    <input type="text" class="slot" style="width: 50px; height: 50px;" placeholder="Ресурс" value="${craft.source}" data-id="${craft.id}" data-field="source">
+                                </div>
+
+                                <div class="crucible-result">
+                                    <span style="font-size: 11px; color: var(--text-muted);">Результат</span>
+                                    <div class="crucible-circle-slot">
+                                        <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                    </div>
+                                    <label style="font-size: 11px; margin-top: 2px;">x<input type="number" class="input-number" style="width: 45px; padding: 2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count"></label>
+                                </div>
+                            </div>
+
+                            <!-- Нижняя зона: Ванна тигля с аспектами -->
+                            <div class="crucible-vat">
+                                ${getAspectsHtml(craft)}
+                            </div>
+                        </div>
+                    `;
+                }
+                // --- НАПОЛНЕНИЕ ---
+                else if (craft.type === 'infusion') {
+                    // Вычисляем координаты 12 пьедесталов по окружности (тригонометрия)
+                    const pedestalsHtml = craft.pedestals.map((item, i) => {
+                        // 12 позиций = шаг в 30 градусов. Начинаем сверху (-90 градусов).
+                        const angle = (i * 30 - 90) * (Math.PI / 180);
+                        const radius = 43; // Радиус кольца в процентах от центра
+                        const left = 50 + Math.cos(angle) * radius;
+                        const top = 50 + Math.sin(angle) * radius;
+                        
+                        return `
+                        <div class="pedestal-group" style="left: ${left}%; top: ${top}%;">
+                            <input type="text" class="slot" placeholder="П${i+1}" value="${item}" data-id="${craft.id}" data-field="pedestals" data-index="${i}">
+                            <div class="pedestal-visual"></div>
+                        </div>`;
+                    }).join('');
+
+                    bodyHtml = `
+                        <div class="altar-container">
+                            <!-- Парящая и вращающаяся 3D Матрица -->
+                            <div class="runic-matrix-float">
+                                <div class="runic-matrix-spin">
+                                    <div class="matrix-face matrix-front">ᚢ</div>
+                                    <div class="matrix-face matrix-back">ᚲ</div>
+                                    <div class="matrix-face matrix-left">ᚨ</div>
+                                    <div class="matrix-face matrix-right">ᛗ</div>
+                                    <div class="matrix-face matrix-top">ᛟ</div>
+                                    <div class="matrix-face matrix-bottom">ᛈ</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Центральный слот поверх матрицы -->
+                            <div class="center-item-wrapper">
+                                <input type="text" class="slot" placeholder="ЦЕНТР" value="${craft.center}" data-id="${craft.id}" data-field="center" title="Центральный предмет">
+                            </div>
+
+                            <!-- Пьедесталы -->
+                            ${pedestalsHtml}
+                        </div>
+                        
+                        <div style="flex:1; width: 100%;">
+                            ${getAspectsHtml(craft)}
+                        </div>
+                        <div class="arrow">➡️</div>
+                        <div class="result-group">
+                            <input type="text" class="input-text" placeholder="Итоговый предмет" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                            <label>Кол-во алтарей: <input type="number" class="input-number" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count"></label>
+                        </div>
+                    `;
+                }
+					// --- МАНОНАПОЛНЕНИЕ ---
+                else if (craft.type === 'mana-infusion') {
+                    const manaVal = craft.mana || 5;
+                    const totalManaPools = ((manaVal * (craft.count || 1)) / 100).toFixed(2);
+                    bodyHtml = `
+                        <div class="botania-panel">
+                            <div class="botania-title">Mana Infusion</div>
+                            <div class="mana-infusion-row">
+                                <div style="display:flex; flex-direction:column; align-items:center;">
+                                    <span style="font-size:10px; color:#404040;">Вход</span>
+                                    <input type="text" class="slot" placeholder="Вход" value="${craft.source}" data-id="${craft.id}" data-field="source">
+                                </div>
+                                <svg width="30" height="20" viewBox="0 0 24 16">
+                                    <path d="M0 8 h18 v-4 l6 4 l-6 4 v-4 z" fill="#8b8b8b"/>
+                                </svg>
+                                <div style="display:flex; flex-direction:column; align-items:center;">
+                                    <span style="font-size:10px; color:#0055ff; font-weight:bold;">Бассейн</span>
+                                    <div style="width:36px; height:24px; background:#0088ff; border:2px solid #555; border-radius:2px;"></div>
+                                </div>
+                                <svg width="30" height="20" viewBox="0 0 24 16">
+                                    <path d="M0 8 h18 v-4 l6 4 l-6 4 v-4 z" fill="#8b8b8b"/>
+                                </svg>
+                                <div class="result-group">
+                                    <div class="mc-result-slot">
+                                        <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                        <div class="slot-yield-badge" title="Выход за 1 крафт">
+                                            <input type="number" min="1" value="${craft.resultYield || 1}" data-id="${craft.id}" data-field="resultYield">
+                                        </div>
+                                    </div>
+                                    <label style="color:#333; font-size:12px; font-weight:bold; margin-top:2px;">
+                                        x<input type="number" class="input-number" style="width:45px; padding:2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count">
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <label style="font-size:11px; color:#333;">
+                                Катализатор под бассейном: 
+                                <select class="pool-catalyst-select" data-id="${craft.id}" data-field="catalyst">
+                                    <option value="none" ${craft.catalyst === 'none' ? 'selected' : ''}>Обычный бассейн (нет)</option>
+                                    <option value="alchemy" ${craft.catalyst === 'alchemy' ? 'selected' : ''}>Алхимический катализатор</option>
+                                    <option value="conjuration" ${craft.catalyst === 'conjuration' ? 'selected' : ''}>Колдовской катализатор</option>
+                                </select>
+                            </label>
+
+                            <div class="mana-bar-wrapper">
+                                <div class="mana-bar-container" onclick="setManaPercent('${craft.id}', event)" title="Кликните для выбора расхода маны">
+                                    <div class="mana-bar-fill" style="width: ${manaVal}%;"></div>
+                                    <div class="mana-bar-divider mana-div-25"></div>
+                                    <div class="mana-bar-divider mana-div-50"></div>
+                                    <div class="mana-bar-divider mana-div-75"></div>
+                                </div>
+                                <div class="mana-info-row">
+                                    <span>Расход на 1 шт: ${manaVal}% пула</span>
+                                    <span>Всего: ${totalManaPools} пула</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // --- РУНИЧЕСКИЙ АЛТАРЬ ---
+                else if (craft.type === 'runic-altar') {
+                    const manaVal = craft.mana || 20;
+                    const totalManaPools = ((manaVal * (craft.count || 1)) / 100).toFixed(2);
+                    
+                    const nodesHtml = (craft.items || []).map((item, i) => {
+                        const angle = (i * 36 - 90) * (Math.PI / 180);
+                        const left = 50 + Math.cos(angle) * 40;
+                        const top = 50 + Math.sin(angle) * 40;
+                        return `
+                            <div class="runic-slot-node" style="left:${left}%; top:${top}%;">
+                                <input type="text" class="slot" style="width:34px; height:34px;" placeholder="№${i+1}" value="${item}" data-id="${craft.id}" data-field="items" data-index="${i}">
+                            </div>
+                        `;
+                    }).join('');
+
+                    bodyHtml = `
+                        <div class="botania-panel">
+                            <div class="botania-title">Runic Altar</div>
+                            <div style="display:flex; align-items:center; gap:20px;">
+                                <div class="runic-altar-circle">
+                                    <div class="runic-center-block">АЛТАРЬ<br><span style="font-size:7px; color:#555;">+1 Жизнекамень</span></div>
+                                    ${nodesHtml}
+                                </div>
+                                <div class="result-group">
+                                    <div class="mc-result-slot">
+                                        <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                        <div class="slot-yield-badge" title="Выход за 1 крафт">
+                                            <input type="number" min="1" value="${craft.resultYield || 1}" data-id="${craft.id}" data-field="resultYield">
+                                        </div>
+                                    </div>
+                                    <label style="color:#333; font-size:12px; font-weight:bold; margin-top:4px;">
+                                        x<input type="number" class="input-number" style="width:45px; padding:2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mana-bar-wrapper">
+                                <div class="mana-bar-container" onclick="setManaPercent('${craft.id}', event)" title="Кликните для выбора расхода маны">
+                                    <div class="mana-bar-fill" style="width: ${manaVal}%;"></div>
+                                    <div class="mana-bar-divider mana-div-25"></div>
+                                    <div class="mana-bar-divider mana-div-50"></div>
+                                    <div class="mana-bar-divider mana-div-75"></div>
+                                </div>
+                                <div class="mana-info-row">
+                                    <span>Расход: ${manaVal}% пула</span>
+                                    <span>Всего: ${totalManaPools} пула</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // --- ТОРГОВЛЯ С ЭЛЬФАМИ ---
+                else if (craft.type === 'elven-trade') {
+                    const inputsHtml = (craft.inputs || []).map((item, i) => `
+                        <div style="display:inline-flex; align-items:center; gap:2px;">
+                            <input type="text" class="slot" style="width:36px; height:36px;" placeholder="Ресурс" value="${item}" data-id="${craft.id}" data-field="inputs" data-index="${i}">
+                            ${craft.inputs.length > 1 ? `<button style="background:none; border:none; color:#a00; font-weight:bold; cursor:pointer;" onclick="removeElvenInput('${craft.id}', ${i})">×</button>` : ''}
+                        </div>
+                    `).join('');
+
+                    bodyHtml = `
+                        <div class="botania-panel">
+                            <div class="botania-title">Elven Trade</div>
+                            <div style="display:flex; align-items:center; gap:16px;">
+                                <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                                    <span style="font-size:10px; color:#333;">Входные предметы:</span>
+                                    <div class="elven-slots-grid">${inputsHtml}</div>
+                                    ${craft.inputs.length < 10 ? `<button class="btn-add" style="padding:2px 6px; font-size:10px;" onclick="addElvenInput('${craft.id}')">+ Слот (до 10)</button>` : ''}
+                                </div>
+
+                                <div class="elven-portal-container">
+                                    <div class="elven-portal-swirl"></div>
+                                </div>
+
+                                <div class="result-group">
+                                    <div class="mc-result-slot">
+                                        <input type="text" placeholder="Итог" value="${craft.result}" data-id="${craft.id}" data-field="result">
+                                        <div class="slot-yield-badge" title="Выход за 1 крафт">
+                                            <input type="number" min="1" value="${craft.resultYield || 1}" data-id="${craft.id}" data-field="resultYield">
+                                        </div>
+                                    </div>
+                                    <label style="color:#333; font-size:12px; font-weight:bold; margin-top:4px;">
+                                        x<input type="number" class="input-number" style="width:45px; padding:2px;" min="1" value="${craft.count}" data-id="${craft.id}" data-field="count">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+				// --- ПЛАВИЛЬНЯ И ЛИТЕЙНЫЙ СТОЛ (TINKER'S CONSTRUCT) ---
+                else if (craft.type === 'smeltery') {
+                    const mode = craft.mode || "preset";
+                    const mult = Math.max(1, parseInt(craft.count) || 1);
+
+                    // Геометрия структуры
+                    const baseSize = Math.min(7, Math.max(1, parseInt(craft.baseSize) || 3));
+                    const height = Math.min(20, Math.max(1, parseInt(craft.height) || 2));
+                    const tanksCount = Math.min(16, Math.max(1, parseInt(craft.tanksCount) || 1));
+
+                    const totalSlots = baseSize * baseSize * height;
+                    const maxLiquidMB = totalSlots * 1296;
+                    const maxLavaMB = tanksCount * 4000;
+
+                    const currentLava = craft.currentLava !== undefined ? Math.min(maxLavaMB, Math.max(0, Number(craft.currentLava))) : maxLavaMB;
+
+                    let totalMeltMB = 0;
+                    let singleSessionLava = 0;
+                    let inCount = 0;
+
+                    if (mode === 'preset') {
+                        const matKey = craft.material || "Железо";
+                        const matData = SMELTERY_MATERIALS[matKey] || SMELTERY_MATERIALS["Железо"];
+                        const formType = craft.form || "ingot";
+                        inCount = craft.inputCount !== undefined ? Math.max(1, parseInt(craft.inputCount)) : Math.min(totalSlots, 18);
+
+                        let unitMB = matData.ingotMB;
+                        let unitLava = matData.lavaIngot;
+                        if (formType === 'block') { unitMB = matData.blockMB; unitLava = matData.lavaBlock; }
+                        if (formType === 'nugget') { unitMB = matData.nuggetMB; unitLava = matData.lavaNugget; }
+
+                        totalMeltMB = unitMB * inCount;
+                        singleSessionLava = unitLava * inCount;
+                    } else {
+                        totalMeltMB = Math.max(0, parseInt(craft.customMB) || 0);
+                        singleSessionLava = Math.max(0, parseInt(craft.customLava) || 0);
+                    }
+
+                    const totalLavaSpent = Math.round(singleSessionLava * mult);
+
+                    // Расчет деталей
+                    const chosenPart = CASTING_PARTS.find(p => p.name === (craft.castPart || "Обух кирки")) || CASTING_PARTS[0];
+                    const mbPerPart = chosenPart.cost;
+                    const possiblePartsPerSession = mbPerPart > 0 ? Math.floor(totalMeltMB / mbPerPart) : 0;
+                    const mbUsedPerSession = possiblePartsPerSession * mbPerPart;
+                    const mbLeftover = Math.max(0, totalMeltMB - mbUsedPerSession);
+
+                    // Проверки
+                    const isSlotsOverflow = mode === 'preset' && inCount > totalSlots;
+                    const isSmelteryOverflow = totalMeltMB > maxLiquidMB;
+                    const isNotEnoughMetal = totalMeltMB < mbPerPart;
+                    const isNotEnoughLava = totalLavaSpent > currentLava;
+
+                    // Шкалы
+                    const metalHeightPercent = Math.min(100, Math.max(0, (totalMeltMB / maxLiquidMB) * 100));
+                    const lavaFillPercent = Math.min(100, Math.max(0, (currentLava / maxLavaMB) * 100));
+
+                    bodyHtml = `
+                        <div class="smeltery-panel">
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #999; padding-bottom:6px;">
+                                <div class="botania-title">Tinker's Smeltery & Casting</div>
+                                <label style="font-size:11px; color:#333; font-weight:bold;">
+                                    Режим:
+                                    <select class="smeltery-select" data-id="${craft.id}" data-field="mode">
+                                        <option value="preset" ${mode === 'preset' ? 'selected' : ''}>По рецепту</option>
+                                        <option value="custom" ${mode === 'custom' ? 'selected' : ''}>Вручную (mB)</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <!-- Конфигурация многоблочной структуры -->
+                            <div style="background: rgba(0,0,0,0.08); padding: 6px 10px; border-radius: 3px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 11px; color: #222; margin-top: 6px;">
+                                <span>🏗️ <strong>Дно:</strong>
+                                    <select class="smeltery-select" data-id="${craft.id}" data-field="baseSize" style="padding: 1px 4px;">
+                                        <option value="1" ${baseSize === 1 ? 'selected' : ''}>1x1 (каркас 3x3)</option>
+                                        <option value="2" ${baseSize === 2 ? 'selected' : ''}>2x2 (каркас 4x4)</option>
+                                        <option value="3" ${baseSize === 3 ? 'selected' : ''}>3x3 (каркас 5x5)</option>
+                                        <option value="4" ${baseSize === 4 ? 'selected' : ''}>4x4 (каркас 6x6)</option>
+                                        <option value="5" ${baseSize === 5 ? 'selected' : ''}>5x5 (каркас 7x7)</option>
+                                        <option value="6" ${baseSize === 6 ? 'selected' : ''}>6x6 (каркас 8x8)</option>
+                                        <option value="7" ${baseSize === 7 ? 'selected' : ''}>7x7 (макс. 9x9)</option>
+                                    </select>
+                                </span>
+                                <span><strong>Высота:</strong> 
+                                    <input type="number" class="input-number" min="1" max="20" value="${height}" data-id="${craft.id}" data-field="height" style="width:36px; padding:1px;"> сл.
+                                </span>
+                                <span><strong>Баки лавы:</strong> 
+                                    <input type="number" class="input-number" min="1" max="16" value="${tanksCount}" data-id="${craft.id}" data-field="tanksCount" style="width:36px; padding:1px;"> шт.
+                                </span>
+                                <span style="color:#555; margin-left:auto;">
+                                    Слотов: <strong>${totalSlots}</strong> | Макс. расплав: <strong>${maxLiquidMB}</strong> mB | Макс. лава: <strong>${maxLavaMB}</strong> mB
+                                </span>
+                            </div>
+
+                            <div class="smeltery-workspace" style="margin-top:8px;">
+                                <!-- Резервуары -->
+                                <div class="smeltery-tanks">
+                                    <div class="metal-tank-wrapper" title="Металл: ${totalMeltMB} / ${maxLiquidMB} mB">
+                                        <div class="metal-tank-fluid" style="height: ${metalHeightPercent}%;"></div>
+                                        <div class="tank-ticks">
+                                            <div class="tick-line major" title="100%"></div>
+                                            <div class="tick-line" title="75%"></div>
+                                            <div class="tick-line major" title="50%"></div>
+                                            <div class="tick-line" title="25%"></div>
+                                            <div class="tick-line major" title="0%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="lava-tank-wrapper" title="Лава в баке: ${currentLava} / ${maxLavaMB} mB">
+                                        <div class="lava-tank-fluid" style="height: ${lavaFillPercent}%;"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Настройки плавки и литья -->
+                                <div class="smeltery-controls-col">
+                                    <div class="smeltery-row" style="background: rgba(0,0,0,0.06); padding:4px 8px; border-radius:3px;">
+                                        <label>🔥 <strong>Лава в баке:</strong>
+                                            <input type="number" class="input-number" min="0" max="${maxLavaMB}" step="100" value="${currentLava}" data-id="${craft.id}" data-field="currentLava" style="width:65px;"> mB
+                                        </label>
+                                        <span style="font-size:11px; color:#444; margin-left:auto;">Нужно: <strong class="smeltery-needed-lava">${totalLavaSpent} mB</strong></span>
+                                    </div>
+
+                                    ${mode === 'preset' ? `
+                                        <div class="smeltery-row">
+                                            <strong>Сырье:</strong>
+                                            <select class="smeltery-select" data-id="${craft.id}" data-field="material">
+                                                ${Object.keys(SMELTERY_MATERIALS).map(m => `<option value="${m}" ${m === (craft.material || 'Железо') ? 'selected' : ''}>${m}</option>`).join('')}
+                                            </select>
+                                            <select class="smeltery-select" data-id="${craft.id}" data-field="form">
+                                                <option value="ingot" ${(craft.form || 'ingot') === 'ingot' ? 'selected' : ''}>Слитки (144 mB)</option>
+                                                <option value="block" ${craft.form === 'block' ? 'selected' : ''}>Блоки (1296 mB)</option>
+                                                <option value="nugget" ${craft.form === 'nugget' ? 'selected' : ''}>Самородки (16 mB)</option>
+                                            </select>
+                                            <input type="number" class="input-number" min="1" max="${totalSlots}" value="${inCount}" data-id="${craft.id}" data-field="inputCount" style="width:50px;" title="Количество предметов для загрузки"> шт.
+                                        </div>
+                                    ` : `
+                                        <div class="smeltery-row">
+                                            <label><strong>Металл:</strong> <input type="number" class="input-number" min="0" max="${maxLiquidMB}" value="${craft.customMB !== undefined ? craft.customMB : 1440}" data-id="${craft.id}" data-field="customMB" style="width:65px;"> mB</label>
+                                            <label style="margin-left:8px;"><strong>Расход лавы:</strong> <input type="number" class="input-number" min="0" max="${maxLavaMB}" value="${craft.customLava !== undefined ? craft.customLava : 183}" data-id="${craft.id}" data-field="customLava" style="width:60px;"> mB</label>
+                                        </div>
+                                    `}
+
+                                    <!-- Слепок детали -->
+                                    <div class="casting-table-box">
+                                        <div class="smeltery-row">
+                                            <strong>Слепок детали:</strong>
+                                            <select class="smeltery-select" data-id="${craft.id}" data-field="castPart" style="flex:1;">
+                                                ${CASTING_PARTS.map(p => `<option value="${p.name}" ${p.name === chosenPart.name ? 'selected' : ''}>${p.name} (${p.cost} mB)</option>`).join('')}
+                                            </select>
+                                        </div>
+                                        <div class="smeltery-casting-info" style="font-size:11px; color:#333;">
+                                            Расплав: <strong>${totalMeltMB}</strong> / ${maxLiquidMB} mB &rarr; Выйдет: <strong>${possiblePartsPerSession} шт.</strong> (остаток: ${mbLeftover} mB)
+                                        </div>
+                                    </div>
+
+                                    <!-- Статус структуры и предупреждения -->
+                                    <div class="smeltery-row smeltery-status-box" style="margin-top:2px;">
+                                        ${isSlotsOverflow ? `<span class="status-badge status-err">⚠️ Превышен лимит слотов структуры (${inCount} > ${totalSlots} слотов)!</span>` : ''}
+                                        ${isSmelteryOverflow && !isSlotsOverflow ? `<span class="status-badge status-err">⚠️ Переполнение плавильни (${totalMeltMB} > ${maxLiquidMB} mB)!</span>` : ''}
+                                        ${isNotEnoughMetal && !isSmelteryOverflow && !isSlotsOverflow ? `<span class="status-badge status-err">⚠️ Мало металла (${totalMeltMB} < ${mbPerPart} mB)!</span>` : ''}
+                                        ${isNotEnoughLava ? `<span class="status-badge status-err">⚠️ Не хватает лавы (${currentLava} < ${totalLavaSpent} mB)!</span>` : ''}
+                                        ${!isSlotsOverflow && !isSmelteryOverflow && !isNotEnoughMetal && !isNotEnoughLava ? `<span class="status-badge status-ok">✓ Структура активна: объема и лавы хватает</span>` : ''}
+                                    </div>
+
+                                    <!-- Результат -->
+                                    <div class="smeltery-row" style="border-top:1px dashed #aaa; padding-top:6px;">
+                                        <div class="result-group" style="flex-direction:row; align-items:center;">
+                                            <div class="mc-result-slot" style="width:42px; height:42px;">
+                                                <input type="text" placeholder="Итог" value="${craft.result || chosenPart.name}" data-id="${craft.id}" data-field="result">
+                                            </div>
+                                            <label style="color:#333; font-weight:bold; font-size:12px; margin-left:6px;">
+                                                &times; <input type="number" class="input-number" style="width:45px; padding:2px;" min="1" value="${mult}" data-id="${craft.id}" data-field="count" title="Количество сессий плавки">
+                                            </label>
+                                        </div>
+                                        <div style="font-size:11px; color:#333; margin-left:auto;">
+                                            Всего деталей: <strong class="smeltery-total-parts">${possiblePartsPerSession * mult} шт.</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                return `
+                <div class="craft-block" data-craft-id="${craft.id}">
+                    <div class="craft-header">
+                        <strong>Блок: ${state.activeTab.toUpperCase()}</strong>
+                        <div class="craft-actions">
+                            <button onclick="duplicateCraft('${craft.id}')">Дублировать</button>
+                            <button class="btn-del" onclick="removeCraft('${craft.id}')">Удалить</button>
+                        </div>
+                    </div>
+                    <div class="craft-body">${bodyHtml}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- Калькулятор Итогов ---
+        
+        function updateTotals() {
+            const results = {};
+            const items = {};
+            const vis = { ignis: 0, aer: 0, aqua: 0, terra: 0, ordo: 0, perditio: 0 };
+            const aspects = {};
+
+            // Сборщик входящих ресурсов
+            const addItem = (name, amount) => {
+                if (!name || name.trim() === '') return;
+                name = name.trim();
+                items[name] = (items[name] || 0) + amount;
+            };
+
+            // Сборщик итоговой продукции
+            const addResult = (name, amount) => {
+                if (!name || name.trim() === '') return;
+                name = name.trim();
+                results[name] = (results[name] || 0) + amount;
+            };
+
+            state.crafts.forEach(c => {
+                const mult = parseInt(c.count) || 1;
+                const yieldPerCraft = parseInt(c.resultYield) || 1;
+
+                // Учитываем выход за крафт * количество крафтов
+                addResult(c.result, yieldPerCraft * mult);
+
+                if (c.type === 'normal' || c.type === 'arcane') {
+                    c.grid.forEach(i => addItem(i, mult));
+                }
+
+                if (c.type === 'smeltery') {
+                    const mode = c.mode || "preset";
+                    let lavaUsed = 0;
+
+                    if (mode === 'preset') {
+                        const matKey = c.material || "Железо";
+                        const matData = SMELTERY_MATERIALS[matKey] || SMELTERY_MATERIALS["Железо"];
+                        const formType = c.form || "ingot";
+                        const inCount = parseInt(c.inputCount) || 1;
+
+                        const formName = formType === 'block' ? 'Блок' : (formType === 'nugget' ? 'Самородок' : 'Слиток');
+                        addItem(`${matKey} (${formName})`, inCount * mult);
+
+                        let unitLava = matData.lavaIngot;
+                        if (formType === 'block') unitLava = matData.lavaBlock;
+                        if (formType === 'nugget') unitLava = matData.lavaNugget;
+                        lavaUsed = Math.round(unitLava * inCount * mult);
+                    } else {
+                        const customMB = parseInt(c.customMB) || 0;
+                        const customLava = parseInt(c.customLava) || 0;
+                        addItem(`Жидкий металл (вручную)`, `${customMB * mult} mB`);
+                        lavaUsed = Math.round(customLava * mult);
+                    }
+
+                    if (lavaUsed > 0) {
+                        addItem(`Лава (для плавильни)`, `${lavaUsed} mB (${(lavaUsed/1000).toFixed(2)} вёдер)`);
+                    }
+                }
+                
+                if (c.type === 'arcane') {
+                    Object.keys(c.vis).forEach(v => {
+                        const rawVal = typeof c.vis[v] === 'string' ? c.vis[v].replace(',', '.') : c.vis[v];
+                        const numericVal = parseFloat(rawVal) || 0;
+                        vis[v] += numericVal * mult;
+                    });
+                }
+
+                if (c.type === 'alchemy') {
+                    addItem(c.source, mult);
+                }
+
+                if (c.type === 'infusion') {
+                    addItem(c.center, mult);
+                    c.pedestals.forEach(i => addItem(i, mult));
+                }
+
+                if (c.type === 'mana-infusion') {
+                    addItem(c.source, mult);
+                }
+
+                if (c.type === 'runic-altar') {
+                    // Всегда добавляем 1 Жизнекамень на каждый запуск алтаря
+                    addItem("Жизнекамень (для запуска алтаря)", mult);
+                    (c.items || []).forEach(i => addItem(i, mult));
+                }
+
+                if (c.type === 'elven-trade') {
+                    (c.inputs || []).forEach(i => addItem(i, mult));
+                }
+
+                // Считаем аспекты для алхимии и наполнения
+                if (c.aspects) {
+                    c.aspects.forEach(a => {
+                        let val = parseInt(a.amount) || 0;
+                        if (a.format === 'jar') val *= 64;
+                        if (a.format === 'phial') val *= 8;
+                        val *= mult;
+                        aspects[a.aspect] = (aspects[a.aspect] || 0) + val;
+                    });
+                }
+            });
+
+            // Отрисовка базовых списков
+            const formatList = (obj, suffix='') => {
+                const keys = Object.keys(obj).filter(k => obj[k] > 0);
+                if (keys.length === 0) return '<li>Пусто</li>';
+                return keys.map(k => `<li>${k}: <strong>${obj[k]}</strong> ${suffix}</li>`).join('');
+            };
+
+            // Подсчет полной тары (банки / пузырьки) с округлением вверх
+            const formatAspectsList = (obj) => {
+                const keys = Object.keys(obj).filter(k => obj[k] > 0);
+                if (keys.length === 0) return '<li>Пусто</li>';
+
+                return keys.map(k => {
+                    const total = obj[k];
+                    const jars = Math.ceil(total / 64);
+                    const phials = Math.ceil(total / 8);
+
+                    return `<li>${k}: <strong>${total}</strong> ед. <span style="color: var(--text-muted); font-size: 12px;">(${jars} б, ${phials} п)</span></li>`;
+                }).join('');
+            };
+
+            document.getElementById('sum-results').innerHTML = formatList(results, 'шт.');
+            document.getElementById('sum-items').innerHTML = formatList(items, 'шт.');
+            // Округляем вис до сотых, чтобы убрать артефакты плавающей точки (0.78 * 3 = 2.34)
+            const roundedVis = {};
+            Object.keys(vis).forEach(v => {
+                if (vis[v] > 0) {
+                    roundedVis[v] = Math.round(vis[v] * 100) / 100;
+                }
+            });
+
+            const visListHtml = [];
+            
+            // Вывод вис
+            Object.keys(roundedVis).forEach(v => {
+                visListHtml.push(`<li>${v}: <strong>${roundedVis[v]}</strong> вис</li>`);
+            });
+
+            // Детализированный подсчет маны
+            let totalManaPercent = 0;
+            const manaDetails = [];
+
+            state.crafts.forEach((c, idx) => {
+                if (c.type === 'mana-infusion' || c.type === 'runic-altar') {
+                    const mult = parseInt(c.count) || 1;
+                    const perCraftPercent = parseFloat(c.mana) || 0;
+                    const craftTotalPercent = perCraftPercent * mult;
+                    totalManaPercent += craftTotalPercent;
+
+                    const title = c.result ? `«${c.result}»` : (c.type === 'mana-infusion' ? 'Манонаполнение' : 'Рунич. алтарь');
+                    const perPool = (perCraftPercent / 100).toFixed(2);
+                    const totalPool = (craftTotalPercent / 100).toFixed(2);
+
+                    manaDetails.push(`<li>${title}: <strong>${perCraftPercent}%</strong> (${perPool} б.) на 1 шт. &rarr; всего: <strong>${craftTotalPercent}%</strong> (${totalPool} б.)</li>`);
+                }
+            });
+
+            if (totalManaPercent > 0) {
+                const pools = (totalManaPercent / 100).toFixed(2);
+                visListHtml.push(`<li style="color: #4da6ff; font-weight: bold; margin-top: 4px; border-bottom: 1px solid #4da6ff;">Всего маны: ${pools} бассейна (${totalManaPercent}%)</li>`);
+                manaDetails.forEach(d => visListHtml.push(`<span style="font-size: 11px; color: #aadcff;">${d}</span>`));
+            }
+
+            document.getElementById('sum-vis').innerHTML = visListHtml.length > 0 ? visListHtml.join('') : '<li>Пусто</li>';
+            document.getElementById('sum-aspects').innerHTML = formatAspectsList(aspects);
+
+            // Полная конвертация в базовые предметы по словарю
+            const baseListHtml = [];
+            Object.keys(aspects).forEach(asp => {
+                const totalNeeded = aspects[asp];
+                if (totalNeeded <= 0) return;
+
+                const recipes = ESSENCE_BREAKDOWN[asp];
+                if (recipes && recipes.length > 0) {
+                    const optionsText = recipes.map(r => {
+                        const count = Math.ceil(totalNeeded / r.yield);
+                        return `<strong>${count}</strong> шт. [${r.item}]`;
+                    }).join(' <span style="color: var(--border-gold);">или</span> ');
+
+                    baseListHtml.push(`<li>${asp} (${totalNeeded} ед.): ${optionsText}</li>`);
+                } else {
+                    baseListHtml.push(`<li>${asp}: <strong>${totalNeeded}</strong> ед. (нет рецепта)</li>`);
+                }
+            });
+
+            document.getElementById('sum-base').innerHTML = baseListHtml.length > 0 ? baseListHtml.join('') : '<li>Пусто</li>';
+
+            // Автосохранение состояния в localStorage
+            try {
+                localStorage.setItem('tc_craft_state', JSON.stringify(state.crafts));
+            } catch (e) {
+                console.error("Не удалось сохранить в localStorage:", e);
+            }
+        }
+
+        // Загрузка состояния и активной вкладки из localStorage при старте
+        function loadState() {
+            try {
+                const savedCrafts = localStorage.getItem('tc_craft_state');
+                if (savedCrafts) {
+                    state.crafts = JSON.parse(savedCrafts);
+                }
+                const savedTab = localStorage.getItem('tc_active_tab');
+                if (savedTab) {
+                    state.activeTab = savedTab;
+                }
+            } catch (e) {
+                console.error("Ошибка загрузки из localStorage:", e);
+            }
+        }
+
+        // Заполнение таблицы справки
+        function renderReferenceTable() {
+            const tbody = document.getElementById('reference-tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = Object.keys(ESSENCE_BREAKDOWN).sort().map(asp => {
+                const recipes = ESSENCE_BREAKDOWN[asp];
+                const itemsText = recipes.map(r => r.item).join('<br>');
+                const yieldsText = recipes.map(r => `1 шт. = ${r.yield} ${asp}`).join('<br>');
+                return `
+                    <tr>
+                        <td><strong>${asp}</strong></td>
+                        <td>${itemsText}</td>
+                        <td>${yieldsText}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Инициализация
+        renderReferenceTable();
+        loadState();
+        switchTab(state.activeTab);
+        updateTotals();
+
+    </script>
+</body>
+</html>
