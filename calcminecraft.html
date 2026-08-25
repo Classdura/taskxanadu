@@ -982,8 +982,29 @@
 
         <!-- Справка (Вкладка 5) -->
         <div id="reference-view" style="display: none;">
+            <div class="craft-block" style="border-left-color: var(--border-gold); margin-bottom: 25px;">
+                <div class="craft-header">
+                    <strong>🔮 Калькулятор расщепления эссенций</strong>
+                    <div class="craft-actions">
+                        <button class="btn-add" style="padding: 4px 10px; font-size: 12px;" onclick="addReferenceAspect()">+ Добавить эссенцию</button>
+                        <button style="background: #444; color: #fff; padding: 4px 8px; font-size: 12px; border: none; border-radius: 3px; cursor: pointer;" onclick="clearReferenceAspects()">Очистить</button>
+                    </div>
+                </div>
+
+                <div id="reference-calc-rows" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+                    <!-- Динамические строки выбранных эссенций -->
+                </div>
+
+                <div style="background: rgba(0,0,0,0.25); border: 1px dashed #666; border-radius: 4px; padding: 12px;">
+                    <strong style="color: var(--border-gold); font-size: 14px;">Необходимые предметы для расщепления:</strong>
+                    <ul id="reference-calc-results" class="summary-list" style="margin-top: 8px; max-height: none;">
+                        <li>Выберите эссенции выше</li>
+                    </ul>
+                </div>
+            </div>
+
             <h2>Справочник расщепления предметов на аспекты</h2>
-            <p>Памятка по получению первичных и сложных аспектов из доступных ресурсов:</p>
+            <p style="color: var(--text-muted);">Полная памятка по получению аспектов из базовых ресурсов:</p>
             <table class="reference-table">
                 <thead>
                     <tr><th>Аспект</th><th>Ресурс (источник)</th><th>Выход эссенции</th></tr>
@@ -1087,7 +1108,11 @@
         // Главное хранилище состояния
         const state = {
             activeTab: 'normal',
-            crafts: []
+            crafts: [],
+            referenceAspects: [
+                { aspect: 'Aqua', amount: 64 },
+                { aspect: 'Ignis', amount: 64 }
+            ]
         };
 
         // Генерация ID
@@ -2341,6 +2366,95 @@ function addElvenInput(craftId) {
             }
         }
 
+        // --- Логика Калькулятора Эссенций во вкладке Справка ---
+
+        function addReferenceAspect() {
+            const availableKeys = Object.keys(ESSENCE_BREAKDOWN).sort();
+            state.referenceAspects.push({ aspect: availableKeys[0], amount: 64 });
+            renderReferenceCalculator();
+            saveReferenceState();
+        }
+
+        function removeReferenceAspect(index) {
+            state.referenceAspects.splice(index, 1);
+            renderReferenceCalculator();
+            saveReferenceState();
+        }
+
+        function clearReferenceAspects() {
+            state.referenceAspects = [];
+            renderReferenceCalculator();
+            saveReferenceState();
+        }
+
+        function updateReferenceAspectItem(index, field, value) {
+            if (!state.referenceAspects[index]) return;
+            state.referenceAspects[index][field] = field === 'amount' ? Math.max(1, Number(value) || 1) : value;
+            renderReferenceCalcResults();
+            saveReferenceState();
+        }
+
+        function renderReferenceCalculator() {
+            const container = document.getElementById('reference-calc-rows');
+            if (!container) return;
+
+            const allAspects = Object.keys(ESSENCE_BREAKDOWN).sort();
+
+            if (state.referenceAspects.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted); font-size: 13px; margin: 4px 0;">Список пуст. Нажмите "+ Добавить эссенцию", чтобы рассчитать требуемые предметы.</p>';
+                renderReferenceCalcResults();
+                return;
+            }
+
+            container.innerHTML = state.referenceAspects.map((item, idx) => `
+                <div style="display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); padding: 4px 8px; border-radius: 3px;">
+                    <select class="smeltery-select" onchange="updateReferenceAspectItem(${idx}, 'aspect', this.value)" style="min-width: 140px;">
+                        ${allAspects.map(a => `<option value="${a}" ${a === item.aspect ? 'selected' : ''}>${a}</option>`).join('')}
+                    </select>
+                    <label style="font-size: 12px; color: var(--text-main);">
+                        Количество: <input type="number" min="1" class="input-number" value="${item.amount}" oninput="updateReferenceAspectItem(${idx}, 'amount', this.value)" style="width: 70px;"> ед.
+                    </label>
+                    <button class="btn-del" onclick="removeReferenceAspect(${idx})" style="padding: 2px 8px; font-size: 12px; margin-left: auto;">×</button>
+                </div>
+            `).join('');
+
+            renderReferenceCalcResults();
+        }
+
+        function renderReferenceCalcResults() {
+            const resultsUl = document.getElementById('reference-calc-results');
+            if (!resultsUl) return;
+
+            if (state.referenceAspects.length === 0) {
+                resultsUl.innerHTML = '<li>Список пуст</li>';
+                return;
+            }
+
+            const html = state.referenceAspects.map(entry => {
+                const totalNeeded = entry.amount;
+                const recipes = ESSENCE_BREAKDOWN[entry.aspect];
+
+                if (recipes && recipes.length > 0) {
+                    const optionsText = recipes.map(r => {
+                        const count = Math.ceil(totalNeeded / r.yield);
+                        return `<strong>${count}</strong> шт. [${r.item}]`;
+                    }).join(' <span style="color: var(--border-gold);">или</span> ');
+
+                    return `<li>${entry.aspect} (<strong>${totalNeeded}</strong> ед.): ${optionsText}</li>`;
+                } else {
+                    return `<li>${entry.aspect} (<strong>${totalNeeded}</strong> ед.): рецептов не найдено</li>`;
+                }
+            }).join('');
+
+            resultsUl.innerHTML = html;
+        }
+
+        function saveReferenceState() {
+            try {
+                localStorage.setItem('tc_reference_aspects', JSON.stringify(state.referenceAspects));
+            } catch(e) {}
+        }
+
         // Заполнение таблицы справки
         function renderReferenceTable() {
             const tbody = document.getElementById('reference-tbody');
@@ -2360,9 +2474,30 @@ function addElvenInput(craftId) {
             }).join('');
         }
 
+        // Загрузка состояния из localStorage при старте
+        function loadState() {
+            try {
+                const savedCrafts = localStorage.getItem('tc_craft_state');
+                if (savedCrafts) {
+                    state.crafts = JSON.parse(savedCrafts);
+                }
+                const savedTab = localStorage.getItem('tc_active_tab');
+                if (savedTab) {
+                    state.activeTab = savedTab;
+                }
+                const savedRef = localStorage.getItem('tc_reference_aspects');
+                if (savedRef) {
+                    state.referenceAspects = JSON.parse(savedRef);
+                }
+            } catch (e) {
+                console.error("Ошибка загрузки из localStorage:", e);
+            }
+        }
+
         // Инициализация
-        renderReferenceTable();
         loadState();
+        renderReferenceTable();
+        renderReferenceCalculator();
         switchTab(state.activeTab);
         updateTotals();
 
