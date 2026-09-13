@@ -9,14 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --aero-sky-top: #2a9df4;
-      --aero-sky-mid: #5ce1e6;
-      --aero-sky-bottom: #a1ffce;
       --glass-bg: rgba(255, 255, 255, 0.45);
       --glass-border: rgba(255, 255, 255, 0.85);
       --glass-shadow: 0 16px 40px rgba(0, 75, 140, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.95);
-      --aero-green: #37d67a;
-      --aero-blue: #0088ff;
       --text-dark: #0f3554;
       --text-muted: #2f5d7c;
     }
@@ -60,8 +55,8 @@
     /* Главное окно Vista/7 Aero Glass */
     .aero-window {
       background: var(--glass-bg);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(22px) saturate(180%);
+      -webkit-backdrop-filter: blur(22px) saturate(180%);
       border: 1.5px solid var(--glass-border);
       border-radius: 18px;
       box-shadow: var(--glass-shadow);
@@ -69,7 +64,7 @@
       margin-bottom: 24px;
     }
 
-    /* Панель окна */
+    /* Titlebar */
     .aero-titlebar {
       height: 44px;
       background: linear-gradient(180deg, 
@@ -190,7 +185,7 @@
       transform: translateY(1px);
     }
 
-    /* БЛОК ОТЧЕТА (по требованию ТЗ) */
+    /* БЛОК ОТЧЕТА */
     .report-card {
       position: relative;
       background: linear-gradient(135deg, 
@@ -230,8 +225,8 @@
     }
 
     .report-text {
-      font-size: 18px;
-      line-height: 1.55;
+      font-size: 17.5px;
+      line-height: 1.6;
       font-weight: 400;
       color: #0a2d48;
     }
@@ -266,7 +261,7 @@
       }
     }
 
-    /* Круговой глянцевый манометр (Speedometer Orb) */
+    /* Круговой глянцевый индикатор */
     .orb-gauge-card {
       background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(235,248,255,0.4) 100%);
       border-radius: 16px;
@@ -277,7 +272,6 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      position: relative;
     }
 
     .gauge-wrapper {
@@ -339,7 +333,7 @@
       margin-top: 4px;
     }
 
-    /* Четвертные бары */
+    /* Бары четвертей */
     .quarters-card {
       background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(235,248,255,0.4) 100%);
       border-radius: 16px;
@@ -438,7 +432,6 @@
       box-shadow: 0 0 10px rgba(0, 140, 255, 0.5), inset 0 1px 1px #fff;
     }
 
-    /* Блик поверх полосы */
     .aero-bar-fill::after {
       content: '';
       position: absolute;
@@ -450,7 +443,7 @@
       background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 100%);
     }
 
-    /* ИНТЕРАКТИВНАЯ ТАБЛИЦА НЕДЕЛЬ (как в приложении у Лизы) */
+    /* Интерактивная таблица недель */
     .tree-view {
       background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(240,250,255,0.3) 100%);
       border-radius: 14px;
@@ -526,7 +519,6 @@
       color: #436d88;
     }
 
-    /* Подвал */
     .aero-footer {
       margin-top: 16px;
       font-size: 11px;
@@ -538,16 +530,16 @@
 </head>
 <body>
 
-  <!-- Фон с пузырями -->
+  <!-- Фон с летающими пузырями -->
   <canvas class="bubble-canvas" id="bubbleCanvas"></canvas>
 
   <div class="container">
     <div class="aero-window">
-      <!-- Titlebar -->
+      <!-- Панель окна -->
       <div class="aero-titlebar">
         <div class="window-title">
           <span class="orb-icon"></span>
-          <span>Учебный год 2026–2027</span>
+          <span>Aero Academic Tracker • Учебный год 2026–2027</span>
         </div>
         <div class="window-controls">
           <div class="win-btn btn-min" title="Свернуть"></div>
@@ -565,14 +557,15 @@
           </div>
           <div class="preset-chips">
             <button class="chip-btn" onclick="setDate('2026-09-14')">2 нед. (как на скрине)</button>
-            <button class="chip-btn" onclick="setDate('2026-10-15')">Середина 1 четв.</button>
-            <button class="chip-btn" onclick="setDate('2026-10-28')">Осенние каникулы</button>
-            <button class="chip-btn" onclick="setDate('2027-01-20')">3 четверть (11 нед.)</button>
-            <button class="chip-btn" onclick="setDate('2027-05-15')">Финал года</button>
+            <button class="chip-btn" onclick="setDate('2026-10-28')">Осенние каникулы (1 нед)</button>
+            <button class="chip-btn" onclick="setDate('2026-12-25')">Новогодние каникулы (2 нед)</button>
+            <button class="chip-btn" onclick="setDate('2027-02-10')">3 четверть (10 нед)</button>
+            <button class="chip-btn" onclick="setDate('2027-03-18')">Весенние каникулы (1 нед)</button>
+            <button class="chip-btn" onclick="setDate('2027-04-20')">4 четверть (8 нед)</button>
           </div>
         </div>
 
-        <!-- ДИНАМИЧЕСКИЙ ТЕКСТОВЫЙ ОТЧЁТ (по шаблону пользователя) -->
+        <!-- ТЕКСТОВЫЙ ОТЧЕТ -->
         <div class="report-card">
           <div class="report-title">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
@@ -585,7 +578,7 @@
 
         <!-- ГРАФИКИ -->
         <div class="dashboard-grid">
-          <!-- Круговой стеклянный спидометр года -->
+          <!-- Круговой стеклянный индикатор года -->
           <div class="orb-gauge-card">
             <div style="font-weight: 700; font-size: 14px; color: #083c61; margin-bottom: 4px;">Общий прогресс года</div>
             <div class="gauge-wrapper">
@@ -603,21 +596,21 @@
               </svg>
               <div class="gauge-center">
                 <div class="gauge-pct" id="globalPercentLabel">0%</div>
-                <div class="gauge-sub" id="globalDaysLabel">0 / 238 дн.</div>
+                <div class="gauge-sub" id="globalDaysLabel">0 / 231 дн.</div>
               </div>
             </div>
             <div style="font-size: 11px; font-weight: 600; color: #356788; text-align: center;">
-              Всего: 34 учебные недели (238 дней)
+              Всего: 33 учебные недели (231 день)
             </div>
           </div>
 
           <!-- Прогресс по 4 четвертям -->
           <div class="quarters-card" id="quartersList">
-            <!-- Заполняется динамически JS -->
+            <!-- Заполняется JS -->
           </div>
         </div>
 
-        <!-- Интерактивное расписание всех 34 недель -->
+        <!-- Расписание всех недель с каникулами -->
         <div class="tree-view">
           <div class="tree-head">
             <div class="tree-title">Карта недель и каникул (2026–2027)</div>
@@ -626,22 +619,27 @@
             </div>
           </div>
           <div class="weeks-grid" id="weeksGrid">
-            <!-- Заполняется динамически -->
+            <!-- Заполняется JS -->
           </div>
         </div>
 
         <div class="aero-footer">
-          Основано на учебном календаре Минпросвещения РФ (2026–2027). Старт: 1 сентября 2026 г.
-		  <p>
-		  макар тебя надо в суд за гриферство
+          Сетка: 1 четв. (8 нед.) • 2 четв. (7 нед.) • 3 четв. (10 нед.) • 4 четв. (8 нед.)
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // КОНФИГУРАЦИЯ УЧЕБНОГО ГОДА 2026-2027
-    // Четверти точно по вашему чеклисту: 8, 8, 11, 7 недель = 34 недели = 238 дней.
+    // ОБНОВЛЕННАЯ КОНФИГУРАЦИЯ ПО ТЗ
+    // 1 четв = 8 нед (56 дн)
+    // Осень = 1 нед (7 дн)
+    // 2 четв = 7 нед (49 дн)
+    // Зима = 2 нед (14 дн)
+    // 3 четв = 10 нед (70 дн)
+    // Весна = 1 нед (7 дн)
+    // 4 четв = 8 нед (56 дн)
+    // Всего: 33 недели = 231 учебный день
     const SCHEDULE = [
       {
         id: 1,
@@ -649,7 +647,7 @@
         weeks: 8,
         days: 56,
         start: new Date("2026-09-01"),
-        end: new Date("2026-10-26") // 56 дней (включительно)
+        end: new Date("2026-10-26")
       },
       {
         id: "v1",
@@ -663,27 +661,27 @@
       {
         id: 2,
         name: "2 четверть",
-        weeks: 8,
-        days: 56,
+        weeks: 7,
+        days: 49,
         start: new Date("2026-11-03"),
-        end: new Date("2026-12-28")
+        end: new Date("2026-12-21")
       },
       {
         id: "v2",
         isVacation: true,
-        name: "Зимние каникулы",
+        name: "Новогодние каникулы",
         weeks: 2,
         days: 14,
-        start: new Date("2026-12-29"),
-        end: new Date("2027-01-11")
+        start: new Date("2026-12-22"),
+        end: new Date("2027-01-04")
       },
       {
         id: 3,
         name: "3 четверть",
-        weeks: 11,
-        days: 77,
-        start: new Date("2027-01-12"),
-        end: new Date("2027-03-29")
+        weeks: 10,
+        days: 70,
+        start: new Date("2027-01-05"),
+        end: new Date("2027-03-15")
       },
       {
         id: "v3",
@@ -691,21 +689,21 @@
         name: "Весенние каникулы",
         weeks: 1,
         days: 7,
-        start: new Date("2027-03-30"),
-        end: new Date("2027-04-05")
+        start: new Date("2027-03-16"),
+        end: new Date("2027-03-22")
       },
       {
         id: 4,
         name: "4 четверть",
-        weeks: 7,
-        days: 49,
-        start: new Date("2027-04-06"),
-        end: new Date("2027-05-24")
+        weeks: 8,
+        days: 56,
+        start: new Date("2027-03-23"),
+        end: new Date("2027-05-17")
       }
     ];
 
-    const TOTAL_STUDY_DAYS = 238;
-    const TOTAL_STUDY_WEEKS = 34;
+    const TOTAL_STUDY_DAYS = 231; // 56 + 49 + 70 + 56
+    const TOTAL_STUDY_WEEKS = 33; // 8 + 7 + 10 + 8
     const QUARTERS = SCHEDULE.filter(s => !s.isVacation);
 
     function setDate(dateStr) {
@@ -722,22 +720,20 @@
       let completedStudyDays = 0;
       let finishedQuartersCount = 0;
       let currentPeriod = null;
-      let currentQuarterIndex = -1;
 
-      // Определение пройденных дней в каждой четверти
-      QUARTERS.forEach((q, idx) => {
+      // Считаем дни четвертей
+      QUARTERS.forEach((q) => {
         if (selectedDate > q.end) {
           completedStudyDays += q.days;
           finishedQuartersCount++;
         } else if (selectedDate >= q.start && selectedDate <= q.end) {
           const daysPassed = Math.floor((selectedDate - q.start) / oneDay) + 1;
           completedStudyDays += Math.min(q.days, Math.max(0, daysPassed));
-          currentQuarterIndex = idx;
           currentPeriod = { ...q, type: 'quarter', daysPassed };
         }
       });
 
-      // Проверка, может сейчас каникулы?
+      // Проверяем каникулы
       if (!currentPeriod) {
         SCHEDULE.filter(s => s.isVacation).forEach(v => {
           if (selectedDate >= v.start && selectedDate <= v.end) {
@@ -746,26 +742,24 @@
         });
       }
 
-      // Если до 1 сентября или после конца года
       if (selectedDate < SCHEDULE[0].start) {
         currentPeriod = { name: "Учебный год еще не начался", type: 'before' };
       } else if (selectedDate > QUARTERS[3].end) {
         currentPeriod = { name: "Учебный год завершён! Летние каникулы", type: 'after' };
       }
 
-      // Проценты
       const globalPercent = Math.min(100, Math.round((completedStudyDays / TOTAL_STUDY_DAYS) * 100));
 
-      // 1. ФОРМИРУЕМ ТЕКСТОВЫЙ ОТЧЕТ (точно по шаблону пользователя)
+      // Формулируем текстовый отчет
       let reportHTML = "";
 
       let quarterStatusText = "";
       if (finishedQuartersCount === 0) {
         quarterStatusText = "ни одна четверть пока не закончена";
       } else if (finishedQuartersCount === 1) {
-        quarterStatusText = "полностью закончена 1 четверть";
+        quarterStatusText = "закончена 1 четверть";
       } else if (finishedQuartersCount < 4) {
-        quarterStatusText = `полностью закончено ${finishedQuartersCount} четверти`;
+        quarterStatusText = `закончено ${finishedQuartersCount} четверти`;
       } else {
         quarterStatusText = "все 4 четверти закончены";
       }
@@ -790,21 +784,21 @@
         reportHTML = `
           Учебный год закончен на <span class="highlight-pill">${globalPercent}%</span> 
           (${completedStudyDays} из ${TOTAL_STUDY_DAYS} дней), 
-          <strong>${quarterStatusText}</strong>.<br><br>
+          <strong>${quarterStatusText}</strong> (закончено четвертей: ${finishedQuartersCount} из 4).<br><br>
           Сейчас идут <span class="highlight-pill highlight-green">${currentPeriod.name}</span>! Отдых перед следующей четвертью.
         `;
       } else if (currentPeriod && currentPeriod.type === 'before') {
-        reportHTML = `Учебный год еще не начался. Отсчёт начнется 1 сентября 2026 года!`;
+        reportHTML = `Учебный год еще не начался. Отсчёт с 1 сентября 2026 года.`;
       } else {
         reportHTML = `
-          Поздравляем! Учебный год закончен на <span class="highlight-pill highlight-green">100%</span>. 
-          Завершены все 4 четверти (34 недели)! Летние каникулы!
+          Учебный год закончен на <span class="highlight-pill highlight-green">100%</span>! 
+          Завершены все 4 четверти (${TOTAL_STUDY_WEEKS} недели). Начались летние каникулы!
         `;
       }
 
       document.getElementById('dynamicReportText').innerHTML = reportHTML;
 
-      // 2. ОБНОВЛЯЕМ КРУГОВОЙ ГРАФИК
+      // Обновляем круговой спидометр
       document.getElementById('globalPercentLabel').innerText = `${globalPercent}%`;
       document.getElementById('globalDaysLabel').innerText = `${completedStudyDays} / ${TOTAL_STUDY_DAYS} дн.`;
       
@@ -812,7 +806,7 @@
       const offset = circumference - (globalPercent / 100) * circumference;
       document.getElementById('circleProgress').style.strokeDashoffset = offset;
 
-      // 3. БАРЫ ЧЕТВЕРТЕЙ
+      // Обновляем шкалы 4 четвертей
       const quartersListEl = document.getElementById('quartersList');
       quartersListEl.innerHTML = "";
 
@@ -836,7 +830,7 @@
         item.innerHTML = `
           <div class="q-header">
             <div class="q-title">
-              <span>${q.name}</span>
+              <span>${q.name} (${q.weeks} нед. / ${q.days} дн.)</span>
               ${badge}
             </div>
             <div class="q-stats">
@@ -850,7 +844,7 @@
         quartersListEl.appendChild(item);
       });
 
-      // 4. СЕТКА 34 НЕДЕЛЬ
+      // Обновляем сетку недель
       const weeksGrid = document.getElementById('weeksGrid');
       weeksGrid.innerHTML = "";
 
@@ -886,7 +880,7 @@
             runningStudyWeek++;
           }
         } else {
-          // Каникулярная карточка
+          // Каникулы
           const isVacNow = selectedDate >= block.start && selectedDate <= block.end;
           const isVacPassed = selectedDate > block.end;
           const pill = document.createElement('div');
@@ -896,14 +890,14 @@
             <div class="pill-row1" style="color:#b21652">
               <span>🏖️ ${block.name}</span>
             </div>
-            <div class="pill-row2">${block.weeks} нед. отдыха</div>
+            <div class="pill-row2">${block.weeks} ${block.weeks === 1 ? 'неделя' : 'недели'} отдыха</div>
           `;
           weeksGrid.appendChild(pill);
         }
       });
     }
 
-    // ГЕНЕРАТОР ПУЗЫРЕЙ В СТИЛЕ AERO
+    // Анимация водяных пузырей
     const canvas = document.getElementById('bubbleCanvas');
     const ctx = canvas.getContext('2d');
     let width, height;
@@ -943,7 +937,6 @@
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Спекулярный блик
         ctx.beginPath();
         ctx.arc(this.x - this.radius * 0.35, this.y - this.radius * 0.35, this.radius * 0.25, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha * 0.9})`;
@@ -968,7 +961,6 @@
     }
     animateBubbles();
 
-    // Первоначальный запуск
     calculateAndRender();
   </script>
 </body>
