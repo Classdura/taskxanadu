@@ -261,7 +261,7 @@
       }
     }
 
-    /* Круговой глянцевый индикатор */
+    /* Круговой манометр */
     .orb-gauge-card {
       background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(235,248,255,0.4) 100%);
       border-radius: 16px;
@@ -396,7 +396,7 @@
       font-weight: 600;
     }
 
-    /* Скевоморфный Vista-прогрессбар */
+    /* Vista-прогрессбар */
     .aero-bar-outer {
       height: 18px;
       background: linear-gradient(180deg, #b2c9d8 0%, #e0edf5 50%, #ffffff 100%);
@@ -443,7 +443,7 @@
       background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 100%);
     }
 
-    /* Интерактивная таблица недель */
+    /* Интерактивная сетка недель */
     .tree-view {
       background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(240,250,255,0.3) 100%);
       border-radius: 14px;
@@ -530,7 +530,7 @@
 </head>
 <body>
 
-  <!-- Фон с летающими пузырями -->
+  <!-- Фон с летящими пузырями -->
   <canvas class="bubble-canvas" id="bubbleCanvas"></canvas>
 
   <div class="container">
@@ -549,19 +549,20 @@
       </div>
 
       <div class="aero-body">
-        <!-- Панель управления датой -->
+        <!-- Панель выбора даты -->
         <div class="toolbar-glass">
           <div class="date-control">
             <label for="datePicker">📅 Выберите дату отчёта:</label>
-            <input type="date" id="datePicker" value="2026-09-15" min="2026-09-01" max="2027-06-01">
+            <!-- Чистый input, значение ставится автоматически через JS -->
+            <input type="date" id="datePicker" min="2026-09-01" max="2027-06-01">
           </div>
           <div class="preset-chips">
-            <button class="chip-btn" onclick="setDate('2026-09-14')">2 нед. (как на скрине)</button>
-            <button class="chip-btn" onclick="setDate('2026-10-28')">Осенние каникулы (1 нед)</button>
-            <button class="chip-btn" onclick="setDate('2026-12-25')">Новогодние каникулы (2 нед)</button>
-            <button class="chip-btn" onclick="setDate('2027-02-10')">3 четверть (10 нед)</button>
-            <button class="chip-btn" onclick="setDate('2027-03-18')">Весенние каникулы (1 нед)</button>
-            <button class="chip-btn" onclick="setDate('2027-04-20')">4 четверть (8 нед)</button>
+            <button class="chip-btn" onclick="setToday()">Сегодня</button>
+            <button class="chip-btn" onclick="setDate('2026-09-14')">2 нед. (14 сен)</button>
+            <button class="chip-btn" onclick="setDate('2026-10-28')">Осенние каникулы</button>
+            <button class="chip-btn" onclick="setDate('2026-12-25')">Новогодние каникулы</button>
+            <button class="chip-btn" onclick="setDate('2027-02-10')">3 четверть</button>
+            <button class="chip-btn" onclick="setDate('2027-04-20')">4 четверть</button>
           </div>
         </div>
 
@@ -578,7 +579,7 @@
 
         <!-- ГРАФИКИ -->
         <div class="dashboard-grid">
-          <!-- Круговой стеклянный индикатор года -->
+          <!-- Спидометр года -->
           <div class="orb-gauge-card">
             <div style="font-weight: 700; font-size: 14px; color: #083c61; margin-bottom: 4px;">Общий прогресс года</div>
             <div class="gauge-wrapper">
@@ -604,13 +605,13 @@
             </div>
           </div>
 
-          <!-- Прогресс по 4 четвертям -->
+          <!-- Бары 4 четвертей -->
           <div class="quarters-card" id="quartersList">
             <!-- Заполняется JS -->
           </div>
         </div>
 
-        <!-- Расписание всех недель с каникулами -->
+        <!-- Карта всех 33 недель -->
         <div class="tree-view">
           <div class="tree-head">
             <div class="tree-title">Карта недель и каникул (2026–2027)</div>
@@ -631,15 +632,15 @@
   </div>
 
   <script>
-    // ОБНОВЛЕННАЯ КОНФИГУРАЦИЯ ПО ТЗ
-    // 1 четв = 8 нед (56 дн)
-    // Осень = 1 нед (7 дн)
-    // 2 четв = 7 нед (49 дн)
-    // Зима = 2 нед (14 дн)
-    // 3 четв = 10 нед (70 дн)
-    // Весна = 1 нед (7 дн)
-    // 4 четв = 8 нед (56 дн)
-    // Всего: 33 недели = 231 учебный день
+    // Точная структура по ТЗ:
+    // 1 четверть = 8 нед (56 дн)
+    // Осенние каникулы = 1 нед (7 дн)
+    // 2 четверть = 7 нед (49 дн)
+    // Новогодние каникулы = 2 нед (14 дн)
+    // 3 четверть = 10 нед (70 дн)
+    // Весенние каникулы = 1 нед (7 дн)
+    // 4 четверть = 8 нед (56 дн)
+    // Итого = 33 учебные недели (231 день)
     const SCHEDULE = [
       {
         id: 1,
@@ -702,8 +703,8 @@
       }
     ];
 
-    const TOTAL_STUDY_DAYS = 231; // 56 + 49 + 70 + 56
-    const TOTAL_STUDY_WEEKS = 33; // 8 + 7 + 10 + 8
+    const TOTAL_STUDY_DAYS = 231;
+    const TOTAL_STUDY_WEEKS = 33;
     const QUARTERS = SCHEDULE.filter(s => !s.isVacation);
 
     function setDate(dateStr) {
@@ -711,17 +712,29 @@
       calculateAndRender();
     }
 
+    function setToday() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      document.getElementById('datePicker').value = `${y}-${m}-${d}`;
+      calculateAndRender();
+    }
+
     document.getElementById('datePicker').addEventListener('change', calculateAndRender);
 
     function calculateAndRender() {
-      const selectedDate = new Date(document.getElementById('datePicker').value + "T00:00:00");
+      const dateVal = document.getElementById('datePicker').value;
+      if (!dateVal) return;
+
+      const selectedDate = new Date(dateVal + "T00:00:00");
       const oneDay = 1000 * 60 * 60 * 24;
 
       let completedStudyDays = 0;
       let finishedQuartersCount = 0;
       let currentPeriod = null;
 
-      // Считаем дни четвертей
+      // Подсчет пройденных учебных дней
       QUARTERS.forEach((q) => {
         if (selectedDate > q.end) {
           completedStudyDays += q.days;
@@ -733,7 +746,7 @@
         }
       });
 
-      // Проверяем каникулы
+      // Проверка на каникулы
       if (!currentPeriod) {
         SCHEDULE.filter(s => s.isVacation).forEach(v => {
           if (selectedDate >= v.start && selectedDate <= v.end) {
@@ -750,7 +763,7 @@
 
       const globalPercent = Math.min(100, Math.round((completedStudyDays / TOTAL_STUDY_DAYS) * 100));
 
-      // Формулируем текстовый отчет
+      // 1. Формируем текстовый отчёт
       let reportHTML = "";
 
       let quarterStatusText = "";
@@ -798,7 +811,7 @@
 
       document.getElementById('dynamicReportText').innerHTML = reportHTML;
 
-      // Обновляем круговой спидометр
+      // 2. Обновляем круговой спидометр
       document.getElementById('globalPercentLabel').innerText = `${globalPercent}%`;
       document.getElementById('globalDaysLabel').innerText = `${completedStudyDays} / ${TOTAL_STUDY_DAYS} дн.`;
       
@@ -806,7 +819,7 @@
       const offset = circumference - (globalPercent / 100) * circumference;
       document.getElementById('circleProgress').style.strokeDashoffset = offset;
 
-      // Обновляем шкалы 4 четвертей
+      // 3. Обновляем шкалы 4 четвертей
       const quartersListEl = document.getElementById('quartersList');
       quartersListEl.innerHTML = "";
 
@@ -844,7 +857,7 @@
         quartersListEl.appendChild(item);
       });
 
-      // Обновляем сетку недель
+      // 4. Обновляем сетку недель
       const weeksGrid = document.getElementById('weeksGrid');
       weeksGrid.innerHTML = "";
 
@@ -880,7 +893,7 @@
             runningStudyWeek++;
           }
         } else {
-          // Каникулы
+          // Карточка каникул
           const isVacNow = selectedDate >= block.start && selectedDate <= block.end;
           const isVacPassed = selectedDate > block.end;
           const pill = document.createElement('div');
@@ -897,7 +910,7 @@
       });
     }
 
-    // Анимация водяных пузырей
+    // Анимация водяных пузырей на заднем плане
     const canvas = document.getElementById('bubbleCanvas');
     const ctx = canvas.getContext('2d');
     let width, height;
@@ -961,7 +974,8 @@
     }
     animateBubbles();
 
-    calculateAndRender();
+    // Автоматическая установка сегодняшней даты пользователя при открытии
+    setToday();
   </script>
 </body>
 </html>
