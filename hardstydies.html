@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aero Academic Tracker 2026–2027</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --aero-sky-top: #2a9df4;
+      --aero-sky-mid: #5ce1e6;
+      --aero-sky-bottom: #a1ffce;
+      --glass-bg: rgba(255, 255, 255, 0.45);
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-shadow: 0 16px 40px rgba(0, 75, 140, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.95);
+      --aero-green: #37d67a;
+      --aero-blue: #0088ff;
+      --text-dark: #0f3554;
+      --text-muted: #2f5d7c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Tahoma, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1b74c4 0%, #3ca0e7 30%, #5fd3c8 70%, #9bf8a8 100%);
+      background-attachment: fixed;
+      color: var(--text-dark);
+      overflow-x: hidden;
+      position: relative;
+      padding: 24px 16px 48px;
+    }
+
+    /* Анимированные пузыри Frutiger Aero */
+    .bubble-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+
+    /* Главное окно Vista/7 Aero Glass */
+    .aero-window {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1.5px solid var(--glass-border);
+      border-radius: 18px;
+      box-shadow: var(--glass-shadow);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    /* Панель окна */
+    .aero-titlebar {
+      height: 44px;
+      background: linear-gradient(180deg, 
+        rgba(255, 255, 255, 0.75) 0%, 
+        rgba(255, 255, 255, 0.25) 50%, 
+        rgba(200, 230, 255, 0.15) 51%, 
+        rgba(255, 255, 255, 0.4) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .window-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0c3352;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+    }
+
+    .window-title span.orb-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff 0%, #30c5ff 40%, #0066cc 100%);
+      box-shadow: 0 2px 5px rgba(0, 50, 150, 0.4), inset 0 1px 2px #fff;
+      display: inline-block;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .win-btn {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 1px 3px rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    .btn-close { background: radial-gradient(circle at 35% 35%, #ffb4b4 0%, #ff4d4d 60%, #aa0000 100%); }
+    .btn-min   { background: radial-gradient(circle at 35% 35%, #fff2b4 0%, #ffc83b 60%, #b88600 100%); }
+    .btn-max   { background: radial-gradient(circle at 35% 35%, #b4ffcf 0%, #2bd969 60%, #078a33 100%); }
+
+    /* Тело окна */
+    .aero-body {
+      padding: 24px;
+    }
+
+    /* Панель выбора даты */
+    .toolbar-glass {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 20px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.2) 100%);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.7);
+      margin-bottom: 22px;
+      box-shadow: inset 0 1px 2px #fff, 0 4px 15px rgba(0, 50, 100, 0.08);
+    }
+
+    .date-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input[type="date"] {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 120, 215, 0.5);
+      background: linear-gradient(180deg, #ffffff 0%, #eaf5ff 100%);
+      color: #0b3456;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1), 0 2px 5px rgba(0,100,200,0.15);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .preset-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip-btn {
+      background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(220,240,255,0.7) 50%, rgba(180,225,255,0.6) 51%, rgba(230,248,255,0.9) 100%);
+      border: 1px solid rgba(255,255,255,0.9);
+      border-radius: 16px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0d4672;
+      box-shadow: 0 2px 5px rgba(0, 80, 160, 0.15), inset 0 1px 1px #fff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chip-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 120, 255, 0.3), inset 0 1px 2px #fff;
+    }
+
+    .chip-btn:active {
+      transform: translateY(1px);
+    }
+
+    /* БЛОК ОТЧЕТА (по требованию ТЗ) */
+    .report-card {
+      position: relative;
+      background: linear-gradient(135deg, 
+        rgba(255, 255, 255, 0.85) 0%, 
+        rgba(240, 250, 255, 0.6) 50%, 
+        rgba(220, 245, 255, 0.75) 100%);
+      border-radius: 16px;
+      padding: 20px 24px;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 10px 30px rgba(0, 100, 180, 0.18), inset 0 2px 3px rgba(255,255,255,0.9);
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .report-card::after {
+      content: '';
+      position: absolute;
+      top: -30%;
+      left: -10%;
+      width: 120%;
+      height: 70%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 100%);
+      transform: rotate(-3deg);
+      pointer-events: none;
+    }
+
+    .report-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: #0277bd;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .report-text {
+      font-size: 18px;
+      line-height: 1.55;
+      font-weight: 400;
+      color: #0a2d48;
+    }
+
+    .highlight-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-weight: 700;
+      background: linear-gradient(180deg, #d4f4ff 0%, #87dcff 50%, #46c0ff 51%, #a8e7ff 100%);
+      border: 1px solid #ffffff;
+      box-shadow: 0 2px 4px rgba(0, 100, 180, 0.2), inset 0 1px 2px #fff;
+      color: #043f68;
+    }
+
+    .highlight-green {
+      background: linear-gradient(180deg, #d8ffd8 0%, #7ee69b 50%, #3fd669 51%, #a6f5be 100%);
+      color: #024a1b;
+    }
+
+    /* СЕТКА ГРАФИКОВ */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 860px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Круговой глянцевый манометр (Speedometer Orb) */
+    .orb-gauge-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(235,248,255,0.4) 100%);
+      border-radius: 16px;
+      border: 1px solid #fff;
+      box-shadow: 0 8px 25px rgba(0, 70, 140, 0.12), inset 0 1px 2px #fff;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .gauge-wrapper {
+      position: relative;
+      width: 190px;
+      height: 190px;
+      margin: 10px 0;
+    }
+
+    .gauge-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .gauge-bg {
+      fill: none;
+      stroke: rgba(200, 230, 255, 0.5);
+      stroke-width: 16;
+    }
+
+    .gauge-progress {
+      fill: none;
+      stroke: url(#aeroGlowGrad);
+      stroke-width: 16;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .gauge-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      border-radius: 50%;
+      width: 130px;
+      height: 130px;
+      background: radial-gradient(circle at 35% 30%, #ffffff 0%, #e2f4ff 60%, #bde3ff 100%);
+      box-shadow: 0 4px 15px rgba(0, 80, 160, 0.2), inset 0 2px 5px #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gauge-pct {
+      font-size: 34px;
+      font-weight: 800;
+      color: #0b4974;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.9);
+      line-height: 1;
+    }
+
+    .gauge-sub {
+      font-size: 11px;
+      font-weight: 600;
+      color: #3b769b;
+      margin-top: 4px;
+    }
+
+    /* Четвертные бары */
+    .quarters-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(235,248,255,0.4) 100%);
+      border-radius: 16px;
+      border: 1px solid #fff;
+      box-shadow: 0 8px 25px rgba(0, 70, 140, 0.12), inset 0 1px 2px #fff;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      justify-content: space-around;
+    }
+
+    .q-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .q-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+
+    .q-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-status {
+      font-size: 10.5px;
+      padding: 2px 7px;
+      border-radius: 8px;
+      border: 1px solid #fff;
+      font-weight: 600;
+    }
+
+    .badge-active {
+      background: linear-gradient(180deg, #fffaaa 0%, #ffd028 100%);
+      color: #694b00;
+      box-shadow: 0 1px 3px rgba(180, 130, 0, 0.3);
+    }
+
+    .badge-done {
+      background: linear-gradient(180deg, #b0ffcc 0%, #36db78 100%);
+      color: #005220;
+    }
+
+    .badge-pending {
+      background: rgba(220, 235, 245, 0.7);
+      color: #688a9f;
+    }
+
+    .q-stats {
+      font-size: 12px;
+      color: #276288;
+      font-weight: 600;
+    }
+
+    /* Скевоморфный Vista-прогрессбар */
+    .aero-bar-outer {
+      height: 18px;
+      background: linear-gradient(180deg, #b2c9d8 0%, #e0edf5 50%, #ffffff 100%);
+      border-radius: 12px;
+      border: 1px solid rgba(0, 70, 120, 0.25);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2), 0 1px 1px #fff;
+      padding: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .aero-bar-fill {
+      height: 100%;
+      border-radius: 9px;
+      background: linear-gradient(180deg, 
+        rgba(255,255,255,0.7) 0%, 
+        #52db7d 45%, 
+        #1ebc50 50%, 
+        #129b3e 90%, 
+        #30dc6a 100%);
+      box-shadow: 0 0 10px rgba(46, 218, 106, 0.6), inset 0 1px 1px #fff;
+      transition: width 0.7s cubic-bezier(0.1, 0.8, 0.2, 1);
+      position: relative;
+    }
+
+    .aero-bar-fill.blue-fill {
+      background: linear-gradient(180deg, 
+        rgba(255,255,255,0.8) 0%, 
+        #49b6ff 45%, 
+        #0a88ea 50%, 
+        #0260b3 90%, 
+        #44b5ff 100%);
+      box-shadow: 0 0 10px rgba(0, 140, 255, 0.5), inset 0 1px 1px #fff;
+    }
+
+    /* Блик поверх полосы */
+    .aero-bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      right: 2px;
+      height: 40%;
+      border-radius: 8px 8px 3px 3px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 100%);
+    }
+
+    /* ИНТЕРАКТИВНАЯ ТАБЛИЦА НЕДЕЛЬ (как в приложении у Лизы) */
+    .tree-view {
+      background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(240,250,255,0.3) 100%);
+      border-radius: 14px;
+      border: 1px solid #fff;
+      padding: 16px;
+      box-shadow: 0 8px 25px rgba(0, 70, 140, 0.1), inset 0 1px 2px #fff;
+    }
+
+    .tree-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.8);
+    }
+
+    .tree-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0b4570;
+    }
+
+    .weeks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+      gap: 8px;
+    }
+
+    .week-pill {
+      background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(230,245,255,0.7) 100%);
+      border: 1px solid rgba(255,255,255,0.95);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      box-shadow: 0 2px 6px rgba(0,70,140,0.08), inset 0 1px 1px #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      transition: transform 0.15s ease;
+    }
+
+    .week-pill:hover {
+      transform: translateY(-2px);
+    }
+
+    .week-pill.completed {
+      background: linear-gradient(180deg, #e5ffeb 0%, #b7f7c7 100%);
+      border-color: #79e897;
+    }
+
+    .week-pill.current-active {
+      background: linear-gradient(180deg, #fffde6 0%, #ffefa5 100%);
+      border-color: #ffd84d;
+      box-shadow: 0 0 10px rgba(255, 200, 0, 0.5), inset 0 1px 1px #fff;
+    }
+
+    .week-pill.vacation {
+      background: linear-gradient(180deg, #ffeef4 0%, #fed1e0 100%);
+      border-color: #fca0c0;
+    }
+
+    .pill-row1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      color: #0a3a60;
+    }
+
+    .pill-row2 {
+      font-size: 10px;
+      color: #436d88;
+    }
+
+    /* Подвал */
+    .aero-footer {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #174b6f;
+      text-align: center;
+      text-shadow: 0 1px 1px rgba(255,255,255,0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Фон с пузырями -->
+  <canvas class="bubble-canvas" id="bubbleCanvas"></canvas>
+
+  <div class="container">
+    <div class="aero-window">
+      <!-- Titlebar -->
+      <div class="aero-titlebar">
+        <div class="window-title">
+          <span class="orb-icon"></span>
+          <span>Учебный год 2026–2027</span>
+        </div>
+        <div class="window-controls">
+          <div class="win-btn btn-min" title="Свернуть"></div>
+          <div class="win-btn btn-max" title="Развернуть"></div>
+          <div class="win-btn btn-close" title="Закрыть"></div>
+        </div>
+      </div>
+
+      <div class="aero-body">
+        <!-- Панель управления датой -->
+        <div class="toolbar-glass">
+          <div class="date-control">
+            <label for="datePicker">📅 Выберите дату отчёта:</label>
+            <input type="date" id="datePicker" value="2026-09-15" min="2026-09-01" max="2027-06-01">
+          </div>
+          <div class="preset-chips">
+            <button class="chip-btn" onclick="setDate('2026-09-14')">2 нед. (как на скрине)</button>
+            <button class="chip-btn" onclick="setDate('2026-10-15')">Середина 1 четв.</button>
+            <button class="chip-btn" onclick="setDate('2026-10-28')">Осенние каникулы</button>
+            <button class="chip-btn" onclick="setDate('2027-01-20')">3 четверть (11 нед.)</button>
+            <button class="chip-btn" onclick="setDate('2027-05-15')">Финал года</button>
+          </div>
+        </div>
+
+        <!-- ДИНАМИЧЕСКИЙ ТЕКСТОВЫЙ ОТЧЁТ (по шаблону пользователя) -->
+        <div class="report-card">
+          <div class="report-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            Информационная сводка на выбранную дату
+          </div>
+          <div class="report-text" id="dynamicReportText">
+            Загрузка данных...
+          </div>
+        </div>
+
+        <!-- ГРАФИКИ -->
+        <div class="dashboard-grid">
+          <!-- Круговой стеклянный спидометр года -->
+          <div class="orb-gauge-card">
+            <div style="font-weight: 700; font-size: 14px; color: #083c61; margin-bottom: 4px;">Общий прогресс года</div>
+            <div class="gauge-wrapper">
+              <svg class="gauge-svg" viewBox="0 0 120 120">
+                <defs>
+                  <linearGradient id="aeroGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#34f593" />
+                    <stop offset="50%" stop-color="#00d2ff" />
+                    <stop offset="100%" stop-color="#0072ff" />
+                  </linearGradient>
+                </defs>
+                <circle class="gauge-bg" cx="60" cy="60" r="48" />
+                <circle class="gauge-progress" id="circleProgress" cx="60" cy="60" r="48" 
+                        stroke-dasharray="301.59" stroke-dashoffset="301.59" />
+              </svg>
+              <div class="gauge-center">
+                <div class="gauge-pct" id="globalPercentLabel">0%</div>
+                <div class="gauge-sub" id="globalDaysLabel">0 / 238 дн.</div>
+              </div>
+            </div>
+            <div style="font-size: 11px; font-weight: 600; color: #356788; text-align: center;">
+              Всего: 34 учебные недели (238 дней)
+            </div>
+          </div>
+
+          <!-- Прогресс по 4 четвертям -->
+          <div class="quarters-card" id="quartersList">
+            <!-- Заполняется динамически JS -->
+          </div>
+        </div>
+
+        <!-- Интерактивное расписание всех 34 недель -->
+        <div class="tree-view">
+          <div class="tree-head">
+            <div class="tree-title">Карта недель и каникул (2026–2027)</div>
+            <div style="font-size: 12px; color: #205c86; font-weight: 600;">
+              1 нед. = 7 дней
+            </div>
+          </div>
+          <div class="weeks-grid" id="weeksGrid">
+            <!-- Заполняется динамически -->
+          </div>
+        </div>
+
+        <div class="aero-footer">
+          Основано на учебном календаре Минпросвещения РФ (2026–2027). Старт: 1 сентября 2026 г.
+		  <p>
+		  макар тебя надо в суд за гриферство
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // КОНФИГУРАЦИЯ УЧЕБНОГО ГОДА 2026-2027
+    // Четверти точно по вашему чеклисту: 8, 8, 11, 7 недель = 34 недели = 238 дней.
+    const SCHEDULE = [
+      {
+        id: 1,
+        name: "1 четверть",
+        weeks: 8,
+        days: 56,
+        start: new Date("2026-09-01"),
+        end: new Date("2026-10-26") // 56 дней (включительно)
+      },
+      {
+        id: "v1",
+        isVacation: true,
+        name: "Осенние каникулы",
+        weeks: 1,
+        days: 7,
+        start: new Date("2026-10-27"),
+        end: new Date("2026-11-02")
+      },
+      {
+        id: 2,
+        name: "2 четверть",
+        weeks: 8,
+        days: 56,
+        start: new Date("2026-11-03"),
+        end: new Date("2026-12-28")
+      },
+      {
+        id: "v2",
+        isVacation: true,
+        name: "Зимние каникулы",
+        weeks: 2,
+        days: 14,
+        start: new Date("2026-12-29"),
+        end: new Date("2027-01-11")
+      },
+      {
+        id: 3,
+        name: "3 четверть",
+        weeks: 11,
+        days: 77,
+        start: new Date("2027-01-12"),
+        end: new Date("2027-03-29")
+      },
+      {
+        id: "v3",
+        isVacation: true,
+        name: "Весенние каникулы",
+        weeks: 1,
+        days: 7,
+        start: new Date("2027-03-30"),
+        end: new Date("2027-04-05")
+      },
+      {
+        id: 4,
+        name: "4 четверть",
+        weeks: 7,
+        days: 49,
+        start: new Date("2027-04-06"),
+        end: new Date("2027-05-24")
+      }
+    ];
+
+    const TOTAL_STUDY_DAYS = 238;
+    const TOTAL_STUDY_WEEKS = 34;
+    const QUARTERS = SCHEDULE.filter(s => !s.isVacation);
+
+    function setDate(dateStr) {
+      document.getElementById('datePicker').value = dateStr;
+      calculateAndRender();
+    }
+
+    document.getElementById('datePicker').addEventListener('change', calculateAndRender);
+
+    function calculateAndRender() {
+      const selectedDate = new Date(document.getElementById('datePicker').value + "T00:00:00");
+      const oneDay = 1000 * 60 * 60 * 24;
+
+      let completedStudyDays = 0;
+      let finishedQuartersCount = 0;
+      let currentPeriod = null;
+      let currentQuarterIndex = -1;
+
+      // Определение пройденных дней в каждой четверти
+      QUARTERS.forEach((q, idx) => {
+        if (selectedDate > q.end) {
+          completedStudyDays += q.days;
+          finishedQuartersCount++;
+        } else if (selectedDate >= q.start && selectedDate <= q.end) {
+          const daysPassed = Math.floor((selectedDate - q.start) / oneDay) + 1;
+          completedStudyDays += Math.min(q.days, Math.max(0, daysPassed));
+          currentQuarterIndex = idx;
+          currentPeriod = { ...q, type: 'quarter', daysPassed };
+        }
+      });
+
+      // Проверка, может сейчас каникулы?
+      if (!currentPeriod) {
+        SCHEDULE.filter(s => s.isVacation).forEach(v => {
+          if (selectedDate >= v.start && selectedDate <= v.end) {
+            currentPeriod = { ...v, type: 'vacation' };
+          }
+        });
+      }
+
+      // Если до 1 сентября или после конца года
+      if (selectedDate < SCHEDULE[0].start) {
+        currentPeriod = { name: "Учебный год еще не начался", type: 'before' };
+      } else if (selectedDate > QUARTERS[3].end) {
+        currentPeriod = { name: "Учебный год завершён! Летние каникулы", type: 'after' };
+      }
+
+      // Проценты
+      const globalPercent = Math.min(100, Math.round((completedStudyDays / TOTAL_STUDY_DAYS) * 100));
+
+      // 1. ФОРМИРУЕМ ТЕКСТОВЫЙ ОТЧЕТ (точно по шаблону пользователя)
+      let reportHTML = "";
+
+      let quarterStatusText = "";
+      if (finishedQuartersCount === 0) {
+        quarterStatusText = "ни одна четверть пока не закончена";
+      } else if (finishedQuartersCount === 1) {
+        quarterStatusText = "полностью закончена 1 четверть";
+      } else if (finishedQuartersCount < 4) {
+        quarterStatusText = `полностью закончено ${finishedQuartersCount} четверти`;
+      } else {
+        quarterStatusText = "все 4 четверти закончены";
+      }
+
+      if (currentPeriod && currentPeriod.type === 'quarter') {
+        const qDays = currentPeriod.daysPassed;
+        const qPct = Math.min(100, Math.round((qDays / currentPeriod.days) * 100));
+        const qCompletedWeeks = Math.floor(qDays / 7);
+        const ordinalNames = ["первая", "вторая", "третья", "четвёртая"];
+        const qWord = ordinalNames[currentPeriod.id - 1] || `${currentPeriod.id}-я`;
+
+        reportHTML = `
+          Учебный год закончен на <span class="highlight-pill">${globalPercent}%</span> 
+          (пройдено ${completedStudyDays} из ${TOTAL_STUDY_DAYS} учебных дней), 
+          <strong>${quarterStatusText}</strong> (закончено четвертей: ${finishedQuartersCount} из 4).<br><br>
+          Текущая четверть <span class="highlight-pill highlight-green">${qWord}</span>, 
+          она закончена на <span class="highlight-pill">${qPct}%</span> 
+          (день ${qDays} из ${currentPeriod.days}), 
+          завершено полных недель: <strong>${qCompletedWeeks} из ${currentPeriod.weeks}</strong>.
+        `;
+      } else if (currentPeriod && currentPeriod.type === 'vacation') {
+        reportHTML = `
+          Учебный год закончен на <span class="highlight-pill">${globalPercent}%</span> 
+          (${completedStudyDays} из ${TOTAL_STUDY_DAYS} дней), 
+          <strong>${quarterStatusText}</strong>.<br><br>
+          Сейчас идут <span class="highlight-pill highlight-green">${currentPeriod.name}</span>! Отдых перед следующей четвертью.
+        `;
+      } else if (currentPeriod && currentPeriod.type === 'before') {
+        reportHTML = `Учебный год еще не начался. Отсчёт начнется 1 сентября 2026 года!`;
+      } else {
+        reportHTML = `
+          Поздравляем! Учебный год закончен на <span class="highlight-pill highlight-green">100%</span>. 
+          Завершены все 4 четверти (34 недели)! Летние каникулы!
+        `;
+      }
+
+      document.getElementById('dynamicReportText').innerHTML = reportHTML;
+
+      // 2. ОБНОВЛЯЕМ КРУГОВОЙ ГРАФИК
+      document.getElementById('globalPercentLabel').innerText = `${globalPercent}%`;
+      document.getElementById('globalDaysLabel').innerText = `${completedStudyDays} / ${TOTAL_STUDY_DAYS} дн.`;
+      
+      const circumference = 2 * Math.PI * 48; // ~301.59
+      const offset = circumference - (globalPercent / 100) * circumference;
+      document.getElementById('circleProgress').style.strokeDashoffset = offset;
+
+      // 3. БАРЫ ЧЕТВЕРТЕЙ
+      const quartersListEl = document.getElementById('quartersList');
+      quartersListEl.innerHTML = "";
+
+      QUARTERS.forEach((q, idx) => {
+        let qDays = 0;
+        let badge = '<span class="badge-status badge-pending">Ожидает</span>';
+
+        if (selectedDate > q.end) {
+          qDays = q.days;
+          badge = '<span class="badge-status badge-done">✓ Завершена</span>';
+        } else if (selectedDate >= q.start && selectedDate <= q.end) {
+          qDays = Math.min(q.days, Math.max(0, Math.floor((selectedDate - q.start) / oneDay) + 1));
+          badge = '<span class="badge-status badge-active">⚡ Текущая</span>';
+        }
+
+        const pct = Math.min(100, Math.round((qDays / q.days) * 100));
+        const weeksPassed = Math.min(q.weeks, Math.floor(qDays / 7));
+
+        const item = document.createElement('div');
+        item.className = 'q-item';
+        item.innerHTML = `
+          <div class="q-header">
+            <div class="q-title">
+              <span>${q.name}</span>
+              ${badge}
+            </div>
+            <div class="q-stats">
+              нед: ${weeksPassed}/${q.weeks} • дн: ${qDays}/${q.days} (${pct}%)
+            </div>
+          </div>
+          <div class="aero-bar-outer">
+            <div class="aero-bar-fill ${idx % 2 === 1 ? 'blue-fill' : ''}" style="width: ${pct}%"></div>
+          </div>
+        `;
+        quartersListEl.appendChild(item);
+      });
+
+      // 4. СЕТКА 34 НЕДЕЛЬ
+      const weeksGrid = document.getElementById('weeksGrid');
+      weeksGrid.innerHTML = "";
+
+      let runningStudyWeek = 1;
+      SCHEDULE.forEach((block) => {
+        if (!block.isVacation) {
+          for (let w = 1; w <= block.weeks; w++) {
+            const weekStart = new Date(block.start.getTime() + (w - 1) * 7 * oneDay);
+            const weekEnd = new Date(weekStart.getTime() + 6 * oneDay);
+
+            let statusClass = "";
+            let statusLabel = "0/7 дн";
+
+            if (selectedDate > weekEnd) {
+              statusClass = "completed";
+              statusLabel = "7/7 дн (100%)";
+            } else if (selectedDate >= weekStart && selectedDate <= weekEnd) {
+              statusClass = "current-active";
+              const curDays = Math.floor((selectedDate - weekStart) / oneDay) + 1;
+              statusLabel = `${curDays}/7 дн (идёт)`;
+            }
+
+            const pill = document.createElement('div');
+            pill.className = `week-pill ${statusClass}`;
+            pill.innerHTML = `
+              <div class="pill-row1">
+                <span>W${runningStudyWeek} • ${block.id} четв.</span>
+                <span>${statusClass === 'completed' ? '✓' : ''}</span>
+              </div>
+              <div class="pill-row2">нед. ${w} из ${block.weeks} (${statusLabel})</div>
+            `;
+            weeksGrid.appendChild(pill);
+            runningStudyWeek++;
+          }
+        } else {
+          // Каникулярная карточка
+          const isVacNow = selectedDate >= block.start && selectedDate <= block.end;
+          const isVacPassed = selectedDate > block.end;
+          const pill = document.createElement('div');
+          pill.className = `week-pill vacation ${isVacNow ? 'current-active' : ''} ${isVacPassed ? 'completed' : ''}`;
+          pill.style.opacity = isVacPassed ? '0.7' : '1';
+          pill.innerHTML = `
+            <div class="pill-row1" style="color:#b21652">
+              <span>🏖️ ${block.name}</span>
+            </div>
+            <div class="pill-row2">${block.weeks} нед. отдыха</div>
+          `;
+          weeksGrid.appendChild(pill);
+        }
+      });
+    }
+
+    // ГЕНЕРАТОР ПУЗЫРЕЙ В СТИЛЕ AERO
+    const canvas = document.getElementById('bubbleCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let bubbles = [];
+
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Bubble {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * width;
+        this.y = height + Math.random() * 80;
+        this.radius = 6 + Math.random() * 22;
+        this.speed = 0.5 + Math.random() * 1.2;
+        this.drift = (Math.random() - 0.5) * 0.6;
+        this.alpha = 0.25 + Math.random() * 0.45;
+      }
+      update() {
+        this.y -= this.speed;
+        this.x += this.drift;
+        if (this.y < -50) this.reset();
+      }
+      draw() {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha * 0.15})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha * 0.8})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Спекулярный блик
+        ctx.beginPath();
+        ctx.arc(this.x - this.radius * 0.35, this.y - this.radius * 0.35, this.radius * 0.25, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha * 0.9})`;
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    for (let i = 0; i < 35; i++) {
+      const b = new Bubble();
+      b.y = Math.random() * height;
+      bubbles.push(b);
+    }
+
+    function animateBubbles() {
+      ctx.clearRect(0, 0, width, height);
+      bubbles.forEach(b => {
+        b.update();
+        b.draw();
+      });
+      requestAnimationFrame(animateBubbles);
+    }
+    animateBubbles();
+
+    // Первоначальный запуск
+    calculateAndRender();
+  </script>
+</body>
+</html>
