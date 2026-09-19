@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aero Plan & Competence Generator</title>
+    <style>
+        /* --- СТИЛИСТИКА FRUTIGER AERO (RED/WHITE) --- */
+        :root {
+            --primary-red: #e62129;
+            --glossy-red: linear-gradient(180deg, #ff5e62 0%, #e62129 40%, #b30e15 100%);
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --text-dark: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(circle at 80% 20%, rgba(255, 182, 193, 0.3) 0%, rgba(240, 244, 248, 1) 100%);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Глянцевые панели */
+        .aero-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 8px 32px 0 rgba(179, 14, 21, 0.08), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Имитация блика Frutiger Aero */
+        .aero-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+        }
+
+        h1, h2, h3 {
+            color: #b30e15;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+            margin-top: 0;
+        }
+
+        /* Кнопки Aero */
+        .aero-btn {
+            background: var(--glossy-red);
+            color: white;
+            border: 1px solid #990a0f;
+            border-radius: 25px;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(230, 33, 41, 0.3), 
+                        inset 0 1px 2px rgba(255,255,255,0.6);
+            transition: all 0.2s ease;
+            text-shadow: 0 -1px 1px rgba(0,0,0,0.3);
+        }
+
+        .aero-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(230, 33, 41, 0.5), 
+                        inset 0 1px 4px rgba(255,255,255,0.8);
+            filter: brightness(1.1);
+        }
+
+        .aero-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 5px rgba(230, 33, 41, 0.4);
+        }
+
+        .aero-btn.secondary {
+            background: linear-gradient(180deg, #ffffff 0%, #e6e6e6 100%);
+            color: #444;
+            border: 1px solid #ccc;
+            text-shadow: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .aero-btn.secondary:hover { filter: brightness(0.95); }
+
+        /* Навигация */
+        .menu-nav {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        textarea, input, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            background: rgba(255,255,255,0.9);
+            box-sizing: border-box;
+            font-family: inherit;
+            margin-bottom: 15px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        textarea:focus, input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-red);
+            box-shadow: 0 0 8px rgba(230, 33, 41, 0.3);
+        }
+
+        /* Сетка конструктора планов */
+        .planner-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        /* Адаптивность для мобильных */
+        @media (max-width: 768px) {
+            .planner-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Визуальные блоки задач */
+        .block-list {
+            margin-top: 15px;
+        }
+        .task-block {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(245,245,245,0.9) 100%);
+            border-left: 5px solid var(--primary-red);
+            border-top: 1px solid #eee; border-right: 1px solid #eee; border-bottom: 1px solid #eee;
+            padding: 12px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 10px;
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: relative;
+            user-select: none;
+        }
+        .task-block:active {
+            cursor: grabbing;
+        }
+        .task-block:hover {
+            transform: scale(1.01);
+            background: #fff6f6;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Стили для перетаскивания (Drag & Drop) */
+        .task-block.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--primary-red);
+            background: rgba(230, 33, 41, 0.05);
+        }
+
+        /* Кнопки управления внутри блока */
+        .block-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .control-btn {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .control-btn:hover {
+            background: var(--primary-red);
+            color: white;
+            border-color: var(--primary-red);
+        }
+
+        /* Модалка Aero */
+        .modal-overlay {
+            position: fixed;
+            top:0; left:0; right:0; bottom:0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 550px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border: 1px solid var(--primary-red);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* Стили для итоговой таблицы экспорта */
+        .export-preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+        }
+        .export-preview-table th, .export-preview-table td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: left;
+            font-size: 13px;
+        }
+        .export-preview-table th { background-color: #f2f2f2; }
+
+        /* Всплывающий статус сохранения */
+        .save-badge {
+            font-size: 11px;
+            background: rgba(39, 174, 96, 0.15);
+            color: #27ae60;
+            border: 1px solid rgba(39, 174, 96, 0.3);
+            border-radius: 12px;
+            padding: 3px 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: normal;
+            vertical-align: middle;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+        .save-badge.saving {
+            background: rgba(230, 33, 41, 0.1);
+            color: var(--primary-red);
+            border-color: rgba(230, 33, 41, 0.2);
+        }
+
+        /* Кастомные Aero уведомления */
+        .aero-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-left: 5px solid var(--primary-red);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            padding: 12px 20px;
+            border-radius: 4px;
+            z-index: 9999;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+            backdrop-filter: blur(8px);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <div class="aero-panel menu-nav">
+        <button class="aero-btn" onclick="switchScreen('comp-screen')">Генерация JSON компетенций</button>
+        <button class="aero-btn" onclick="switchScreen('plan-screen')">Оформление Ежедневного плана</button>
+    </div>
+
+    <div id="comp-screen" class="screen active aero-panel">
+        <h2>Генератор JSON кода компетенций</h2>
+        <p style="font-size: 13px; color:#666;">Загрузите файл с компетенциями (.txt, .csv):</p>
+        <input type="file" id="file-input" accept=".txt, .csv" style="margin-bottom: 10px;">
+        <textarea id="raw-table-input" rows="8" placeholder="Или вставьте текст вручную..."></textarea>
+        <button class="aero-btn" onclick="parseCompetencies()">1. Анализ и конвертация</button>
+        
+        <h3 style="margin-top:20px;">Результат (JSON код):</h3>
+        <textarea id="json-output" rows="8" readonly placeholder="Здесь появится готовый JSON..."></textarea>
+        <button class="aero-btn secondary" onclick="copyJsonOutput()">Скопировать JSON код</button>
+    </div>
+
+    <div id="plan-screen" class="screen aero-panel">
+        <h2>
+            Конструктор Ежедневного Плана
+            <span id="save-status" class="save-badge">Проверка подключения...</span>
+        </h2>
+        
+        <div style="display:flex; gap:15px; margin-bottom:15px; background: rgba(255,255,255,0.5); padding:10px; border-radius:8px; flex-wrap: wrap;">
+            <label style="display:flex; align-items:center; gap:5px; font-size:14px;">
+                Макс. часов в день: 
+                <input type="number" id="max-hours" value="9" style="width:60px; margin:0; padding:5px;" oninput="onSettingsChanged()">
+            </label>
+            <label style="display:flex; align-items:center; gap:5px; font-size:14px;">
+                Дата дня: 
+                <input type="date" id="plan-date" style="width:140px; margin:0; padding:5px;" onchange="onSettingsChanged()">
+            </label>
+        </div>
+
+        <div class="planner-layout">
+            <div>
+                <h3>Шаг 1: Загрузка базы</h3>
+                <textarea id="json-input" rows="4" placeholder="Вставь сгенерированный JSON сюда..."></textarea>
+                <button class="aero-btn secondary" style="width:100%; margin-bottom:15px;" onclick="loadJsonData()">Инициализировать блоки</button>
+
+                <h3>Шаг 2: Добавить блок</h3>
+                <label style="font-size:12px; font-weight: bold;">Выбрать ИД компетенции:</label>
+                <select id="id-select">
+                    <option value="">-- Сначала загрузите JSON --</option>
+                </select>
+                
+                <label style="font-size:12px; font-weight: bold;">Или быстрый кастомный шаблон:</label>
+                <select id="custom-select">
+                    <option value="">-- Выбрать шаблон --</option>
+                    <option value="Прибытие">Прибытие на рабочее место</option>
+                    <option value="Обед">Перерыв на обед</option>
+                    <option value="Завершение">Завершение рабочего дня</option>
+                </select>
+
+                <label style="font-size:12px; font-weight: bold; margin-top: 5px; display: block;">Или введите свой кастомный текст:</label>
+                <input type="text" id="manual-custom-input" placeholder="Введите название своего дела...">
+                
+                <button class="aero-btn" style="width:100%; margin-top:5px;" onclick="addBlock()">Добавить в план</button>
+            </div>
+
+            <div>
+                <h3>Текущие блоки дня (нажми для редактирования, перетаскивай для сортировки)</h3>
+                <div id="blocks-container" class="block-list">
+                    <!-- Сюда динамически добавляются блоки -->
+                </div>
+                <div id="total-hours-info" style="font-weight:bold; font-size:14px; text-align:right; margin-bottom:10px; color:#b30e15;">
+                    Всего: 0 ч. / 9 ч.
+                </div>
+
+                <button class="aero-btn" style="width:100%; background: #27ae60;" onclick="generateWordTable()">Сгенерировать таблицу для Word</button>
+            </div>
+        </div>
+
+        <div id="word-export-section" style="display:none; margin-top:25px; border-top: 2px dashed #ccc; padding-top:20px;">
+            <h3>Готовая таблица для копирования</h3>
+            <p style="font-size:12px; color:#555;">Нажми кнопку ниже, затем перейди в Word и просто нажми Ctrl+V!</p>
+            <button class="aero-btn" onclick="copyTableToClipboard()">Скопировать таблицу для Word</button>
+            <div id="table-holder"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования -->
+<div id="edit-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Редактировать параметры блока</h3>
+        <input type="hidden" id="edit-index">
+        
+        <label style="font-weight: bold;">Название деятельности (Содержание работы):</label>
+        <textarea id="edit-title" rows="3"></textarea>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom: 15px;">
+            <div>
+                <label style="font-size:12px; font-weight: bold;">Начало:</label>
+                <input type="time" id="edit-start" style="margin-bottom:0;">
+            </div>
+            <div>
+                <label style="font-size:12px; font-weight: bold;">Длительность:</label>
+                <input type="time" id="edit-duration" style="margin-bottom:0;" placeholder="чч:мм">
+            </div>
+            <div>
+                <label style="font-size:12px; font-weight: bold;">Окончание:</label>
+                <input type="time" id="edit-end" style="margin-bottom:0;">
+            </div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #ccc; margin: 15px 0;">
+
+        <!-- Раздел быстрого изменения ПК и ИД -->
+        <h4 style="margin: 0 0 10px 0; color: #b30e15;">Привязка к компетенциям (ПК и ИД)</h4>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+            <div>
+                <label style="font-size:12px; font-weight: bold;">Выбрать ПК:</label>
+                <select id="edit-pk-select" style="margin-bottom:0;" onchange="onModalPkChanged()">
+                    <option value="-">-- Нет (Кастомный) --</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:12px; font-weight: bold;">Выбрать ИД:</label>
+                <select id="edit-id-select" style="margin-bottom:0;" onchange="onModalIdChanged()">
+                    <option value="-">-- Нет (Кастомный) --</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:20px; justify-content: flex-end;">
+            <button class="aero-btn secondary" onclick="closeModal()">Отмена</button>
+            <button class="aero-btn secondary" style="background:#e74c3c; color:white; border:none;" onclick="deleteBlockFromModal()">Удалить</button>
+            <button class="aero-btn" onclick="saveModalChanges()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- Всплывающий Тост -->
+<div id="toast" class="aero-toast"></div>
+
+<!-- Подключение Firebase через ESM для работы с Firestore -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- ГЛОБАЛЬНОЕ СОСТОЯНИЕ ПРИЛОЖЕНИЯ ---
+    let appState = {
+        competencies: {}, // Хранилище распарсенных ПК и ИД
+        dayPlan: []       // Массив блоков текущего дня
+    };
+
+    let isTimeUpdating = false;
+    let auth = null;
+    let db = null;
+    let appId = null;
+    let userId = null;
+    let saveTimeout = null;
+
+    // Установка сегодняшней даты по умолчанию
+    document.getElementById('plan-date').valueAsDate = new Date();
+
+    // Кастомный Тост вместо браузерного alert
+    function showToast(text) {
+        const toast = document.getElementById('toast');
+        toast.textContent = text;
+        toast.style.display = 'block';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 3000);
+    }
+
+    function switchScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    // Обработка выбора файла
+    document.getElementById('file-input').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileName = file.name.toLowerCase();
+        const reader = new FileReader();
+
+        if (fileName.endsWith('.docx')) {
+            reader.onload = async function(event) {
+                const arrayBuffer = event.target.result;
+                const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                document.getElementById('raw-table-input').value = result.value;
+            };
+            reader.readAsArrayBuffer(file);
+        } 
+        else if (fileName.endsWith('.pdf')) {
+            reader.onload = async function(event) {
+                const typedarray = new Uint8Array(event.target.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    fullText += textContent.items.map(s => s.str).join(" ") + "\n";
+                }
+                document.getElementById('raw-table-input').value = fullText;
+            };
+            reader.readAsArrayBuffer(file);
+        } 
+        else {
+            showToast("Пожалуйста, выберите файл .docx или .pdf");
+        }
+    });
+
+    // --- ЭКРАН 1: ЛОГИКА ПАРСИНГА ТАБЛИЦЫ ---
+    function parseCompetencies() {
+        let rawText = document.getElementById('raw-table-input').value;
+        if(!rawText.trim()) { showToast("Данных нет!"); return; }
+
+        let lines = rawText.split('\n');
+        let cleanedLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+            if (!line) continue;
+
+            if (!/^(ПК-|ИД-)/i.test(line) && cleanedLines.length > 0) {
+                cleanedLines[cleanedLines.length - 1] += " " + line;
+            } else {
+                cleanedLines.push(line);
+            }
+        }
+
+        let result = {};
+        let currentPk = "";
+
+        cleanedLines.forEach(line => {
+            const pkMatch = line.match(/(ПК-\d+)/i);
+            const idMatch = line.match(/(ИД-\d+.*?ПК-\d+)/i);
+
+            if (pkMatch && !idMatch) {
+                currentPk = pkMatch[1].toUpperCase();
+                if (!result[currentPk]) {
+                    result[currentPk] = { name: line.replace(pkMatch[0], '').trim(), indicators: {} };
+                }
+            }
+            
+            if (idMatch) {
+                let idCode = idMatch[1].toUpperCase().replace(/\s+/g, ' ');
+                if(!currentPk) {
+                    const subPk = idCode.match(/(ПК-\d+)/i);
+                    if(subPk) currentPk = subPk[1].toUpperCase();
+                }
+
+                if(currentPk && !result[currentPk]) {
+                    result[currentPk] = { name: "Описание компетенции", indicators: {} };
+                }
+
+                let textClean = line.replace(idMatch[0], '').replace(/^[^a-zA-Zа-яА-ЯёЁ]+/, '').trim();
+                if(currentPk) {
+                    result[currentPk].indicators[idCode] = textClean;
+                }
+            }
+        });
+
+        if(Object.keys(result).length === 0) {
+            showToast("Не удалось распознать структуру. Маркеры: ПК-1 или ИД-1 ПК-1.");
+            return;
+        }
+
+        document.getElementById('json-output').value = JSON.stringify(result, null, 4);
+        document.getElementById('json-input').value = JSON.stringify(result, null, 4);
+        showToast("Компетенции успешно проанализированы!");
+        
+        // Автоматически загружаем созданный JSON
+        loadJsonData();
+    }
+
+    function copyJsonOutput() {
+        const output = document.getElementById('json-output');
+        output.select();
+        document.execCommand('copy');
+        showToast("JSON код скопирован!");
+    }
+
+    // --- ЭКРАН 2: ЛОГИКА ДНЕВНОГО ПЛАНА ---
+    function loadJsonData(silent = false) {
+        try {
+            const rawJson = document.getElementById('json-input').value.trim();
+            if(!rawJson) {
+                if (!silent) throw new Error("Поле JSON пустое");
+                return;
+            }
+            
+            appState.competencies = JSON.parse(rawJson);
+            
+            const idSelect = document.getElementById('id-select');
+            idSelect.innerHTML = '<option value="">-- Выбери ИД --</option>';
+            
+            Object.keys(appState.competencies).forEach(pk => {
+                const indicators = appState.competencies[pk].indicators;
+                Object.keys(indicators).forEach(idKey => {
+                    let option = document.createElement('option');
+                    option.value = `${pk}|||${idKey}`;
+                    option.textContent = `${idKey} — ${indicators[idKey].substring(0, 50)}...`;
+                    idSelect.appendChild(option);
+                });
+            });
+            
+            initModalCompetencyDropdowns();
+            triggerSave();
+            if (!silent) showToast("Данные компетенций успешно загружены!");
+        } catch(e) {
+            if (!silent) showToast("Ошибка чтения JSON: " + e.message);
+        }
+    }
+
+    function addBlock() {
+        const idSelect = document.getElementById('id-select').value;
+        const customSelect = document.getElementById('custom-select').value;
+        const manualCustomText = document.getElementById('manual-custom-input').value.trim();
+        
+        let newBlock = {
+            startTime: "09:00",
+            endTime: "10:00",
+            title: "",
+            pk: "-",
+            idCode: "-"
+        };
+
+        if(appState.dayPlan.length > 0) {
+            const lastBlock = appState.dayPlan[appState.dayPlan.length - 1];
+            newBlock.startTime = lastBlock.endTime;
+            let [h, m] = lastBlock.endTime.split(':').map(Number);
+            h = (h + 1) % 24;
+            newBlock.endTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        }
+
+        if(manualCustomText) {
+            newBlock.title = manualCustomText;
+            document.getElementById('manual-custom-input').value = "";
+            document.getElementById('custom-select').value = "";
+        } else if(customSelect) {
+            newBlock.title = document.getElementById('custom-select').options[document.getElementById('custom-select').selectedIndex].text;
+            document.getElementById('custom-select').value = "";
+        } else if(idSelect) {
+            const [pk, idKey] = idSelect.split('|||');
+            newBlock.pk = pk;
+            newBlock.idCode = idKey;
+            newBlock.title = appState.competencies[pk].indicators[idKey];
+        } else {
+            showToast("Выберите ИД компетенции, шаблон или введите текст!");
+            return;
+        }
+
+        appState.dayPlan.push(newBlock);
+        renderBlocks();
+        triggerSave();
+    }
+
+    function calculateHours(start, end) {
+        let [sH, sM] = start.split(':').map(Number);
+        let [eH, eM] = end.split(':').map(Number);
+        
+        let startMinutes = sH * 60 + sM;
+        let endMinutes = eH * 60 + eM;
+        
+        if(endMinutes < startMinutes) endMinutes += 24 * 60;
+        
+        return ((endMinutes - startMinutes) / 60).toFixed(1);
+    }
+
+    function timeToMinutes(tStr) {
+        let [h, m] = tStr.split(':').map(Number);
+        return h * 60 + m;
+    }
+
+    function minutesToTime(mins) {
+        mins = mins % 1440;
+        if(mins < 0) mins += 1440;
+        let h = Math.floor(mins / 60);
+        let m = mins % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function updateDurationFromTimes() {
+        if (isTimeUpdating) return;
+        isTimeUpdating = true;
+
+        const start = document.getElementById('edit-start').value;
+        const end = document.getElementById('edit-end').value;
+
+        if (start && end) {
+            let sMins = timeToMinutes(start);
+            let eMins = timeToMinutes(end);
+            let diff = eMins - sMins;
+            if (diff < 0) diff += 1440;
+
+            let durH = Math.floor(diff / 60);
+            let durM = diff % 60;
+            document.getElementById('edit-duration').value = `${String(durH).padStart(2, '0')}:${String(durM).padStart(2, '0')}`;
+        }
+        isTimeUpdating = false;
+    }
+
+    function updateEndFromDuration() {
+        if (isTimeUpdating) return;
+        isTimeUpdating = true;
+
+        const start = document.getElementById('edit-start').value;
+        const duration = document.getElementById('edit-duration').value;
+
+        if (start && duration) {
+            let sMins = timeToMinutes(start);
+            let dMins = timeToMinutes(duration);
+            let total = sMins + dMins;
+            
+            document.getElementById('edit-end').value = minutesToTime(total);
+        }
+        isTimeUpdating = false;
+    }
+
+    document.getElementById('edit-start').addEventListener('input', updateEndFromDuration);
+    document.getElementById('edit-end').addEventListener('input', updateDurationFromTimes);
+    document.getElementById('edit-duration').addEventListener('input', updateEndFromDuration);
+
+    function moveBlock(index, direction) {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= appState.dayPlan.length) return;
+        
+        const temp = appState.dayPlan[index];
+        appState.dayPlan[index] = appState.dayPlan[targetIndex];
+        appState.dayPlan[targetIndex] = temp;
+        
+        renderBlocks();
+        triggerSave();
+    }
+
+    function renderBlocks() {
+        const container = document.getElementById('blocks-container');
+        container.innerHTML = "";
+        
+        let totalHours = 0;
+
+        appState.dayPlan.forEach((block, index) => {
+            const hours = calculateHours(block.startTime, block.endTime);
+            totalHours += parseFloat(hours);
+
+            const blockEl = document.createElement('div');
+            blockEl.className = 'task-block';
+            blockEl.draggable = true;
+            blockEl.dataset.index = index;
+            
+            blockEl.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:bold; color:#777; margin-bottom:4px;">
+                    <span style="cursor: pointer;" onclick="event.stopPropagation(); window.openModal(${index})">⏱ ${block.startTime} - ${block.endTime} (${hours} ч.)</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="color:#b30e15;">${block.idCode !== '-' ? getShortIdOnly(block.idCode) : 'Кастомный'}</span>
+                        <div class="block-controls" onclick="event.stopPropagation();">
+                            <button class="control-btn" title="Вверх" onclick="window.moveBlock(${index}, -1)" ${index === 0 ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>▲</button>
+                            <button class="control-btn" title="Вниз" onclick="window.moveBlock(${index}, 1)" ${index === appState.dayPlan.length - 1 ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>▼</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size:14px; color:#2c3e50; font-weight:500;" onclick="window.openModal(${index})">${block.title}</div>
+            `;
+
+            // Drag & Drop
+            blockEl.addEventListener('dragstart', (e) => {
+                blockEl.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', index);
+            });
+
+            blockEl.addEventListener('dragend', () => {
+                blockEl.classList.remove('dragging');
+            });
+
+            blockEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const draggingEl = document.querySelector('.dragging');
+                if (!draggingEl || draggingEl === blockEl) return;
+
+                const bounding = blockEl.getBoundingClientRect();
+                const offset = e.clientY - bounding.top - bounding.height / 2;
+                
+                if (offset < 0) {
+                    container.insertBefore(draggingEl, blockEl);
+                } else {
+                    container.insertBefore(draggingEl, blockEl.nextSibling);
+                }
+            });
+
+            blockEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                reorderPlanFromDOM();
+            });
+
+            container.appendChild(blockEl);
+        });
+
+        const maxHours = document.getElementById('max-hours').value || 9;
+        const infoEl = document.getElementById('total-hours-info');
+        infoEl.textContent = `Всего: ${totalHours.toFixed(1)} ч. / ${maxHours} ч.`;
+        
+        if(totalHours > maxHours) {
+            infoEl.style.color = "#e62129";
+            infoEl.textContent += " (Превышение лимита!)";
+        } else {
+            infoEl.style.color = "#27ae60";
+        }
+    }
+
+    function reorderPlanFromDOM() {
+        const container = document.getElementById('blocks-container');
+        const domBlocks = Array.from(container.querySelectorAll('.task-block'));
+        const newPlan = [];
+
+        domBlocks.forEach(domEl => {
+            const index = parseInt(domEl.dataset.index);
+            newPlan.push(appState.dayPlan[index]);
+        });
+
+        appState.dayPlan = newPlan;
+        renderBlocks();
+        triggerSave();
+    }
+
+    function initModalCompetencyDropdowns() {
+        const pkSelect = document.getElementById('edit-pk-select');
+        pkSelect.innerHTML = '<option value="-">-- Нет (Кастомный) --</option>';
+        
+        Object.keys(appState.competencies).forEach(pk => {
+            let option = document.createElement('option');
+            option.value = pk;
+            option.textContent = pk;
+            pkSelect.appendChild(option);
+        });
+    }
+
+    function onModalPkChanged() {
+        const pk = document.getElementById('edit-pk-select').value;
+        const idSelect = document.getElementById('edit-id-select');
+        
+        idSelect.innerHTML = '<option value="-">-- Нет (Кастомный) --</option>';
+        
+        if (pk !== '-' && appState.competencies[pk]) {
+            const indicators = appState.competencies[pk].indicators;
+            Object.keys(indicators).forEach(idKey => {
+                let option = document.createElement('option');
+                option.value = idKey;
+                option.textContent = idKey;
+                idSelect.appendChild(option);
+            });
+        }
+    }
+
+    function onModalIdChanged() {
+        const pk = document.getElementById('edit-pk-select').value;
+        const idCode = document.getElementById('edit-id-select').value;
+        
+        if (pk !== '-' && idCode !== '-' && appState.competencies[pk] && appState.competencies[pk].indicators[idCode]) {
+            const currentTitle = document.getElementById('edit-title').value.trim();
+            if (!currentTitle) {
+                document.getElementById('edit-title').value = appState.competencies[pk].indicators[idCode];
+            }
+        }
+    }
+
+    function openModal(index) {
+        const block = appState.dayPlan[index];
+        document.getElementById('edit-index').value = index;
+        document.getElementById('edit-title').value = block.title;
+        document.getElementById('edit-start').value = block.startTime;
+        document.getElementById('edit-end').value = block.endTime;
+        
+        isTimeUpdating = true;
+        let sMins = timeToMinutes(block.startTime);
+        let eMins = timeToMinutes(block.endTime);
+        let diff = eMins - sMins;
+        if (diff < 0) diff += 1440;
+        let durH = Math.floor(diff / 60);
+        let durM = diff % 60;
+        document.getElementById('edit-duration').value = `${String(durH).padStart(2, '0')}:${String(durM).padStart(2, '0')}`;
+        isTimeUpdating = false;
+
+        const pkSelect = document.getElementById('edit-pk-select');
+        const idSelect = document.getElementById('edit-id-select');
+        
+        if (Object.keys(appState.competencies).length > 0) {
+            pkSelect.value = block.pk;
+            onModalPkChanged();
+            idSelect.value = block.idCode;
+        } else {
+            pkSelect.value = "-";
+            idSelect.innerHTML = '<option value="-">-- Нет (Кастомный) --</option>';
+        }
+        
+        document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('edit-modal').style.display = 'none';
+    }
+
+    function saveModalChanges() {
+        const index = document.getElementById('edit-index').value;
+        appState.dayPlan[index].title = document.getElementById('edit-title').value;
+        appState.dayPlan[index].startTime = document.getElementById('edit-start').value;
+        appState.dayPlan[index].endTime = document.getElementById('edit-end').value;
+        
+        appState.dayPlan[index].pk = document.getElementById('edit-pk-select').value;
+        appState.dayPlan[index].idCode = document.getElementById('edit-id-select').value;
+        
+        closeModal();
+        renderBlocks();
+        triggerSave();
+    }
+
+    function deleteBlockFromModal() {
+        const index = document.getElementById('edit-index').value;
+        if(confirm("Удалить этот блок из плана?")) {
+            appState.dayPlan.splice(index, 1);
+            closeModal();
+            renderBlocks();
+            triggerSave();
+        }
+    }
+
+    function getShortIdOnly(rawId) {
+        if (!rawId || rawId === '-') return '-';
+        const match = rawId.match(/(ИД-\d+)/i);
+        if (match) {
+            return match[1].toUpperCase();
+        }
+        return rawId;
+    }
+
+    // --- АНТИСБРОС СИСТЕМА (ПЕРСИСТЕНТНОСТЬ) ---
+
+    // Сигнал об изменении параметров на экране
+    function onSettingsChanged() {
+        renderBlocks();
+        triggerSave();
+    }
+
+    // Отложенное автосохранение, чтобы не перегружать БД
+    function triggerSave() {
+        const statusEl = document.getElementById('save-status');
+        statusEl.textContent = "Сохранение...";
+        statusEl.classList.add('saving');
+
+        if (saveTimeout) clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            await saveStateToStorage();
+        }, 500);
+    }
+
+    async function saveStateToStorage() {
+        const statusEl = document.getElementById('save-status');
+        const statePayload = {
+            competencies: appState.competencies,
+            dayPlan: appState.dayPlan,
+            maxHours: document.getElementById('max-hours').value,
+            planDate: document.getElementById('plan-date').value,
+            rawJson: document.getElementById('json-input').value
+        };
+
+        // 1. Попытка сохранения в Firestore, если Firebase доступен
+        if (db && userId) {
+            try {
+                // Путь согласно RULE 1
+                const stateDoc = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'state');
+                await setDoc(stateDoc, statePayload);
+                statusEl.textContent = "Синхронизировано с облаком";
+                statusEl.classList.remove('saving');
+                return;
+            } catch (error) {
+                console.error("Ошибка облачного сохранения:", error);
+            }
+        }
+
+        // 2. Резервный запуск LocalStorage для автономного использования
+        try {
+            localStorage.setItem('aero_plan_state', JSON.stringify(statePayload));
+            statusEl.textContent = "Сохранено локально";
+            statusEl.classList.remove('saving');
+        } catch (error) {
+            console.error("Локальное сохранение недоступно:", error);
+            statusEl.textContent = "Ошибка сохранения";
+            statusEl.classList.remove('saving');
+        }
+    }
+
+    async function loadSavedState() {
+        const statusEl = document.getElementById('save-status');
+        let savedState = null;
+
+        // 1. Пытаемся загрузить из облака (Firestore)
+        if (db && userId) {
+            try {
+                const stateDoc = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'state');
+                const docSnap = await getDoc(stateDoc);
+                if (docSnap.exists()) {
+                    savedState = docSnap.data();
+                    statusEl.textContent = "Синхронизировано с облаком";
+                }
+            } catch (error) {
+                console.error("Ошибка загрузки из облака:", error);
+            }
+        }
+
+        // 2. Если из облака не загружено, пытаемся загрузить из локального кэша
+        if (!savedState) {
+            try {
+                const localData = localStorage.getItem('aero_plan_state');
+                if (localData) {
+                    savedState = JSON.parse(localData);
+                    statusEl.textContent = "Восстановлено локально";
+                } else {
+                    statusEl.textContent = "Новый дневник";
+                }
+            } catch (error) {
+                console.error("Локальная загрузка недоступна:", error);
+                statusEl.textContent = "Ошибка загрузки";
+            }
+        }
+
+        // Применяем сохраненное состояние
+        if (savedState) {
+            if (savedState.competencies) appState.competencies = savedState.competencies;
+            if (savedState.dayPlan) appState.dayPlan = savedState.dayPlan;
+            if (savedState.maxHours) document.getElementById('max-hours').value = savedState.maxHours;
+            if (savedState.planDate) document.getElementById('plan-date').value = savedState.planDate;
+            if (savedState.rawJson) {
+                document.getElementById('json-input').value = savedState.rawJson;
+                loadJsonData(true); // Загружаем селекторы тихо
+            }
+            renderBlocks();
+        }
+    }
+
+    // Инициализация Firebase по правилам платформы
+    const initFirebase = async () => {
+        const statusEl = document.getElementById('save-status');
+        if (typeof __firebase_config === 'undefined') {
+            // Режим локального использования
+            statusEl.textContent = "Автономный режим (сохранено на ПК)";
+            await loadSavedState();
+            return;
+        }
+
+        try {
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+            // Вызов аутентификации в приоритетном порядке (RULE 3)
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    await loadSavedState();
+                } else {
+                    // Резервный локальный сценарий, если пользователь не авторизован
+                    await loadSavedState();
+                }
+            });
+
+        } catch (e) {
+            console.error("Ошибка инициализации Firebase:", e);
+            statusEl.textContent = "Автономный режим (сохранено на ПК)";
+            await loadSavedState();
+        }
+    };
+
+    // --- ВЫГРУЗКА И СВЯЗЬ С WORD ---
+    function generateWordTable() {
+        if(appState.dayPlan.length === 0) {
+            showToast("План пуст! Добавьте блоки.");
+            return;
+        }
+
+        const rawDate = document.getElementById('plan-date').value;
+        const dateObj = new Date(rawDate);
+        const formattedDate = dateObj.toLocaleDateString('ru-RU');
+
+        let tableHtml = `
+            <table class="export-preview-table" border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="width: 15%; border: 1px solid #000; padding: 8px;">Дата/Время</th>
+                        <th style="width: 45%; border: 1px solid #000; padding: 8px;">Содержание и вид выполненной работы</th>
+                        <th style="width: 10%; border: 1px solid #000; padding: 8px;">Количество часов</th>
+                        <th style="width: 10%; border: 1px solid #000; padding: 8px;">ПК</th>
+                        <th style="width: 10%; border: 1px solid #000; padding: 8px;">ИД</th>
+                        <th style="width: 10%; border: 1px solid #000; padding: 8px;">Подпись</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        appState.dayPlan.forEach((block, i) => {
+            const hours = calculateHours(block.startTime, block.endTime);
+            const cleanedId = getShortIdOnly(block.idCode);
+
+            tableHtml += `
+                <tr>
+                    <td style="border: 1px solid #000; padding: 8px; vertical-align: top;">
+                        ${formattedDate}<br><small>${block.startTime}-${block.endTime}</small>
+                    </td>
+                    <td style="border: 1px solid #000; padding: 8px; vertical-align: top;">${block.title}</td>
+                    <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top;">${hours}</td>
+                    <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top;">${block.pk}</td>
+                    <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top;">${cleanedId}</td>
+            `;
+            
+            if(i === 0) {
+                tableHtml += `<td rowspan="${appState.dayPlan.length}" style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: middle;"></td>`;
+            }
+            
+            tableHtml += `</tr>`;
+        });
+
+        tableHtml += `
+                </tbody>
+            </table>
+        `;
+
+        document.getElementById('table-holder').innerHTML = tableHtml;
+        document.getElementById('word-export-section').style.display = 'block';
+        document.getElementById('word-export-section').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function copyTableToClipboard() {
+        const tableHolder = document.getElementById('table-holder');
+        const range = document.createRange();
+        range.selectNode(tableHolder);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        
+        try {
+            document.execCommand('copy');
+            showToast("Таблица скопирована! Перейдите в Word и нажмите Ctrl+V.");
+        } catch (err) {
+            showToast("Не удалось скопировать автоматически, выделите таблицу вручную.");
+        }
+        window.getSelection().removeAllRanges();
+    }
+
+    // Экспортируем функции в объект window для доступа из HTML
+    window.switchScreen = switchScreen;
+    window.parseCompetencies = parseCompetencies;
+    window.copyJsonOutput = copyJsonOutput;
+    window.loadJsonData = loadJsonData;
+    window.addBlock = addBlock;
+    window.moveBlock = moveBlock;
+    window.onModalPkChanged = onModalPkChanged;
+    window.onModalIdChanged = onModalIdChanged;
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+    window.saveModalChanges = saveModalChanges;
+    window.deleteBlockFromModal = deleteBlockFromModal;
+    window.generateWordTable = generateWordTable;
+    window.copyTableToClipboard = copyTableToClipboard;
+    window.onSettingsChanged = onSettingsChanged;
+
+    // Инициализация при загрузке документа
+    window.onload = function() {
+        initFirebase();
+    };
+
+</script>
+</body>
+</html>
