@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Лесная поляна | Сервер & Штучки-дрючки</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            nunito: ['Nunito', 'sans-serif'],
+            comfortaa: ['Comfortaa', 'cursive'],
+          },
+          colors: {
+            forest: {
+              50: '#f2f9f1',
+              100: '#e1f2df',
+              300: '#a3db9c',
+              500: '#4da643',
+              600: '#398431',
+              700: '#2d6827',
+              800: '#1b4317',
+              900: '#0e250c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    /* Swaying trees animation */
+    @keyframes swayTree {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(1.8deg); }
+    }
+    @keyframes swayTreeSlow {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(-2.2deg); }
+    }
+    .sway-1 {
+      transform-origin: bottom center;
+      animation: swayTree 5s ease-in-out infinite;
+    }
+    .sway-2 {
+      transform-origin: bottom center;
+      animation: swayTreeSlow 7s ease-in-out infinite;
+    }
+
+    /* Floating fireflies and leaves */
+    @keyframes floatLeaf {
+      0% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 0; }
+      20% { opacity: 0.8; }
+      80% { opacity: 0.8; }
+      100% { transform: translateY(220px) rotate(180deg) translateX(50px); opacity: 0; }
+    }
+    .falling-leaf {
+      position: absolute;
+      animation: floatLeaf 8s linear infinite;
+    }
+
+    /* Sun rays subtle shimmer */
+    @keyframes sunGlow {
+      0%, 100% { opacity: 0.45; }
+      50% { opacity: 0.75; }
+    }
+    .sun-light {
+      animation: sunGlow 4s ease-in-out infinite;
+    }
+
+    /* Hedgehog waddle bounce */
+    @keyframes hedgehogWalk {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-4px) rotate(2deg); }
+      75% { transform: translateY(-2px) rotate(-2deg); }
+    }
+    .hedgehog-body {
+      animation: hedgehogWalk 0.5s infinite ease-in-out;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1b4317;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4da643;
+      border-radius: 5px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #68c85e;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen relative flex flex-col selection:bg-emerald-500 selection:text-white">
+
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <!-- Sky gradient -->
+    <div class="absolute inset-0 bg-gradient-to-b from-sky-400 via-emerald-800 to-forest-900"></div>
+
+    <!-- Sunlight Beam Rays -->
+    <div class="absolute -top-32 -left-20 w-[600px] h-[600px] bg-yellow-200/25 rounded-full blur-3xl sun-light"></div>
+    <div class="absolute top-0 right-1/4 w-[400px] h-[500px] bg-amber-100/10 rotate-12 blur-2xl pointer-events-none"></div>
+
+    <!-- Distant Forest Layer (Silhouette) -->
+    <svg class="absolute bottom-32 w-full h-72 text-forest-900/60 opacity-80 preserve-3d" viewBox="0 0 1440 320" fill="currentColor">
+      <path d="M0,224L48,213.3C96,203,192,181,288,186.7C384,192,480,224,576,213.3C672,203,768,149,864,144C960,139,1056,181,1152,197.3C1248,213,1344,203,1392,197.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+    </svg>
+
+    <!-- Midground Trees & Pine silhouettes -->
+    <div class="absolute bottom-28 w-full flex justify-around opacity-45">
+      <div class="sway-1 text-emerald-900">
+        <svg class="w-28 h-64" viewBox="0 0 100 200" fill="currentColor">
+          <polygon points="50,10 20,70 80,70" />
+          <polygon points="50,50 15,110 85,110" />
+          <polygon points="50,90 10,160 90,160" />
+          <rect x="42" y="160" width="16" height="40" fill="#2d1d12" />
+        </svg>
+      </div>
+      <div class="sway-2 text-forest-800 hidden sm:block">
+        <svg class="w-36 h-72" viewBox="0 0 100 200" fill="currentColor">
+          <polygon points="50,5 25,60 75,60" />
+          <polygon points="50,45 18,105 82,105" />
+          <polygon points="50,85 10,160 90,160" />
+          <rect x="43" y="160" width="14" height="40" fill="#2d1d12" />
+        </svg>
+      </div>
+      <div class="sway-1 text-emerald-950">
+        <svg class="w-32 h-64" viewBox="0 0 100 200" fill="currentColor">
+          <polygon points="50,15 22,70 78,70" />
+          <polygon points="50,55 12,120 88,120" />
+          <rect x="44" y="120" width="12" height="60" fill="#2d1d12" />
+        </svg>
+      </div>
+      <div class="sway-2 text-forest-900 hidden md:block">
+        <svg class="w-40 h-80" viewBox="0 0 100 200" fill="currentColor">
+          <polygon points="50,0 20,65 80,65" />
+          <polygon points="50,50 15,115 85,115" />
+          <polygon points="50,95 10,165 90,165" />
+          <rect x="43" y="165" width="14" height="35" fill="#2d1d12" />
+        </svg>
+      </div>
+    </div>
+
+    <!-- Floating Forest Leaves Particles -->
+    <div id="leaves-container"></div>
+  </div>
+
+  <header class="relative z-10 w-full pt-8 pb-4 px-4 sm:px-8 max-w-6xl mx-auto flex flex-col items-center text-center">
+    <div class="inline-flex items-center gap-3 bg-black/40 backdrop-blur-md px-5 py-2 rounded-full border border-emerald-500/40 shadow-xl mb-4 hover:border-emerald-400 transition-all">
+      <span class="text-2xl animate-bounce">🦔</span>
+      <span class="text-xs sm:text-sm font-semibold tracking-wider uppercase text-emerald-300">Серверное королевство ёжиков</span>
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+    </div>
+
+    <h1 class="text-4xl sm:text-6xl font-black font-comfortaa text-white drop-shadow-md tracking-tight">
+      Таинственный <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-lime-300 to-amber-200">Лес Ежей</span>
+    </h1>
+    <p class="mt-3 text-emerald-100/90 text-sm sm:text-base max-w-xl font-medium drop-shadow">
+      Добро пожаловать в главное меню! Здесь ежи собирают грибы, бегают по сочной траве и делятся крутыми штуками.
+    </p>
+
+    <div class="mt-8 flex flex-wrap justify-center gap-4 w-full max-w-2xl px-2">
+      <!-- Copy IP Button -->
+      <button id="copy-server-btn"
+        class="group relative flex-1 min-w-[260px] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 text-white font-bold text-base shadow-[0_10px_25px_rgba(16,185,129,0.35)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.55)] hover:-translate-y-1 active:translate-y-0 transition-all duration-300 border border-emerald-300/40 overflow-hidden">
+        <span class="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></span>
+        <svg class="w-6 h-6 text-emerald-100 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+        </svg>
+        <span class="relative">Скопировать адрес сервера</span>
+        <span class="text-xs bg-emerald-800/80 px-2 py-0.5 rounded-md text-emerald-200 ml-1">IP</span>
+      </button>
+
+      <!-- Download Mods Button -->
+      <a href="https://5d99e5d58a2.vps.myjino.ru/mods/" target="_blank" rel="noopener noreferrer"
+        class="group relative flex-1 min-w-[260px] flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-500 to-yellow-500 text-white font-bold text-base shadow-[0_10px_25px_rgba(245,158,11,0.3)] hover:shadow-[0_15px_30px_rgba(245,158,11,0.5)] hover:-translate-y-1 active:translate-y-0 transition-all duration-300 border border-amber-300/40 overflow-hidden">
+        <span class="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></span>
+        <svg class="w-6 h-6 text-amber-100 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        <span class="relative">Скачать моды для входа</span>
+        <span class="text-xs bg-amber-800/80 px-2 py-0.5 rounded-md text-amber-200 ml-1">ZIP / MODS</span>
+      </a>
+    </div>
+
+    <!-- Address badge chip -->
+    <div class="mt-3 flex items-center gap-2 text-xs font-mono text-emerald-200/80 bg-black/30 backdrop-blur-sm px-4 py-1.5 rounded-full border border-emerald-500/20">
+      <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+      <span>Адрес: <strong class="text-emerald-300">https://5d99e5d58a2.vps.myjino.ru:49359</strong></span>
+    </div>
+  </header>
+
+  <section class="relative z-10 w-full max-w-6xl mx-auto px-4 my-6">
+    <div class="bg-gradient-to-b from-emerald-950/70 via-forest-900/80 to-emerald-950/90 rounded-3xl p-5 sm:p-6 border border-emerald-500/30 shadow-2xl backdrop-blur-md overflow-hidden relative">
+      
+      <!-- Stage header -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-emerald-500/20 mb-3">
+        <div class="flex items-center gap-2 text-emerald-300 font-bold text-sm sm:text-base">
+          <span class="text-xl">🍄</span>
+          <span>Лесная тропинка: нажмите на ёжика или полянку!</span>
+        </div>
+        <div class="flex gap-2">
+          <button id="add-hedgehog-btn" class="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow-md active:scale-95 flex items-center gap-1.5">
+            <span>+ Добавить ежа</span>
+          </button>
+          <button id="feed-hedgehogs-btn" class="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white transition-all shadow-md active:scale-95 flex items-center gap-1.5">
+            <span>🍎 Покормить яблочком</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lawn Canvas Container where animated SVG hedgehogs live -->
+      <div id="meadow-field" class="relative w-full h-44 sm:h-56 bg-gradient-to-t from-emerald-800 via-forest-700 to-emerald-900/60 rounded-2xl overflow-hidden cursor-pointer border border-emerald-500/30 select-none shadow-inner">
+        <!-- Grass Tufts Layer -->
+        <div class="absolute bottom-0 w-full h-12 flex justify-between pointer-events-none opacity-90 text-emerald-400">
+          <svg class="w-full h-full preserve-3d" preserveAspectRatio="none" viewBox="0 0 1200 60" fill="currentColor">
+            <path d="M0,60 L20,30 L35,60 L55,25 L75,60 L95,35 L120,60 L140,20 L165,60 L195,30 L220,60 L245,22 L275,60 L305,28 L330,60 L360,18 L390,60 L420,30 L450,60 L480,24 L510,60 L540,28 L570,60 L600,16 L630,60 L660,25 L690,60 L720,20 L750,60 L780,28 L810,60 L840,18 L870,60 L900,26 L930,60 L960,20 L990,60 L1020,32 L1050,60 L1080,20 L1110,60 L1140,26 L1170,60 L1200,30 L1200,60 Z"></path>
+          </svg>
+        </div>
+        <!-- Decorative Flowers & Mushrooms on Grass -->
+        <div class="absolute bottom-2 left-6 text-xl pointer-events-none opacity-80">🌼</div>
+        <div class="absolute bottom-3 left-1/4 text-lg pointer-events-none opacity-80">🍄</div>
+        <div class="absolute bottom-2 left-1/2 text-xl pointer-events-none opacity-80">🌸</div>
+        <div class="absolute bottom-4 right-1/4 text-lg pointer-events-none opacity-80">🌿</div>
+        <div class="absolute bottom-2 right-12 text-xl pointer-events-none opacity-80">🍄</div>
+
+        <!-- Dynamic Hedgehog Entities spawn here -->
+        <div id="hedgehogs-container" class="absolute inset-0 pointer-events-auto"></div>
+        <!-- Apples dropped on click -->
+        <div id="food-container" class="absolute inset-0 pointer-events-none"></div>
+      </div>
+      <p class="text-right text-[11px] text-emerald-400/80 mt-1 italic">
+        *Кликайте по траве, чтобы рассыпать яблочки ежатам!
+      </p>
+    </div>
+  </section>
+
+  <main class="relative z-10 w-full max-w-6xl mx-auto px-4 pb-16 flex-1">
+    <div class="text-center mb-8">
+      <div class="inline-block relative">
+        <h2 class="text-3xl sm:text-5xl font-black font-comfortaa text-white tracking-wide flex items-center justify-center gap-3">
+          <span>✨</span>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-lime-200">
+            Штучки дрючки
+          </span>
+          <span>🎒</span>
+        </h2>
+        <div class="h-1.5 w-36 mx-auto mt-2 bg-gradient-to-r from-amber-400 via-emerald-400 to-teal-300 rounded-full shadow-lg"></div>
+      </div>
+      <p class="mt-2 text-slate-300 text-sm sm:text-base font-medium">
+        Полезные серверные приложения, утилиты и лесные хроники
+      </p>
+    </div>
+
+    <!-- 3x3 Interactive Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- ITEM 1: Калькулятор полезный -->
+      <a href="https://classdura.github.io/taskxanadu/hardstydies.html" target="_blank" rel="noopener noreferrer"
+        class="group relative bg-gradient-to-br from-slate-800/90 to-emerald-950/80 hover:from-emerald-900/90 hover:to-slate-800/90 p-6 rounded-3xl border border-emerald-500/30 hover:border-emerald-400 shadow-xl hover:shadow-2xl hover:shadow-emerald-500/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between overflow-hidden">
+        <div class="absolute top-0 right-0 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-3xl mb-4 group-hover:rotate-6 group-hover:scale-110 transition-transform">
+            🧮
+          </div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs uppercase font-bold tracking-wider text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30">Инструмент</span>
+            <span class="text-xs text-slate-400">Hardstudies</span>
+          </div>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-emerald-300 transition-colors">
+            Калькулятор полезный
+          </h3>
+          <p class="mt-2 text-sm text-slate-300 line-clamp-3">
+            Быстрый расчет ресурсов, крафтов, времени выживания и формул для легкой игры и учебы.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-emerald-500/20 flex items-center justify-between text-xs font-semibold text-emerald-300">
+          <span class="flex items-center gap-1">Открыть калькулятор <span class="group-hover:translate-x-1 transition-transform">→</span></span>
+          <span class="text-slate-400 font-mono">classdura</span>
+        </div>
+      </a>
+
+      <!-- ITEM 2: Автоматический трекер учебного года -->
+      <a href="https://classdura.github.io/taskxanadu/hardstydies.html" target="_blank" rel="noopener noreferrer"
+        class="group relative bg-gradient-to-br from-slate-800/90 to-teal-950/80 hover:from-teal-900/90 hover:to-slate-800/90 p-6 rounded-3xl border border-teal-500/30 hover:border-teal-400 shadow-xl hover:shadow-2xl hover:shadow-teal-500/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between overflow-hidden">
+        <div class="absolute top-0 right-0 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-3xl mb-4 group-hover:-rotate-6 group-hover:scale-110 transition-transform">
+            📅
+          </div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs uppercase font-bold tracking-wider text-teal-400 bg-teal-950/80 px-2.5 py-0.5 rounded-full border border-teal-500/30">Прогресс</span>
+            <span class="text-xs text-slate-400">Трекер</span>
+          </div>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-teal-300 transition-colors">
+            Автоматический трекер учебного года
+          </h3>
+          <p class="mt-2 text-sm text-slate-300 line-clamp-3">
+            Следите за оставшимися днями, семестрами, дедлайнами и каникулами в интерактивном формате.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-teal-500/20 flex items-center justify-between text-xs font-semibold text-teal-300">
+          <span class="flex items-center gap-1">Перейти к трекеру <span class="group-hover:translate-x-1 transition-transform">→</span></span>
+          <span class="text-slate-400 font-mono">Xanadu</span>
+        </div>
+      </a>
+
+      <div id="open-comics-btn"
+        class="group relative bg-gradient-to-br from-slate-800/90 to-amber-950/80 hover:from-amber-900/90 hover:to-slate-800/90 p-6 rounded-3xl border border-amber-500/40 hover:border-amber-400 shadow-xl hover:shadow-2xl hover:shadow-amber-500/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-pointer">
+        <div class="absolute top-0 right-0 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+            📖
+          </div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs uppercase font-bold tracking-wider text-amber-300 bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-500/30">Комиксы</span>
+            <span class="text-xs text-amber-400 font-bold animate-pulse">Новые главы!</span>
+          </div>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-amber-300 transition-colors">
+            Прикольные истории на сервере
+          </h3>
+          <p class="mt-2 text-sm text-slate-300 line-clamp-3">
+            Интерактивный комикс-альманах: приключения игроков, ночные осады криперов и летописи лесных ежей.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-amber-500/20 flex items-center justify-between text-xs font-semibold text-amber-300">
+          <span class="flex items-center gap-1">Выбрать главу комикса <span class="group-hover:translate-x-1 transition-transform">→</span></span>
+          <span class="bg-amber-500/20 px-2 py-0.5 rounded text-[10px] text-amber-200">Галерея</span>
+        </div>
+      </div>
+
+      <!-- ITEM 4: Карта лесного сервера -->
+      <div onclick="showToast('🗺️ Динамическая карта сервера обновляется в реальном времени! Вход по IP выше.')"
+        class="group relative bg-slate-800/80 hover:bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-emerald-500/50 shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer">
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+            🧭
+          </div>
+          <span class="text-xs uppercase font-bold tracking-wider text-sky-400 bg-sky-950/80 px-2.5 py-0.5 rounded-full border border-sky-500/30">Навигация</span>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-sky-300 mt-2 transition-colors">
+            Карта поселений и биомов
+          </h3>
+          <p class="mt-2 text-sm text-slate-300">
+            Ориентиры домиков, лесные тропы, безопасные хабы и тайные базы лесных обитателей.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-slate-700 flex items-center justify-between text-xs font-semibold text-sky-300">
+          <span>Смотреть координаты</span>
+          <span>📍 3D обзор</span>
+        </div>
+      </div>
+
+      <!-- ITEM 5: Кодекс лесного выживания -->
+      <div onclick="showToast('📜 Правило №1: Никогда не обижайте ежей на полянке! Правило №2: Уважайте соседей.')"
+        class="group relative bg-slate-800/80 hover:bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-emerald-500/50 shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer">
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+            📜
+          </div>
+          <span class="text-xs uppercase font-bold tracking-wider text-purple-400 bg-purple-950/80 px-2.5 py-0.5 rounded-full border border-purple-500/30">Правила</span>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-purple-300 mt-2 transition-colors">
+            Кодекс чести ежиного леса
+          </h3>
+          <p class="mt-2 text-sm text-slate-300">
+            Свод правил приличия на сервере: без гриферства, с взаимопомощью и вкусными угощениями.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-slate-700 flex items-center justify-between text-xs font-semibold text-purple-300">
+          <span>Открыть правила</span>
+          <span>🛡️ Антигриф</span>
+        </div>
+      </div>
+
+      <!-- ITEM 6: Радио «Шелест Листвы» -->
+      <div id="forest-radio-card"
+        class="group relative bg-slate-800/80 hover:bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-emerald-500/50 shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer">
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+            📻
+          </div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs uppercase font-bold tracking-wider text-rose-400 bg-rose-950/80 px-2.5 py-0.5 rounded-full border border-rose-500/30">Аудио</span>
+            <span id="radio-status" class="text-xs text-rose-300">Пауза</span>
+          </div>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-rose-300 transition-colors">
+            Лесная радиоволна & Звуки
+          </h3>
+          <p class="mt-2 text-sm text-slate-300">
+            Нажмите, чтобы включить медитативную мелодию леса, пение сверчков и шум ветра.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-slate-700 flex items-center justify-between text-xs font-semibold text-rose-300">
+          <span id="radio-action-text">Включить мелодию</span>
+          <span id="radio-equalizer" class="text-base">🎵</span>
+        </div>
+      </div>
+
+      <!-- ITEM 7: Генератор лесных никнеймов -->
+      <div onclick="generateHedgehogName()"
+        class="group relative bg-slate-800/80 hover:bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-emerald-500/50 shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer">
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-lime-500/20 border border-lime-400/30 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+            🪪
+          </div>
+          <span class="text-xs uppercase font-bold tracking-wider text-lime-400 bg-lime-950/80 px-2.5 py-0.5 rounded-full border border-lime-500/30">Генератор</span>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-lime-300 mt-2 transition-colors">
+            Генератор ежиных ников
+          </h3>
+          <p class="mt-2 text-sm text-slate-300" id="nickname-preview">
+            Придумай крутое лесное имя для захода на сервер в один клик!
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-slate-700 flex items-center justify-between text-xs font-semibold text-lime-300">
+          <span>Сгенерировать имя</span>
+          <span>🎲 Рандом</span>
+        </div>
+      </div>
+
+      <!-- ITEM 8: Лаборатория Модпака -->
+      <a href="https://5d99e5d58a2.vps.myjino.ru/mods/" target="_blank" rel="noopener noreferrer"
+        class="group relative bg-slate-800/80 hover:bg-slate-800 p-6 rounded-3xl border border-slate-700 hover:border-emerald-500/50 shadow-xl hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between">
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+            ⚙️
+          </div>
+          <span class="text-xs uppercase font-bold tracking-wider text-indigo-400 bg-indigo-950/80 px-2.5 py-0.5 rounded-full border border-indigo-500/30">Клиент</span>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-indigo-300 mt-2 transition-colors">
+            Состав и версии модов
+          </h3>
+          <p class="mt-2 text-sm text-slate-300">
+            Оптимизация FPS, шейдеры листвы, уютный лесной декор и шейдерные настройки.
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-slate-700 flex items-center justify-between text-xs font-semibold text-indigo-300">
+          <span>Список файлов</span>
+          <span>📦 /mods/</span>
+        </div>
+      </a>
+
+      <!-- ITEM 9: Тайная поляна (Секретная кнопка) -->
+      <div onclick="triggerHedgehogParty()"
+        class="group relative bg-gradient-to-br from-fuchsia-950/60 to-slate-800/90 hover:from-fuchsia-900/80 hover:to-slate-800 p-6 rounded-3xl border border-fuchsia-500/40 hover:border-fuchsia-400 shadow-xl hover:shadow-2xl hover:shadow-fuchsia-500/20 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer">
+        <div>
+          <div class="w-14 h-14 rounded-2xl bg-fuchsia-500/20 border border-fuchsia-400/30 flex items-center justify-center text-3xl mb-4 group-hover:rotate-12 group-hover:scale-110 transition-transform">
+            🎉
+          </div>
+          <span class="text-xs uppercase font-bold tracking-wider text-fuchsia-300 bg-fuchsia-950/80 px-2.5 py-0.5 rounded-full border border-fuchsia-500/30">Секретка</span>
+          <h3 class="text-xl font-bold font-comfortaa text-white group-hover:text-fuchsia-300 mt-2 transition-colors">
+            Ежиная дискотека
+          </h3>
+          <p class="mt-2 text-sm text-slate-300">
+            Нажмите, чтобы включить праздничный хоровод ежей по всей полянке с яблоками!
+          </p>
+        </div>
+        <div class="mt-5 pt-4 border-t border-fuchsia-500/20 flex items-center justify-between text-xs font-semibold text-fuchsia-300">
+          <span>Запустить вечеринку</span>
+          <span>🦔💨 Ура!</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="comic-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-slate-900 border border-amber-500/50 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="comic-modal-card">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-5 bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/80 border-b border-amber-500/30 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-2xl">
+            📖
+          </div>
+          <div>
+            <h3 class="text-xl sm:text-2xl font-black font-comfortaa text-amber-200">
+              Прикольные истории на сервере
+            </h3>
+            <p class="text-xs text-amber-300/80">Комиксы и байки из жизни лесного комьюнити</p>
+          </div>
+        </div>
+        <button id="close-comic-btn" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-amber-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors text-lg font-bold">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body: Chapter Selector & Preview Stub -->
+      <div class="p-6 overflow-y-auto space-y-6 flex-1">
+        
+        <div class="bg-amber-900/30 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-4">
+          <div class="text-4xl animate-bounce">🦔💬</div>
+          <div class="text-sm text-amber-100 text-center sm:text-left">
+            <span class="font-bold text-amber-300">Заглушка раздела комиксов:</span> 
+            Здесь публикуются иллюстрированные хроники нашего сервера. Выберите главу ниже, чтобы посмотреть превью или прочитать фрагмент!
+          </div>
+        </div>
+
+        <!-- Chapters Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          <!-- Chapter 1 -->
+          <div class="comic-chapter-card p-4 rounded-2xl bg-slate-800/90 border border-amber-500/40 hover:border-amber-300 cursor-pointer transition-all hover:-translate-y-1" onclick="selectComicChapter(1)">
+            <div class="h-36 rounded-xl bg-gradient-to-tr from-emerald-900 to-amber-900 relative overflow-hidden flex items-center justify-center text-5xl mb-3 border border-amber-500/20">
+              🌲
+              <span class="absolute bottom-2 left-2 text-[10px] bg-black/70 px-2 py-0.5 rounded text-amber-300 font-mono">ГЛАВА 1</span>
+            </div>
+            <h4 class="font-bold text-base text-white">Пробуждение в дубовой чаще</h4>
+            <p class="text-xs text-slate-300 mt-1 line-clamp-2">Как первый игрок построил берлогу и подружился с местным выводком ежей.</p>
+            <div class="mt-3 flex justify-between items-center text-xs text-amber-400 font-semibold">
+              <span>8 страниц</span>
+              <span class="text-emerald-400">Доступно ✓</span>
+            </div>
+          </div>
+
+          <!-- Chapter 2 -->
+          <div class="comic-chapter-card p-4 rounded-2xl bg-slate-800/90 border border-slate-700 hover:border-amber-300 cursor-pointer transition-all hover:-translate-y-1" onclick="selectComicChapter(2)">
+            <div class="h-36 rounded-xl bg-gradient-to-tr from-indigo-950 to-purple-900 relative overflow-hidden flex items-center justify-center text-5xl mb-3 border border-purple-500/20">
+              💎
+              <span class="absolute bottom-2 left-2 text-[10px] bg-black/70 px-2 py-0.5 rounded text-purple-300 font-mono">ГЛАВА 2</span>
+            </div>
+            <h4 class="font-bold text-base text-white">Поход за первыми алмазами</h4>
+            <p class="text-xs text-slate-300 mt-1 line-clamp-2">Запутанные пещеры, внезапный крипер и потерянная на глубине кирка.</p>
+            <div class="mt-3 flex justify-between items-center text-xs text-amber-400 font-semibold">
+              <span>12 страниц</span>
+              <span class="text-emerald-400">Доступно ✓</span>
+            </div>
+          </div>
+
+          <!-- Chapter 3 -->
+          <div class="comic-chapter-card p-4 rounded-2xl bg-slate-800/90 border border-slate-700 hover:border-amber-300 cursor-pointer transition-all hover:-translate-y-1" onclick="selectComicChapter(3)">
+            <div class="h-36 rounded-xl bg-gradient-to-tr from-amber-950 to-rose-950 relative overflow-hidden flex items-center justify-center text-5xl mb-3 border border-rose-500/20">
+              🍎
+              <span class="absolute bottom-2 left-2 text-[10px] bg-black/70 px-2 py-0.5 rounded text-rose-300 font-mono">ГЛАВА 3</span>
+            </div>
+            <h4 class="font-bold text-base text-white">Великий яблочный бунт</h4>
+            <p class="text-xs text-slate-300 mt-1 line-clamp-2">Ежи объединяются, чтобы захватить ферму сладких золотых яблок.</p>
+            <div class="mt-3 flex justify-between items-center text-xs text-amber-400 font-semibold">
+              <span>В разработке</span>
+              <span class="text-amber-400 font-mono">Скоро!</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Stub Reader Viewer Box -->
+        <div id="comic-viewer" class="bg-black/50 border border-slate-700 rounded-2xl p-6 text-center">
+          <div id="comic-screen" class="max-w-lg mx-auto bg-slate-950 border-2 border-dashed border-amber-500/40 rounded-xl p-6">
+            <div class="text-6xl mb-3">🎨</div>
+            <h5 id="viewer-title" class="text-lg font-bold text-amber-300">Глава 1: Пробуждение в дубовой чаще</h5>
+            <p id="viewer-desc" class="text-sm text-slate-300 mt-2">
+              «Первый луч солнца пробился сквозь кроны вековых сосен. Маленький ёжик по имени Пых нашел странный редстоун-факел...»
+            </p>
+            <div class="mt-4 flex items-center justify-center gap-3">
+              <button onclick="showToast('📑 Страница 1 перелистывается... (Демо-версия читалки)')" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white transition-all shadow">
+                Читать онлайн
+              </button>
+              <button onclick="showToast('📥 Скачивание PDF выпуска скоро откроется!')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all border border-slate-600">
+                Скачать PDF выпуск
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+        <span>© Лесные Хроники Сервера</span>
+        <button id="close-comic-footer-btn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all">
+          Вернуться на поляну
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 z-50 max-w-md bg-slate-900/95 border border-emerald-400 text-white px-5 py-4 rounded-2xl shadow-2xl backdrop-blur-md transform translate-y-24 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-3">
+    <div id="toast-icon" class="text-2xl">📋</div>
+    <div>
+      <div id="toast-title" class="font-bold text-sm text-emerald-300">Уведомление</div>
+      <div id="toast-message" class="text-xs text-slate-200 mt-0.5">Текст оповещения</div>
+    </div>
+  </div>
+
+  <footer class="relative z-10 w-full border-t border-emerald-900/40 bg-slate-950/80 backdrop-blur py-6 text-center text-xs text-emerald-300/60">
+    <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <span>🌿 Серверное сообщество с живым лесом и ежатами</span>
+      <span class="font-mono text-emerald-400/80">https://5d99e5d58a2.vps.myjino.ru:49359</span>
+      <span>2026 • Уютные лесные просторы</span>
+    </div>
+  </footer>
+
+  <script>
+    // Server Constants
+    const SERVER_URL = 'https://5d99e5d58a2.vps.myjino.ru:49359';
+    const MODS_URL = 'https://5d99e5d58a2.vps.myjino.ru/mods/';
+
+    // Toast Alert Helper (Without window.alert)
+    let toastTimeout;
+    function showToast(message, title = 'Успешно!', icon = '🌲') {
+      const toast = document.getElementById('toast');
+      const toastTitle = document.getElementById('toast-title');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastTitle.textContent = title;
+      toastMessage.textContent = message;
+      toastIcon.textContent = icon;
+
+      toast.classList.remove('translate-y-24', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
+      }, 3500);
+    }
+
+    document.getElementById('copy-server-btn').addEventListener('click', () => {
+      const tempInput = document.createElement('input');
+      tempInput.value = SERVER_URL;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      tempInput.setSelectionRange(0, 99999);
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          showToast(SERVER_URL, 'Адрес скопирован в буфер!', '📋');
+          playCuteChirp(520);
+        } else {
+          showToast('Не удалось скопировать автоматически: ' + SERVER_URL, 'Адрес сервера', 'ℹ️');
+        }
+      } catch (err) {
+        showToast('Скопируйте вручную: ' + SERVER_URL, 'Адрес сервера', 'ℹ️');
+      }
+      document.body.removeChild(tempInput);
+    });
+
+    function createFallingLeaves() {
+      const container = document.getElementById('leaves-container');
+      const leafIcons = ['🍃', '🍂', '🍁'];
+      for (let i = 0; i < 15; i++) {
+        const leaf = document.createElement('div');
+        leaf.className = 'falling-leaf';
+        leaf.textContent = leafIcons[Math.floor(Math.random() * leafIcons.length)];
+        leaf.style.left = Math.random() * 100 + 'vw';
+        leaf.style.top = Math.random() * -100 + 'px';
+        leaf.style.fontSize = (Math.random() * 12 + 14) + 'px';
+        leaf.style.animationDuration = (Math.random() * 6 + 6) + 's';
+        leaf.style.animationDelay = (Math.random() * 5) + 's';
+        container.appendChild(leaf);
+      }
+    }
+
+    class Hedgehog {
+      constructor(container, id, initialX = null) {
+        this.container = container;
+        this.id = id;
+        this.element = document.createElement('div');
+        this.element.className = 'absolute cursor-pointer transition-transform duration-150 select-none';
+        
+        // Randomize physical properties
+        this.x = initialX !== null ? initialX : Math.random() * (this.container.clientWidth - 70);
+        this.y = Math.random() * (this.container.clientHeight - 60) + 10;
+        this.speed = (Math.random() * 0.8 + 0.6) * (Math.random() > 0.5 ? 1 : -1);
+        this.targetX = null;
+        this.scale = Math.random() * 0.25 + 0.85;
+        this.hasApple = Math.random() > 0.4;
+        this.isHappy = false;
+        
+        this.renderSvg();
+        this.container.appendChild(this.element);
+
+        // Click interaction on hedgehog
+        this.element.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.hop();
+          showToast(`Ёжик №${this.id} весело фыркнул! 🦔💨`, 'Привет от ежа!', '🐾');
+          playCuteChirp(680);
+        });
+      }
+
+      renderSvg() {
+        const appleHtml = this.hasApple ? `
+          <g transform="translate(18, -4) scale(0.65)">
+            <circle cx="12" cy="12" r="10" fill="#ef4444"/>
+            <path d="M12,2 Q14,-4 18,-3" stroke="#854d0e" stroke-width="2" fill="none"/>
+            <ellipse cx="15" cy="0" rx="3" ry="1.5" fill="#22c55e" transform="rotate(-20 15 0)"/>
+          </g>
+        ` : '';
+
+        this.element.innerHTML = `
+          <div class="hedgehog-body relative w-16 h-12 flex items-center justify-center">
+            ${appleHtml}
+            <svg viewBox="0 0 80 50" class="w-16 h-12 drop-shadow-md">
+              <!-- Spikes/Quills -->
+              <path d="M 12 35 C 5 25, 10 10, 30 8 C 45 6, 62 12, 68 28 C 65 36, 50 42, 28 42 C 18 42, 14 38, 12 35 Z" fill="#452718"/>
+              <polygon points="18,16 12,6 26,14" fill="#311b0e"/>
+              <polygon points="28,12 26,2 38,10" fill="#311b0e"/>
+              <polygon points="40,10 42,1 50,11" fill="#311b0e"/>
+              <polygon points="52,14 58,4 60,16" fill="#311b0e"/>
+              <polygon points="62,18 70,12 66,24" fill="#311b0e"/>
+              <polygon points="20,24 10,20 22,28" fill="#311b0e"/>
+
+              <!-- Soft Face & Snout -->
+              <path d="M 55 24 C 65 24, 75 30, 78 35 C 75 40, 65 42, 54 41 Z" fill="#d4a373"/>
+              
+              <!-- Eye -->
+              <circle cx="64" cy="31" r="2.2" fill="#1e1b18"/>
+              <circle cx="65" cy="30" r="0.7" fill="#ffffff"/>
+
+              <!-- Shiny wet nose -->
+              <ellipse cx="77" cy="34" rx="2" ry="1.8" fill="#111827"/>
+              <ellipse cx="76.6" cy="33.4" rx="0.6" ry="0.5" fill="#ffffff"/>
+
+              <!-- Cute Ear -->
+              <ellipse cx="56" cy="25" rx="3.5" ry="4.5" fill="#c68a57" transform="rotate(-15 56 25)"/>
+              <ellipse cx="56" cy="25" rx="2" ry="2.5" fill="#b06b38" transform="rotate(-15 56 25)"/>
+
+              <!-- Little Paws -->
+              <ellipse cx="32" cy="42" rx="4" ry="2.5" fill="#b06b38"/>
+              <ellipse cx="58" cy="42" rx="4" ry="2.5" fill="#b06b38"/>
+            </svg>
+          </div>
+        `;
+      }
+
+      hop() {
+        this.element.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale}) translateY(-16px)`;
+        setTimeout(() => {
+          this.element.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale})`;
+        }, 180);
+      }
+
+      update() {
+        const maxX = this.container.clientWidth - 70;
+        
+        // If has target food (apple), run towards it
+        if (this.targetX !== null) {
+          const dx = this.targetX - this.x;
+          if (Math.abs(dx) > 4) {
+            this.speed = dx > 0 ? 1.6 : -1.6;
+          } else {
+            this.targetX = null;
+            this.hasApple = true;
+            this.renderSvg();
+            this.hop();
+            playCuteChirp(750);
+          }
+        } else {
+          // Wander around
+          if (this.x <= 0) {
+            this.speed = Math.abs(this.speed);
+          } else if (this.x >= maxX) {
+            this.speed = -Math.abs(this.speed);
+          } else if (Math.random() < 0.005) {
+            this.speed = -this.speed;
+          }
+        }
+
+        this.x += this.speed;
+
+        // Keep inside bounds
+        this.x = Math.max(0, Math.min(this.x, maxX));
+
+        // Flip hedgehog depending on direction
+        const flip = this.speed >= 0 ? 1 : -1;
+        this.element.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale * flip}, ${this.scale})`;
+      }
+    }
+
+    const meadow = document.getElementById('meadow-field');
+    const hedgehogsContainer = document.getElementById('hedgehogs-container');
+    const foodContainer = document.getElementById('food-container');
+    const hedgehogs = [];
+
+    function initHedgehogs() {
+      // Spawn 5 hedgehogs initially
+      for (let i = 1; i <= 5; i++) {
+        hedgehogs.push(new Hedgehog(hedgehogsContainer, i));
+      }
+
+      function loop() {
+        hedgehogs.forEach(h => h.update());
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Add Hedgehog Button
+    document.getElementById('add-hedgehog-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (hedgehogs.length >= 14) {
+        showToast('Полянка уже полна ежей! Все места заняты.', 'Лесной лимит', '🦔');
+        return;
+      }
+      const newId = hedgehogs.length + 1;
+      const h = new Hedgehog(hedgehogsContainer, newId, Math.random() * (meadow.clientWidth - 80));
+      hedgehogs.push(h);
+      h.hop();
+      showToast(`На полянке появился новый ёжик №${newId}!`, 'Новый житель', '🦔');
+      playCuteChirp(600);
+    });
+
+    // Feed Hedgehogs Button
+    document.getElementById('feed-hedgehogs-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      scatterApples(3);
+    });
+
+    // Click on meadow field to throw apples
+    meadow.addEventListener('click', (e) => {
+      const rect = meadow.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      dropAppleAt(clickX, clickY);
+    });
+
+    function dropAppleAt(x, y) {
+      const apple = document.createElement('div');
+      apple.className = 'absolute text-2xl transition-all duration-300 transform -translate-x-1/2 -translate-y-1/2';
+      apple.textContent = '🍎';
+      apple.style.left = x + 'px';
+      apple.style.top = y + 'px';
+      foodContainer.appendChild(apple);
+
+      // Alert nearest hedgehog to target the apple
+      let closestHedgehog = null;
+      let minDistance = 999999;
+      hedgehogs.forEach(h => {
+        const dist = Math.abs(h.x - x);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestHedgehog = h;
+        }
+      });
+
+      if (closestHedgehog) {
+        closestHedgehog.targetX = x;
+      }
+
+      setTimeout(() => {
+        apple.style.opacity = '0';
+        setTimeout(() => apple.remove(), 400);
+      }, 3500);
+    }
+
+    function scatterApples(count = 3) {
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => {
+          const rx = Math.random() * (meadow.clientWidth - 60) + 30;
+          const ry = Math.random() * (meadow.clientHeight - 60) + 20;
+          dropAppleAt(rx, ry);
+        }, i * 200);
+      }
+      showToast('Яблочки рассыпаны по сочной траве! Ежи бегут кушать.', 'Угощение', '🍏');
+      playCuteChirp(640);
+    }
+
+    // Party mode trigger
+    function triggerHedgehogParty() {
+      scatterApples(6);
+      hedgehogs.forEach(h => {
+        h.speed = (Math.random() * 2 + 1.5) * (Math.random() > 0.5 ? 1 : -1);
+        h.hop();
+      });
+      showToast('Ежи устроили праздничный забег по поляне!', 'Вечеринка ежей!', '🎉');
+      playCuteChirp(880);
+    }
+
+    const comicModal = document.getElementById('comic-modal');
+    const comicCard = document.getElementById('comic-modal-card');
+    const openComicsBtn = document.getElementById('open-comics-btn');
+    const closeComicBtn = document.getElementById('close-comic-btn');
+    const closeComicFooterBtn = document.getElementById('close-comic-footer-btn');
+
+    function openModal() {
+      comicModal.classList.remove('opacity-0', 'pointer-events-none');
+      comicCard.classList.remove('scale-95');
+      comicCard.classList.add('scale-100');
+    }
+
+    function closeModal() {
+      comicModal.classList.add('opacity-0', 'pointer-events-none');
+      comicCard.classList.remove('scale-100');
+      comicCard.classList.add('scale-95');
+    }
+
+    openComicsBtn.addEventListener('click', openModal);
+    closeComicBtn.addEventListener('click', closeModal);
+    closeComicFooterBtn.addEventListener('click', closeModal);
+
+    comicModal.addEventListener('click', (e) => {
+      if (e.target === comicModal) closeModal();
+    });
+
+    const chapterData = {
+      1: {
+        title: 'Глава 1: Пробуждение в дубовой чаще',
+        desc: '«Первый луч солнца пробился сквозь кроны вековых сосен. Маленький ёжик по имени Пых нашел странный редстоун-факел и решил проверить, куда ведут загадочные искры...»',
+        icon: '🌲'
+      },
+      2: {
+        title: 'Глава 2: Поход за первыми алмазами',
+        desc: '«Глубоко под корнями леса скрывались кристальные гроты. Дружная экспедиция с факелами на спине наткнулась на логово летучих мышей и заброшенную шахту...»',
+        icon: '💎'
+      },
+      3: {
+        title: 'Глава 3: Великий яблочный бунт (Скоро)',
+        desc: '«Запасы провизии истощились. Лесной совет постановил: организовать рейд на яблочный сад гильдии лесорубов без единой царапины!»',
+        icon: '🍎'
+      }
+    };
+
+    function selectComicChapter(chapterNum) {
+      const data = chapterData[chapterNum];
+      if (!data) return;
+      document.getElementById('viewer-title').textContent = data.title;
+      document.getElementById('viewer-desc').textContent = data.desc;
+      showToast(`Выбрана ${data.title}`, 'Комикс-альманах', data.icon);
+      playCuteChirp(580);
+    }
+
+    const namePrefixes = ['Колючий', 'Быстрый', 'Мудрый', 'Лесной', 'Пыхтящий', 'Золотой', 'Ночной', 'Хитрый', 'Храбрый', 'Уютный'];
+    const nameRoots = ['Ёжик', 'Ежонок', 'Иглобрюх', 'Хвостик', 'Фыркун', 'Топотун', 'Грибоед', 'Шуршун', 'Шиповик', 'Лесовик'];
+    const nameSuffixes = ['2026', 'PRO', 'Legend', 'Master', 'Wild', 'Forest', 'Craft', 'Hero'];
+
+    function generateHedgehogName() {
+      const pre = namePrefixes[Math.floor(Math.random() * namePrefixes.length)];
+      const root = nameRoots[Math.floor(Math.random() * nameRoots.length)];
+      const suf = nameSuffixes[Math.floor(Math.random() * nameSuffixes.length)];
+      const generated = `${pre}_${root}_${suf}`;
+      
+      document.getElementById('nickname-preview').innerHTML = `Твой никнейм: <strong class="text-lime-300 font-mono text-base">${generated}</strong>`;
+      showToast(`Сгенерирован ник: ${generated}`, 'Новый лесной псевдоним', '🦔');
+      playCuteChirp(720);
+    }
+
+    let audioCtx = null;
+    let isRadioPlaying = false;
+    let radioInterval = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playCuteChirp(freq = 600) {
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ctx.currentTime + 0.12);
+
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (e) {
+        // Fallback silently if audio blocked
+      }
+    }
+
+    function playForestTone() {
+      try {
+        const ctx = getAudioContext();
+        const notes = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]; // Pentatonic calm
+        const freq = notes[Math.floor(Math.random() * notes.length)];
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.05, ctx.currentTime + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.8);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 1.8);
+      } catch (e) {}
+    }
+
+    // Radio Toggle
+    const radioCard = document.getElementById('forest-radio-card');
+    const radioStatus = document.getElementById('radio-status');
+    const radioActionText = document.getElementById('radio-action-text');
+    const radioEqualizer = document.getElementById('radio-equalizer');
+
+    radioCard.addEventListener('click', () => {
+      isRadioPlaying = !isRadioPlaying;
+      if (isRadioPlaying) {
+        radioStatus.textContent = 'В эфире';
+        radioStatus.className = 'text-xs text-emerald-400 font-bold animate-pulse';
+        radioActionText.textContent = 'Выключить радио';
+        radioEqualizer.textContent = '🎶✨';
+        playForestTone();
+        radioInterval = setInterval(playForestTone, 1400);
+        showToast('Лесное радио играет медитативные колокольчики листвы', 'Музыка включена', '🎵');
+      } else {
+        radioStatus.textContent = 'Пауза';
+        radioStatus.className = 'text-xs text-rose-300';
+        radioActionText.textContent = 'Включить мелодию';
+        radioEqualizer.textContent = '📻';
+        clearInterval(radioInterval);
+        showToast('Лесное радио выключено', 'Пауза', '🔇');
+      }
+    });
+
+    window.addEventListener('load', () => {
+      createFallingLeaves();
+      initHedgehogs();
+    });
+  </script>
+</body>
+</html>
