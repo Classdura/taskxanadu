@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Комод - Вайбкод (Hollow Body)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a192f; /* Темно-синий фон */
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #instruction {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            user-select: none;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="instruction">Зажмите ЛКМ на ящике, чтобы открыть. Вращайте сцену, зажав ЛКМ на фоне.</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- 1. ИНИЦИАЛИЗАЦИЯ СЦЕНЫ ---
+        const scene = new THREE.Scene();
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2, 7);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- 2. ОСВЕЩЕНИЕ ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        fillLight.position.set(-5, 5, -5);
+        scene.add(fillLight);
+
+        // --- 3. КОНТРОЛЛЕРЫ (ВРАЩЕНИЕ) ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.enablePan = false;
+        controls.minDistance = 3;
+        controls.maxDistance = 12;
+        controls.minPolarAngle = Math.PI / 4;
+        controls.maxPolarAngle = Math.PI / 2 + 0.1; 
+
+        // --- 4. ПОЛУСЕРАЯ ОКРУЖНОСТЬ ---
+        const ringGeometry = new THREE.RingGeometry(2.5, 4.5, 64);
+        const ringMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x666666, 
+            side: THREE.DoubleSide, 
+            transparent: true, 
+            opacity: 0.3 
+        });
+        const podium = new THREE.Mesh(ringGeometry, ringMaterial);
+        podium.rotation.x = -Math.PI / 2;
+        podium.position.y = -1.75;
+        podium.receiveShadow = true;
+        scene.add(podium);
+
+        // --- 5. ПОСТРОЕНИЕ КОМОДА ---
+        const dresserGroup = new THREE.Group();
+        scene.add(dresserGroup);
+
+        const drawersToAnimate = [];
+        const clickableMeshes = []; 
+
+        const colorWhite = 0xf4f4f4;
+        const colorWood = 0xe8d5b5;
+        const colorHandle = 0xb59a5d;
+
+        // ==========================================
+        // НОВЫЙ ПУСТОТЕЛЫЙ КОРПУС (ВМЕСТО КУБА)
+        // ==========================================
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd4bca0, roughness: 0.8 }); // Дерево внутри
+        const bodyThickness = 0.05;
+
+        function createPanel(w, h, d, x, y, z) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mesh = new THREE.Mesh(geo, bodyMat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            dresserGroup.add(mesh);
+        }
+
+        // Задняя стенка (глухая)
+        createPanel(2.5, 3.4, bodyThickness, 0, -0.05, -0.55);
+        // Левая стенка
+        createPanel(bodyThickness, 3.4, 0.85, -1.225, -0.05, -0.125);
+        // Правая стенка
+        createPanel(bodyThickness, 3.4, 0.85, 1.225, -0.05, -0.125);
+        // Верхняя крышка
+        createPanel(2.5, bodyThickness, 0.85, 0, 1.65, -0.125);
+        // Нижняя крышка (дно комода)
+        createPanel(2.5, bodyThickness, 0.85, 0, -1.75, -0.125);
+
+        // Внутренние полки-разделители (чтобы ящики скользили по ним и не висели в пустоте)
+        createPanel(2.4, 0.02, 0.8, 0, 0.68, -0.15);  // Между 1 и 2 рядом
+        createPanel(2.4, 0.02, 0.8, 0, -0.35, -0.15); // Между 2 и 3 рядом
+        createPanel(2.4, 0.02, 0.8, 0, -1.3, -0.15);  // Между 3 и 4 рядом
+
+        // ==========================================
+        // ФУНКЦИЯ ПОЛОГО ЯЩИКА
+        // ==========================================
+        function createDrawer(width, height, color, x, y, handleType) {
+            const drawerGroup = new THREE.Group();
+            
+            const baseZ = 0.25; // Базовое положение (чуть впереди полок)
+            drawerGroup.position.set(x, y, baseZ); 
+
+            const depth = 0.7; // Глубина ящика (чуть меньше глубины корпуса)
+            const frontThickness = 0.04; 
+            const wallThickness = 0.02; 
+
+            // Отступ, чтобы ящики не перекрывались
+            const gap = 0.04; 
+            const w = width - gap;
+            const h = height - gap;
+
+            // 1. ПЕРЕДНЯЯ ПАНЕЛЬ (Фасад)
+            const frontGeo = new THREE.BoxGeometry(w, h, frontThickness);
+            const frontMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+            const frontMesh = new THREE.Mesh(frontGeo, frontMat);
+            frontMesh.position.z = 0;
+            frontMesh.castShadow = true;
+            frontMesh.receiveShadow = true;
+            
+            frontMesh.userData.parentDrawer = drawerGroup;
+            drawerGroup.add(frontMesh);
+            clickableMeshes.push(frontMesh);
+
+            // 2. ВНУТРЕННЯЯ КОРОБКА
+            const innerW = w - wallThickness * 2;
+            const innerH = h - wallThickness * 2;
+            const innerD = depth - frontThickness;
+            
+            const boxColor = new THREE.Color(color).multiplyScalar(0.85);
+            const boxMat = new THREE.MeshStandardMaterial({ 
+                color: boxColor, 
+                roughness: 0.9, 
+                side: THREE.DoubleSide
+            });
+
+            const addPart = (geo, pos) => {
+                const part = new THREE.Mesh(geo, boxMat);
+                part.position.set(...pos);
+                part.castShadow = true;
+                part.receiveShadow = true;
+                part.userData.parentDrawer = drawerGroup;
+                drawerGroup.add(part);
+                clickableMeshes.push(part);
+            };
+
+            // Дно
+            addPart(new THREE.BoxGeometry(innerW, wallThickness, innerD), [0, -h/2 + wallThickness/2, -innerD/2 - frontThickness/2]);
+            // Левая стенка
+            addPart(new THREE.BoxGeometry(wallThickness, innerH, innerD), [-w/2 + wallThickness/2, 0, -innerD/2 - frontThickness/2]);
+            // Правая стенка
+            addPart(new THREE.BoxGeometry(wallThickness, innerH, innerD), [w/2 - wallThickness/2, 0, -innerD/2 - frontThickness/2]);
+            // Задняя стенка
+            addPart(new THREE.BoxGeometry(innerW, innerH, wallThickness), [0, 0, -depth + frontThickness/2 + wallThickness/2]);
+
+            // 3. РУЧКИ
+            if (handleType === 'knob') {
+                const knobGeo = new THREE.SphereGeometry(0.06, 16, 16);
+                const knobMat = new THREE.MeshStandardMaterial({ color: colorHandle, metalness: 0.8, roughness: 0.2 });
+                const knob = new THREE.Mesh(knobGeo, knobMat);
+                knob.position.set(0, 0, frontThickness / 2 + 0.04);
+                knob.castShadow = true;
+                knob.userData.parentDrawer = drawerGroup;
+                drawerGroup.add(knob);
+                clickableMeshes.push(knob);
+            } else if (handleType === 'bar') {
+                const barGeo = new THREE.CylinderGeometry(0.02, 0.02, w * 0.5, 16);
+                const barMat = new THREE.MeshStandardMaterial({ color: colorHandle, metalness: 0.8, roughness: 0.2 });
+                const bar = new THREE.Mesh(barGeo, barMat);
+                bar.rotation.z = Math.PI / 2;
+                bar.position.set(0, 0, frontThickness / 2 + 0.04);
+                bar.castShadow = true;
+                bar.userData.parentDrawer = drawerGroup;
+                drawerGroup.add(bar);
+                clickableMeshes.push(bar);
+            }
+
+            // Данные для анимации
+            drawerGroup.userData = {
+                isOpen: false,
+                baseZ: baseZ,
+                maxPull: 0.6,
+                currentZ: baseZ 
+            };
+
+            drawersToAnimate.push(drawerGroup);
+            dresserGroup.add(drawerGroup);
+        }
+
+        // Сборка комода
+        // Верхний ряд
+        createDrawer(1.0, 0.8, colorWhite, -0.75, 1.15, 'knob');
+        createDrawer(0.5, 0.38, colorWood, 0, 1.35, 'knob');
+        createDrawer(0.5, 0.38, colorWood, 0, 0.95, 'knob');
+        createDrawer(1.0, 0.8, colorWhite, 0.75, 1.15, 'bar');
+
+        // Средний ряд
+        createDrawer(0.8, 0.9, colorWood, -0.85, 0.15, 'knob');
+        createDrawer(0.8, 0.9, colorWood, 0, 0.15, 'knob');
+        createDrawer(0.8, 0.9, colorWhite, 0.85, 0.15, 'knob');
+
+        // Нижний ряд
+        createDrawer(0.8, 0.9, colorWhite, -0.85, -0.85, 'knob');
+        createDrawer(0.8, 0.9, colorWood, 0, -0.85, 'bar');
+        createDrawer(0.8, 0.9, colorWood, 0.85, -0.85, 'knob');
+
+        // Самый нижний ряд
+        createDrawer(1.0, 0.4, colorWood, -0.7, -1.5, 'knob');
+        createDrawer(1.4, 0.4, colorWhite, 0.5, -1.5, 'bar');
+
+        // --- 6. ЛОГИКА ВЗАИМОДЕЙСТВИЯ ---
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        let activeDrawer = null;
+
+        function onPointerDown(event) {
+            pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+            pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(clickableMeshes);
+
+            if (intersects.length > 0) {
+                const hitObj = intersects[0].object;
+                const drawer = hitObj.userData.parentDrawer;
+
+                if (drawer) {
+                    activeDrawer = drawer;
+                    activeDrawer.userData.isOpen = true;
+                    controls.enabled = false; // Блокируем вращение сцены
+                }
+            }
+        }
+
+        function onPointerUp() {
+            if (activeDrawer) {
+                activeDrawer.userData.isOpen = false;
+                activeDrawer = null;
+                controls.enabled = true; // Возвращаем вращение
+            }
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp); 
+        window.addEventListener('pointerleave', onPointerUp);
+
+        // --- 7. АНИМАЦИЯ ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            drawersToAnimate.forEach(drawer => {
+                const targetZ = drawer.userData.isOpen 
+                    ? drawer.userData.baseZ + drawer.userData.maxPull 
+                    : drawer.userData.baseZ;
+                
+                drawer.position.z = THREE.MathUtils.lerp(drawer.position.z, targetZ, 0.15);
+            });
+
+            controls.update(); 
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
